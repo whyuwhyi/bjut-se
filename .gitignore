@@ -2,6 +2,10 @@
 node_modules/
 unpackage/
 dist/
+pages/
+publics/
+package-lock.json
+
 
 # local env files
 .env.local
