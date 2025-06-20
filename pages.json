@@ -1,0 +1,132 @@
+{
+    "pages": [
+        {
+            "path": "pages/index/index",
+            "style": {
+                "navigationBarTitleText": "日新智链"
+            }
+        },
+        {
+            "path": "pages/login/login",
+            "style": {
+                "navigationBarTitleText": "登录"
+            }
+        },
+        {
+            "path": "pages/register/register",
+            "style": {
+                "navigationBarTitleText": "注册"
+            }
+        },
+        {
+            "path": "pages/resources/resources",
+            "style": {
+                "navigationBarTitleText": "学习资源"
+            }
+        },
+        {
+            "path": "pages/resources/upload",
+            "style": {
+                "navigationBarTitleText": "上传资源"
+            }
+        },
+        {
+            "path": "pages/resources/detail",
+            "style": {
+                "navigationBarTitleText": "资源详情"
+            }
+        },
+        {
+            "path": "pages/discussion/discussion",
+            "style": {
+                "navigationBarTitleText": "讨论区"
+            }
+        },
+        {
+            "path": "pages/discussion/post",
+            "style": {
+                "navigationBarTitleText": "发布讨论"
+            }
+        },
+        {
+            "path": "pages/discussion/detail",
+            "style": {
+                "navigationBarTitleText": "讨论详情"
+            }
+        },
+        {
+            "path": "pages/notification/notification",
+            "style": {
+                "navigationBarTitleText": "消息通知"
+            }
+        },
+        {
+            "path": "pages/learning/learning",
+            "style": {
+                "navigationBarTitleText": "学习记录"
+            }
+        },
+        {
+            "path": "pages/activity/activity",
+            "style": {
+                "navigationBarTitleText": "社团活动"
+            }
+        },
+        {
+            "path": "pages/activity/detail",
+            "style": {
+                "navigationBarTitleText": "活动详情"
+            }
+        },
+        {
+            "path": "pages/profile/profile",
+            "style": {
+                "navigationBarTitleText": "个人中心"
+            }
+        }
+    ],
+    "globalStyle": {
+        "navigationBarTextStyle": "black",
+        "navigationBarTitleText": "日新智链",
+        "navigationBarBackgroundColor": "#F8F8F8",
+        "backgroundColor": "#F8F8F8"
+    },
+    "tabBar": {
+        "color": "#7A7E83",
+        "selectedColor": "#3cc51f",
+        "borderStyle": "black",
+        "backgroundColor": "#ffffff",
+        "list": [
+            {
+                "pagePath": "pages/index/index",
+                "iconPath": "static/tab_home.png",
+                "selectedIconPath": "static/tab_home_selected.png",
+                "text": "首页"
+            },
+            {
+                "pagePath": "pages/resources/resources",
+                "iconPath": "static/tab_resources.png",
+                "selectedIconPath": "static/tab_resources_selected.png",
+                "text": "资源"
+            },
+            {
+                "pagePath": "pages/discussion/discussion",
+                "iconPath": "static/tab_discussion.png",
+                "selectedIconPath": "static/tab_discussion_selected.png",
+                "text": "讨论"
+            },
+            {
+                "pagePath": "pages/activity/activity",
+                "iconPath": "static/tab_activity.png",
+                "selectedIconPath": "static/tab_activity_selected.png",
+                "text": "活动"
+            },
+            {
+                "pagePath": "pages/profile/profile",
+                "iconPath": "static/tab_profile.png",
+                "selectedIconPath": "static/tab_profile_selected.png",
+                "text": "我的"
+            }
+        ]
+    }
+}
