@@ -49,7 +49,7 @@
     },
     "quickapp": {},
     "mp-weixin": {
-        "appid": "",
+        "appid": "your-wechat-appid",
         "setting": {
             "urlCheck": false,
             "es6": true,

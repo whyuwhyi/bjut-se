@@ -102,6 +102,9 @@
     "typescript": "~4.5.5",
     "vue-template-compiler": ">= 2.6.14 < 2.7"
   },
+  "resolutions": {
+    "puppeteer": "npm:puppeteer-core@latest"
+  },
   "browserslist": [
     "Android >= 4.4",
     "ios >= 9"
