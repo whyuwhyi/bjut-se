@@ -9,15 +9,6 @@
 			</swiper>
 		</view>
 
-		<!-- 功能导航 -->
-		<view class="nav-section">
-			<view class="nav-grid">
-				<view class="nav-item" v-for="(item, index) in navItems" :key="index" @click="navigateTo(item.url)">
-					<image :src="item.icon" class="nav-icon"></image>
-					<text class="nav-text">{{ item.name }}</text>
-				</view>
-			</view>
-		</view>
 
 		<!-- 最新公告 -->
 		<view class="notice-section">
@@ -42,12 +33,36 @@
 			</view>
 			<view class="resource-list">
 				<view class="resource-item" v-for="(item, index) in hotResources" :key="index" @click="viewResource(item)">
-					<image :src="getFileIcon(item.fileType)" class="resource-icon"></image>
+					<text class="resource-icon-emoji">{{ getFileIcon(item.fileType) }}</text>
 					<view class="resource-info">
 						<text class="resource-title">{{ item.title }}</text>
 						<view class="resource-meta">
 							<text class="resource-author">{{ item.uploaderName }}</text>
 							<text class="resource-download">{{ item.downloadCount }}次下载</text>
+						</view>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 热门活动 -->
+		<view class="activity-section">
+			<view class="section-header">
+				<text class="section-title">热门活动</text>
+				<text class="section-more" @click="navigateTo('/pages/activity/activity')">更多</text>
+			</view>
+			<view class="activity-list">
+				<view class="activity-item" v-for="(item, index) in hotActivities" :key="index" @click="viewActivity(item)">
+					<image class="activity-image" :src="item.image || require('@/static/images/default-activity.jpg')" mode="aspectFill"></image>
+					<view class="activity-info">
+						<text class="activity-title">{{ item.title }}</text>
+						<view class="activity-meta">
+							<text class="activity-time">{{ formatActivityTime(item.startTime) }}</text>
+							<text class="activity-location">{{ item.location }}</text>
+						</view>
+						<view class="activity-stats">
+							<text class="activity-participants">{{ item.participantCount }}人参与</text>
+							<view class="activity-status" :class="'status-' + item.status">{{ getActivityStatusText(item.status) }}</view>
 						</view>
 					</view>
 				</view>
@@ -83,39 +98,18 @@
 			return {
 				banners: [
 					{
-						image: '/static/images/banner1.jpg'
+						image: require('@/static/logo.png')
 					},
 					{
-						image: '/static/images/banner2.jpg'
+						image: require('@/static/logo.png')
 					},
 					{
-						image: '/static/images/banner3.jpg'
-					}
-				],
-				navItems: [
-					{
-						name: '学习资源',
-						icon: '/static/icons/resources.png',
-						url: '/pages/resources/resources'
-					},
-					{
-						name: '讨论区',
-						icon: '/static/icons/discussion.png',
-						url: '/pages/discussion/discussion'
-					},
-					{
-						name: '社团活动',
-						icon: '/static/icons/activity.png',
-						url: '/pages/activity/activity'
-					},
-					{
-						name: '学习记录',
-						icon: '/static/icons/learning.png',
-						url: '/pages/learning/learning'
+						image: require('@/static/logo.png')
 					}
 				],
 				notices: [],
 				hotResources: [],
+				hotActivities: [],
 				hotDiscussions: []
 			}
 		},
@@ -135,6 +129,7 @@
 					await Promise.all([
 						this.loadNotices(),
 						this.loadHotResources(),
+						this.loadHotActivities(),
 						this.loadHotDiscussions()
 					])
 				} catch (error) {
@@ -202,6 +197,40 @@
 				]
 			},
 
+			// 加载热门活动
+			async loadHotActivities() {
+				// 模拟数据
+				this.hotActivities = [
+					{
+						id: 1,
+						title: '人工智能前沿技术讲座',
+						image: require('@/static/logo.png'),
+						startTime: new Date('2025-06-25 14:00:00'),
+						location: '学术报告厅',
+						participantCount: 156,
+						status: 'upcoming'
+					},
+					{
+						id: 2,
+						title: '编程马拉松大赛',
+						image: require('@/static/logo.png'),
+						startTime: new Date('2025-06-28 09:00:00'),
+						location: '计算机学院',
+						participantCount: 89,
+						status: 'registration'
+					},
+					{
+						id: 3,
+						title: '软件工程经验分享会',
+						image: require('@/static/logo.png'),
+						startTime: new Date('2025-06-22 16:30:00'),
+						location: '多媒体教室',
+						participantCount: 67,
+						status: 'ongoing'
+					}
+				]
+			},
+
 			// 加载热门讨论
 			async loadHotDiscussions() {
 				// 模拟数据
@@ -235,9 +264,24 @@
 
 			// 页面导航
 			navigateTo(url) {
-				uni.navigateTo({
-					url: url
-				})
+				// 判断是否为tabBar页面
+				const tabBarPages = [
+					'/pages/index/index',
+					'/pages/resources/resources', 
+					'/pages/discussion/discussion',
+					'/pages/activity/activity',
+					'/pages/profile/profile'
+				]
+				
+				if (tabBarPages.includes(url)) {
+					uni.switchTab({
+						url: url
+					})
+				} else {
+					uni.navigateTo({
+						url: url
+					})
+				}
 			},
 
 			// 查看公告详情
@@ -254,6 +298,13 @@
 				})
 			},
 
+			// 查看活动详情
+			viewActivity(activity) {
+				uni.navigateTo({
+					url: `/pages/activity/detail?id=${activity.id}`
+				})
+			},
+
 			// 查看讨论详情
 			viewDiscussion(discussion) {
 				uni.navigateTo({
@@ -264,18 +315,49 @@
 			// 获取文件图标
 			getFileIcon(fileType) {
 				const iconMap = {
-					'pdf': '/static/icons/pdf.png',
-					'doc': '/static/icons/doc.png',
-					'docx': '/static/icons/doc.png',
-					'ppt': '/static/icons/ppt.png',
-					'pptx': '/static/icons/ppt.png',
-					'zip': '/static/icons/zip.png',
-					'rar': '/static/icons/zip.png',
-					'jpg': '/static/icons/image.png',
-					'png': '/static/icons/image.png',
-					'gif': '/static/icons/image.png'
+					'pdf': '📄',
+					'doc': '📝',
+					'docx': '📝',
+					'ppt': '📊',
+					'pptx': '📊',
+					'zip': '📦',
+					'rar': '📦',
+					'jpg': '🖼️',
+					'png': '🖼️',
+					'gif': '🖼️'
 				}
-				return iconMap[fileType] || '/static/icons/file.png'
+				return iconMap[fileType] || '📁'
+			},
+
+			// 格式化活动时间
+			formatActivityTime(time) {
+				const now = new Date()
+				const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+				const activityDate = new Date(time.getFullYear(), time.getMonth(), time.getDate())
+				const diff = activityDate - today
+				const day = 24 * 60 * 60 * 1000
+
+				if (diff === 0) {
+					return `今天 ${time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
+				} else if (diff === day) {
+					return `明天 ${time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
+				} else if (diff > 0 && diff < 7 * day) {
+					const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+					return `${weekdays[time.getDay()]} ${time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
+				} else {
+					return time.toLocaleDateString('zh-CN') + ' ' + time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+				}
+			},
+
+			// 获取活动状态文本
+			getActivityStatusText(status) {
+				const statusMap = {
+					'upcoming': '即将开始',
+					'registration': '报名中',
+					'ongoing': '进行中',
+					'ended': '已结束'
+				}
+				return statusMap[status] || '未知状态'
 			},
 
 			// 格式化时间
@@ -314,37 +396,6 @@
 		}
 	}
 
-	// 功能导航样式
-	.nav-section {
-		background: white;
-		margin: 20rpx;
-		border-radius: 16rpx;
-		padding: 30rpx;
-
-		.nav-grid {
-			display: grid;
-			grid-template-columns: repeat(4, 1fr);
-			gap: 40rpx;
-
-			.nav-item {
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				padding: 20rpx;
-
-				.nav-icon {
-					width: 60rpx;
-					height: 60rpx;
-					margin-bottom: 10rpx;
-				}
-
-				.nav-text {
-					font-size: 24rpx;
-					color: #666;
-				}
-			}
-		}
-	}
 
 	// 通用section样式
 	.section-header {
@@ -435,10 +486,10 @@
 					border-bottom: none;
 				}
 
-				.resource-icon {
-					width: 40rpx;
-					height: 40rpx;
+				.resource-icon-emoji {
+					font-size: 40rpx;
 					margin-right: 20rpx;
+					line-height: 1;
 				}
 
 				.resource-info {
@@ -463,6 +514,98 @@
 						.resource-download {
 							font-size: 22rpx;
 							color: #999;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 活动样式
+	.activity-section {
+		margin: 20rpx;
+		background: white;
+		border-radius: 16rpx;
+		padding: 30rpx;
+
+		.activity-list {
+			.activity-item {
+				display: flex;
+				padding: 20rpx 0;
+				border-bottom: 1rpx solid #f0f0f0;
+
+				&:last-child {
+					border-bottom: none;
+				}
+
+				.activity-image {
+					width: 120rpx;
+					height: 120rpx;
+					border-radius: 12rpx;
+					margin-right: 20rpx;
+				}
+
+				.activity-info {
+					flex: 1;
+
+					.activity-title {
+						display: block;
+						font-size: 28rpx;
+						font-weight: bold;
+						color: #333;
+						margin-bottom: 10rpx;
+					}
+
+					.activity-meta {
+						display: flex;
+						margin-bottom: 10rpx;
+
+						.activity-time {
+							font-size: 24rpx;
+							color: #007aff;
+							margin-right: 20rpx;
+						}
+
+						.activity-location {
+							font-size: 24rpx;
+							color: #666;
+						}
+					}
+
+					.activity-stats {
+						display: flex;
+						align-items: center;
+						justify-content: space-between;
+
+						.activity-participants {
+							font-size: 22rpx;
+							color: #999;
+						}
+
+						.activity-status {
+							padding: 4rpx 12rpx;
+							border-radius: 8rpx;
+							font-size: 20rpx;
+
+							&.status-upcoming {
+								background: #e6f3ff;
+								color: #007aff;
+							}
+
+							&.status-registration {
+								background: #e6ffe6;
+								color: #5ac725;
+							}
+
+							&.status-ongoing {
+								background: #fff3cd;
+								color: #ff9500;
+							}
+
+							&.status-ended {
+								background: #f0f0f0;
+								color: #999;
+							}
 						}
 					}
 				}

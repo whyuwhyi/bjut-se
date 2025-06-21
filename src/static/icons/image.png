@@ -1,0 +1,7 @@
+<!-- Image file icon -->
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="8" width="48" height="48" fill="#4CAF50" rx="4"/>
+  <rect x="12" y="12" width="40" height="40" fill="white" rx="2"/>
+  <circle cx="20" cy="20" r="4" fill="#FFD700"/>
+  <polygon points="12,44 20,32 28,40 40,24 52,44" fill="#4CAF50"/>
+</svg>

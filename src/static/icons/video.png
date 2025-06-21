@@ -1,0 +1,6 @@
+<!-- Video file icon -->
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="12" width="48" height="36" fill="#FF5722" rx="4"/>
+  <rect x="12" y="16" width="40" height="28" fill="white" rx="2"/>
+  <polygon points="24,22 24,38 36,30" fill="#FF5722"/>
+</svg>

@@ -1,16 +1,49 @@
 {
-    "name": "wechat_software",
-    "appid": "",
-    "description": "",
+    "name": "日新智链平台",
+    "appid": "__UNI__BJUT_SOFTWARE",
+    "description": "北京工业大学校园学习交流平台",
     "versionName": "1.0.0",
     "versionCode": "100",
 	"transformPx":false,
-    "app-plus": { /* 5+App特有相关 */
-        "modules": { /* 模块配置 */
+    "h5": {
+        "title": "日新智链 - 北京工业大学学习交流平台",
+        "template": "index.html",
+        "router": {
+            "mode": "hash",
+            "base": "./"
+        },
+        "async": {
+            "loading": "AsyncLoading",
+            "error": "AsyncError",
+            "delay": 200,
+            "timeout": 60000
+        },
+        "devServer": {
+            "port": 8080,
+            "allowedHosts": "all",
+            "proxy": {
+                "/api": {
+                    "target": "http://localhost:3000",
+                    "changeOrigin": true,
+                    "secure": false
+                }
+            }
+        },
+        "optimization": {
+            "treeShaking": {
+                "enable": true
+            }
+        },
+        "uniStatistics": {
+            "enable": false
+        }
+    },
+    "app-plus": {
+        "modules": {
 
         },
-        "distribute": { /* 应用发布信息 */
-            "android": { /* android打包配置 */
+        "distribute": {
+            "android": {
                 "permissions": ["<uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\"/>",
                     "<uses-permission android:name=\"android.permission.MOUNT_UNMOUNT_FILESYSTEMS\"/>",
                     "<uses-permission android:name=\"android.permission.READ_CONTACTS\"/>",
@@ -35,24 +68,30 @@
                     "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>"
                 ]
             },
-            "ios": { /* ios打包配置 */
+            "ios": {
 
             },
-            "sdkConfigs": { /* SDK配置 */
+            "sdkConfigs": {
 
             }
         },
         "usingComponents":true
     },
-    "quickapp": { /* 快应用特有相关 */
+    "quickapp": {
 
     },
-    "mp-weixin": { /* 小程序特有相关 */
+    "mp-weixin": {
         "usingComponents":true,
-        "appid": "",
+        "appid": "your-wechat-appid",
         "setting" : {
-        	"urlCheck" : true
-        }
+        	"urlCheck" : false
+        },
+        "permission": {
+            "scope.userLocation": {
+                "desc": "您的位置信息将用于活动签到功能"
+            }
+        },
+        "cloud": true
     },
     "mp-alipay" : {
         "usingComponents" : true

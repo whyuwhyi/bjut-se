@@ -1,0 +1,7 @@
+<!-- This would be a simple SVG converted to PNG - placeholder for default avatar -->
+<!-- Since I cannot generate actual image files, I'll create an SVG that can be converted -->
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="45" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+  <circle cx="50" cy="35" r="15" fill="#ccc"/>
+  <path d="M 20 75 Q 50 60 80 75" stroke="#ccc" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>

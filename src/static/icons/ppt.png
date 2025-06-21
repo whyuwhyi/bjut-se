@@ -1,0 +1,7 @@
+<!-- PowerPoint file icon -->
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="8" width="40" height="48" fill="#D24726" rx="4"/>
+  <rect x="12" y="16" width="32" height="32" fill="white" rx="2"/>
+  <text x="28" y="35" text-anchor="middle" fill="#D24726" font-size="14" font-family="Arial" font-weight="bold">P</text>
+  <text x="28" y="48" text-anchor="middle" fill="#D24726" font-size="8" font-family="Arial">PT</text>
+</svg>

@@ -47,6 +47,147 @@
             "style": {
                 "navigationBarTitleText": "社团活动"
             }
+        },
+        {
+            "path": "pages/resources/detail",
+            "style": {
+                "navigationBarTitleText": "资源详情"
+            }
+        },
+        {
+            "path": "pages/discussion/detail",
+            "style": {
+                "navigationBarTitleText": "讨论详情"
+            }
+        },
+        {
+            "path": "pages/discussion/post",
+            "style": {
+                "navigationBarTitleText": "发布讨论"
+            }
+        },
+        {
+            "path": "pages/activity/detail",
+            "style": {
+                "navigationBarTitleText": "活动详情"
+            }
+        },
+        {
+            "path": "pages/notification/notification",
+            "style": {
+                "navigationBarTitleText": "系统通知",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/notification/detail",
+            "style": {
+                "navigationBarTitleText": "通知详情"
+            }
+        },
+        {
+            "path": "pages/profile/learning-progress",
+            "style": {
+                "navigationBarTitleText": "学习进度",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/profile/study-plan",
+            "style": {
+                "navigationBarTitleText": "学习计划"
+            }
+        },
+        {
+            "path": "pages/profile/favorites",
+            "style": {
+                "navigationBarTitleText": "我的收藏",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/profile/my-resources",
+            "style": {
+                "navigationBarTitleText": "我的资源",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/profile/my-discussions",
+            "style": {
+                "navigationBarTitleText": "我的讨论",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/profile/settings",
+            "style": {
+                "navigationBarTitleText": "账号设置"
+            }
+        },
+        {
+            "path": "pages/profile/following",
+            "style": {
+                "navigationBarTitleText": "我的关注",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/profile/followers",
+            "style": {
+                "navigationBarTitleText": "我的粉丝",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/profile/downloads",
+            "style": {
+                "navigationBarTitleText": "下载记录",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/profile/messages",
+            "style": {
+                "navigationBarTitleText": "消息与通知",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/profile/privacy",
+            "style": {
+                "navigationBarTitleText": "隐私设置"
+            }
+        },
+        {
+            "path": "pages/profile/theme",
+            "style": {
+                "navigationBarTitleText": "主题设置"
+            }
+        },
+        {
+            "path": "pages/profile/feedback",
+            "style": {
+                "navigationBarTitleText": "意见反馈"
+            }
+        },
+        {
+            "path": "pages/profile/about",
+            "style": {
+                "navigationBarTitleText": "关于我们"
+            }
+        },
+        {
+            "path": "pages/profile/achievements",
+            "style": {
+                "navigationBarTitleText": "我的成就"
+            }
+        },
+        {
+            "path": "pages/profile/edit",
+            "style": {
+                "navigationBarTitleText": "编辑资料"
+            }
         }
     ],
     "globalStyle": {
@@ -60,36 +201,29 @@
         "selectedColor": "#007aff",
         "borderStyle": "black",
         "backgroundColor": "#ffffff",
+        "fontSize": "20px",
+        "iconWidth": "40px",
+        "height": "80px",
         "list": [
             {
                 "pagePath": "pages/index/index",
-                "iconPath": "static/tab_home.png",
-                "selectedIconPath": "static/tab_home_selected.png",
-                "text": "首页"
+                "text": "🏠"
             },
             {
                 "pagePath": "pages/resources/resources",
-                "iconPath": "static/tab_resources.png",
-                "selectedIconPath": "static/tab_resources_selected.png",
-                "text": "资源"
+                "text": "📚"
             },
             {
                 "pagePath": "pages/discussion/discussion",
-                "iconPath": "static/tab_discussion.png",
-                "selectedIconPath": "static/tab_discussion_selected.png",
-                "text": "讨论"
+                "text": "💬"
             },
             {
                 "pagePath": "pages/activity/activity",
-                "iconPath": "static/tab_activity.png",
-                "selectedIconPath": "static/tab_activity_selected.png",
-                "text": "活动"
+                "text": "🎯"
             },
             {
                 "pagePath": "pages/profile/profile",
-                "iconPath": "static/tab_profile.png",
-                "selectedIconPath": "static/tab_profile_selected.png",
-                "text": "我的"
+                "text": "👤"
             }
         ]
     }
