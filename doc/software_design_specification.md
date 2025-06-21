@@ -18,6 +18,7 @@
    - 2.1. [系统模块划分](#21-系统模块划分)
    - 2.2. [系统结构设计](#22-系统结构设计)
    - 2.3. [处理流程设计](#23-处理流程设计)
+   - 2.4. [静态类图设计](#24-静态类图设计)
 
 3. [数据库设计](#3-数据库设计)
    - 3.1. [数据库概述](#31-数据库概述)
@@ -236,6 +237,545 @@ utils/               # 工具函数
 
 #### 2.3.3 讨论发布流程图
 ![alt text](images/discussion.jpg)
+
+#### 2.3.4 系统部署架构图
+
+**微信小程序云开发架构：**
+```mermaid
+graph TB
+    subgraph "客户端层"
+        A[微信小程序]
+        B[uni-app框架]
+        C[Vue.js组件]
+        A --> B
+        B --> C
+    end
+    
+    subgraph "网络层"
+        D[HTTPS协议]
+        E[微信API网关]
+        C --> D
+        D --> E
+    end
+    
+    subgraph "微信云开发平台"
+        F[云函数]
+        G[云数据库]
+        H[云存储]
+        I[云监控]
+        J[云日志]
+        
+        E --> F
+        F --> G
+        F --> H
+        F --> I
+        F --> J
+        
+        subgraph "云函数集群"
+            F1[user函数]
+            F2[resource函数] 
+            F3[discussion函数]
+            F4[notification函数]
+            F5[activity函数]
+            F --> F1
+            F --> F2
+            F --> F3
+            F --> F4
+            F --> F5
+        end
+        
+        subgraph "数据存储"
+            G1[users集合]
+            G2[resources集合]
+            G3[discussions集合]
+            G4[activities集合]
+            G5[notifications集合]
+            G --> G1
+            G --> G2
+            G --> G3
+            G --> G4
+            G --> G5
+        end
+        
+        subgraph "文件存储"
+            H1[用户头像]
+            H2[资源文件]
+            H3[讨论图片]
+            H4[活动海报]
+            H --> H1
+            H --> H2
+            H --> H3
+            H --> H4
+        end
+    end
+    
+    subgraph "第三方服务"
+        K[邮件服务]
+        L[内容安全检测]
+        M[文件扫描服务]
+        F --> K
+        F --> L
+        F --> M
+    end
+    
+    style A fill:#e1f5fe
+    style G fill:#f3e5f5
+    style H fill:#e8f5e8
+    style F fill:#fff3e0
+```
+
+**数据流架构图：**
+```mermaid
+graph LR
+    subgraph "前端数据流"
+        A[用户操作] --> B[页面组件]
+        B --> C[数据验证]
+        C --> D[API调用]
+    end
+    
+    subgraph "云函数处理"
+        D --> E[云函数路由]
+        E --> F[业务逻辑处理]
+        F --> G[数据库操作]
+        F --> H[文件操作]
+        F --> I[第三方调用]
+    end
+    
+    subgraph "数据持久化"
+        G --> J[(云数据库)]
+        H --> K[(云存储)]
+        I --> L[外部服务]
+    end
+    
+    subgraph "响应返回"
+        J --> M[查询结果]
+        K --> N[文件URL]
+        L --> O[服务响应]
+        M --> P[数据封装]
+        N --> P
+        O --> P
+        P --> Q[统一响应]
+        Q --> R[前端更新]
+    end
+    
+    R --> S[界面刷新]
+    S --> T[用户反馈]
+```
+
+#### 2.3.5 主要业务流程详细设计
+
+**用户注册登录流程：**
+```mermaid
+graph TD
+    A[用户进入小程序] --> B{是否已登录}
+    B -->|是| C[进入首页]
+    B -->|否| D[显示登录页面]
+    D --> E{选择登录方式}
+    E -->|账号密码| F[输入用户名密码]
+    E -->|微信登录| G[获取微信授权]
+    F --> H[验证登录信息]
+    G --> I[获取微信用户信息]
+    H -->|成功| J[生成JWT令牌]
+    H -->|失败| K[显示错误信息]
+    I --> L{是否已绑定账号}
+    L -->|是| J
+    L -->|否| M[引导注册或绑定]
+    J --> N[保存登录状态]
+    N --> C
+    K --> D
+    M --> O[用户注册流程]
+    O --> C
+```
+
+**资源上传业务流程：**
+```mermaid
+graph TD
+    A[用户点击上传] --> B[选择文件]
+    B --> C[文件预检查]
+    C -->|通过| D[显示上传表单]
+    C -->|失败| E[提示错误信息]
+    D --> F[用户填写资源信息]
+    F --> G[提交上传]
+    G --> H[云存储上传文件]
+    H -->|成功| I[保存资源元数据]
+    H -->|失败| J[提示上传失败]
+    I --> K{用户角色检查}
+    K -->|教师| L[直接审核通过]
+    K -->|学生| M[等待审核]
+    L --> N[更新资源状态]
+    M --> O[通知管理员审核]
+    N --> P[通知用户成功]
+    O --> Q[管理员审核]
+    Q -->|通过| L
+    Q -->|拒绝| R[通知用户被拒]
+```
+
+**讨论互动流程：**
+```mermaid
+graph TD
+    A[用户进入讨论区] --> B[浏览讨论列表]
+    B --> C{用户操作}
+    C -->|查看详情| D[显示讨论详情]
+    C -->|发布讨论| E[打开发布页面]
+    C -->|搜索讨论| F[搜索功能]
+    D --> G{用户操作}
+    G -->|回复| H[编写回复内容]
+    G -->|点赞| I[更新点赞数]
+    G -->|举报| J[提交举报]
+    E --> K[编写讨论内容]
+    K --> L[内容安全检查]
+    L -->|通过| M[发布成功]
+    L -->|失败| N[提示违规内容]
+    H --> O[提交回复]
+    O --> P[通知原作者]
+    M --> Q[更新讨论列表]
+    F --> R[返回搜索结果]
+```
+
+### 2.4 静态类图设计
+
+#### 2.4.1 核心实体类图
+
+```mermaid
+classDiagram
+    class User {
+        -String userId
+        -String username
+        -String realName
+        -String email
+        -String phone
+        -String avatar
+        -String role
+        -String college
+        -String major
+        -String grade
+        -String status
+        -Date createTime
+        -Date lastLoginTime
+        -Integer loginCount
+        +register() Boolean
+        +login(username, password) String
+        +updateProfile(data) Boolean
+        +changePassword(oldPwd, newPwd) Boolean
+        +logout() Boolean
+    }
+
+    class Resource {
+        -String resourceId
+        -String title
+        -String description
+        -String fileUrl
+        -String fileName
+        -Long fileSize
+        -String fileType
+        -String category
+        -Array tags
+        -String difficulty
+        -String uploaderId
+        -Date uploadTime
+        -Integer downloadCount
+        -Integer viewCount
+        -Float rating
+        -String status
+        +upload(fileData) String
+        +download() InputStream
+        +updateInfo(data) Boolean
+        +addView() Boolean
+        +addDownload() Boolean
+        +rate(score) Boolean
+    }
+
+    class Discussion {
+        -String discussionId
+        -String parentId
+        -String type
+        -String title
+        -String content
+        -String authorId
+        -String courseId
+        -String resourceId
+        -Array images
+        -Array attachments
+        -Array tags
+        -Boolean isQuestion
+        -Boolean isResolved
+        -Integer likeCount
+        -Integer replyCount
+        -Integer viewCount
+        -Boolean isAnonymous
+        -String status
+        -Date createTime
+        -Date updateTime
+        +publish() String
+        +reply(content) String
+        +like() Boolean
+        +unlike() Boolean
+        +markResolved() Boolean
+        +hide() Boolean
+        +delete() Boolean
+    }
+
+    class Activity {
+        -String activityId
+        -String title
+        -String description
+        -String type
+        -String category
+        -String organizerId
+        -String organizerName
+        -String organizationType
+        -String posterUrl
+        -String location
+        -Date startTime
+        -Date endTime
+        -Date registrationDeadline
+        -Integer maxParticipants
+        -Integer currentParticipants
+        -Object registrationConditions
+        -Array tags
+        -Array attachments
+        -Integer viewCount
+        -Integer likeCount
+        -String status
+        +create() String
+        +register(userId) Boolean
+        +cancel(userId) Boolean
+        +checkIn(userId) Boolean
+        +updateStatus(status) Boolean
+    }
+
+    class Notification {
+        -String notificationId
+        -String title
+        -String content
+        -String type
+        -String priority
+        -String senderId
+        -String senderName
+        -Array receiverIds
+        -Object receiverConditions
+        -String linkUrl
+        -String imageUrl
+        -Array isRead
+        -Integer readCount
+        -Integer totalCount
+        -String status
+        -Date publishTime
+        -Date expireTime
+        +send() Boolean
+        +markRead(userId) Boolean
+        +markAllRead(userId) Boolean
+        +getUnreadCount(userId) Integer
+    }
+
+    class LearningRecord {
+        -String recordId
+        -String userId
+        -String actionType
+        -String targetType
+        -String targetId
+        -String targetTitle
+        -Integer duration
+        -Float progress
+        -Float score
+        -Object details
+        -Object deviceInfo
+        -Object location
+        -Date createTime
+        +record(action) String
+        +getStats(userId) Object
+        +getProgress(userId, targetId) Float
+    }
+
+    %% 关系定义
+    User ||--o{ Resource : uploads
+    User ||--o{ Discussion : authors
+    User ||--o{ Activity : organizes
+    User ||--o{ LearningRecord : generates
+    User ||--o{ Notification : sends
+    User }o--o{ Activity : participates
+    Resource ||--o{ Discussion : discusses
+    Discussion ||--o{ Discussion : replies
+    Activity ||--o{ LearningRecord : tracks
+    Resource ||--o{ LearningRecord : tracks
+    Discussion ||--o{ LearningRecord : tracks
+```
+
+#### 2.4.2 服务层类图
+
+```mermaid
+classDiagram
+    class UserService {
+        +register(userData) Promise~Object~
+        +login(username, password) Promise~Object~
+        +getUserInfo(userId) Promise~Object~
+        +updateProfile(userId, data) Promise~Object~
+        +changePassword(userId, oldPwd, newPwd) Promise~Boolean~
+        +logout(userId) Promise~Boolean~
+        -validateUserData(data) Boolean
+        -checkUniqueness(username, email) Promise~Boolean~
+        -hashPassword(password) String
+        -generateToken(user) String
+    }
+
+    class ResourceService {
+        +uploadResource(fileData, resourceInfo) Promise~Object~
+        +getResourceList(params) Promise~Object~
+        +getResourceDetail(resourceId) Promise~Object~
+        +downloadResource(resourceId) Promise~Object~
+        +searchResources(keyword, filters) Promise~Object~
+        +rateResource(resourceId, userId, score) Promise~Boolean~
+        -validateFile(file) Boolean
+        -generateFileName(originalName) String
+        -updateDownloadCount(resourceId) Promise~Boolean~
+    }
+
+    class DiscussionService {
+        +publishDiscussion(discussionData) Promise~Object~
+        +getDiscussionList(params) Promise~Object~
+        +getDiscussionDetail(discussionId) Promise~Object~
+        +replyDiscussion(parentId, content, authorId) Promise~Object~
+        +likeDiscussion(discussionId, userId) Promise~Boolean~
+        +searchDiscussions(keyword, filters) Promise~Object~
+        -validateContent(content) Boolean
+        -checkPermission(userId, action) Boolean
+        -notifyAuthor(discussionId, action) Promise~Boolean~
+    }
+
+    class ActivityService {
+        +createActivity(activityData) Promise~Object~
+        +getActivityList(params) Promise~Object~
+        +getActivityDetail(activityId) Promise~Object~
+        +registerActivity(activityId, userId, data) Promise~Boolean~
+        +cancelRegistration(activityId, userId) Promise~Boolean~
+        +checkInActivity(activityId, userId) Promise~Boolean~
+        -validateActivityData(data) Boolean
+        -checkRegistrationConditions(activity, user) Boolean
+        -updateParticipantCount(activityId, increment) Promise~Boolean~
+    }
+
+    class NotificationService {
+        +sendNotification(notificationData) Promise~Object~
+        +getNotificationList(userId, params) Promise~Object~
+        +markAsRead(notificationId, userId) Promise~Boolean~
+        +markAllAsRead(userId) Promise~Boolean~
+        +getUnreadCount(userId) Promise~Integer~
+        -filterReceivers(conditions) Promise~Array~
+        -sendPushMessage(userId, notification) Promise~Boolean~
+    }
+
+    class LearningService {
+        +recordLearningActivity(userId, actionType, targetType, targetId, details) Promise~Object~
+        +getLearningStats(userId, timeRange) Promise~Object~
+        +getLearningProgress(userId, targetId) Promise~Object~
+        +generateLearningReport(userId) Promise~Object~
+        -calculateDuration(startTime, endTime) Integer
+        -calculateProgress(actions) Float
+        -updateUserStats(userId, actionType) Promise~Boolean~
+    }
+
+    %% 服务间依赖关系
+    DiscussionService ..> NotificationService : uses
+    ActivityService ..> NotificationService : uses
+    ResourceService ..> LearningService : uses
+    DiscussionService ..> LearningService : uses
+    ActivityService ..> LearningService : uses
+```
+
+#### 2.4.3 前端组件类图
+
+```mermaid
+classDiagram
+    class BasePage {
+        #data Object
+        #methods Object
+        +onLoad(options) void
+        +onShow() void
+        +onHide() void
+        +onUnload() void
+        +onPullDownRefresh() void
+        +onReachBottom() void
+        -loadData() Promise~void~
+        -showToast(message, type) void
+        -showLoading(title) void
+        -hideLoading() void
+    }
+
+    class IndexPage {
+        -banners Array
+        -notices Array
+        -hotResources Array
+        -hotActivities Array
+        -hotDiscussions Array
+        +loadNotices() Promise~void~
+        +loadHotResources() Promise~void~
+        +loadHotActivities() Promise~void~
+        +loadHotDiscussions() Promise~void~
+        +navigateTo(url) void
+        +formatTime(time) String
+        +formatActivityTime(time) String
+        +getFileIcon(fileType) String
+        +getActivityStatusText(status) String
+    }
+
+    class ResourcePage {
+        -resourceList Array
+        -searchKeyword String
+        -filterOptions Object
+        -loading Boolean
+        -hasMore Boolean
+        +loadResourceList() Promise~void~
+        +searchResources() Promise~void~
+        +filterResources() Promise~void~
+        +uploadResource() void
+        +downloadResource(resourceId) Promise~void~
+        +previewResource(resourceId) void
+    }
+
+    class DiscussionPage {
+        -discussionList Array
+        -currentTab String
+        -searchKeyword String
+        -loading Boolean
+        -hasMore Boolean
+        +loadDiscussionList() Promise~void~
+        +switchTab(tab) void
+        +searchDiscussions() Promise~void~
+        +publishDiscussion() void
+        +viewDiscussion(discussionId) void
+        +likeDiscussion(discussionId) Promise~void~
+    }
+
+    class ProfilePage {
+        -userInfo Object
+        -menuList Array
+        -statsData Object
+        +loadUserInfo() Promise~void~
+        +loadUserStats() Promise~void~
+        +editProfile() void
+        +navigateToSubPage(path) void
+        +logout() Promise~void~
+    }
+
+    class LoginPage {
+        -formData Object
+        -rules Object
+        -loading Boolean
+        +submitLogin() Promise~void~
+        +wechatLogin() Promise~void~
+        +forgetPassword() void
+        +navigateToRegister() void
+        -validateForm() Boolean
+        -saveLoginState(data) Promise~void~
+    }
+
+    %% 继承关系
+    BasePage <|-- IndexPage
+    BasePage <|-- ResourcePage
+    BasePage <|-- DiscussionPage
+    BasePage <|-- ProfilePage
+    BasePage <|-- LoginPage
+```
 
 ---
 
@@ -829,7 +1369,96 @@ const result = await wx.cloud.callFunction({
     └── wechat/index.js        // 微信登录云函数
 ```
 
-#### 5.1.2 关键类设计
+#### 5.1.2 用户管理模块流程图
+
+**用户注册详细流程：**
+```mermaid
+graph TD
+    A[用户访问注册页面] --> B[填写注册表单]
+    B --> C{前端数据验证}
+    C -->|验证失败| D[显示错误提示]
+    C -->|验证通过| E[提交注册请求]
+    E --> F[后端数据校验]
+    F -->|校验失败| G[返回错误信息]
+    F -->|校验通过| H[检查用户名/邮箱唯一性]
+    H -->|已存在| I[返回已存在提示]
+    H -->|不存在| J[密码加密处理]
+    J --> K[生成用户ID]
+    K --> L[保存用户信息到数据库]
+    L --> M[发送邮箱验证码]
+    M --> N[用户输入验证码]
+    N --> O{验证码正确}
+    O -->|错误| P[提示重新输入]
+    O -->|正确| Q[激活用户账户]
+    Q --> R[生成JWT令牌]
+    R --> S[登录成功，跳转首页]
+    D --> B
+    G --> B
+    I --> B
+    P --> N
+```
+
+**用户登录详细流程：**
+```mermaid
+graph TD
+    A[用户访问登录页面] --> B{选择登录方式}
+    B -->|账号密码| C[输入用户名密码]
+    B -->|微信登录| D[获取微信授权]
+    C --> E{前端表单验证}
+    E -->|失败| F[显示验证错误]
+    E -->|通过| G[提交登录请求]
+    D --> H[获取微信用户信息]
+    H --> I{是否已绑定账号}
+    I -->|是| J[直接登录]
+    I -->|否| K[引导绑定或注册]
+    G --> L[后端验证用户名密码]
+    L -->|验证失败| M[返回登录失败]
+    L -->|验证成功| N[检查账户状态]
+    N -->|账户异常| O[返回账户状态错误]
+    N -->|账户正常| P[生成JWT令牌]
+    J --> P
+    P --> Q[更新最后登录时间]
+    Q --> R[返回用户信息和令牌]
+    R --> S[前端保存登录状态]
+    S --> T[跳转到首页]
+    F --> C
+    M --> C
+    O --> C
+    K --> U[注册/绑定流程]
+```
+
+**个人信息管理流程：**
+```mermaid
+graph TD
+    A[用户进入个人中心] --> B[加载用户信息]
+    B --> C[显示个人信息页面]
+    C --> D{用户操作}
+    D -->|查看信息| E[显示详细信息]
+    D -->|编辑资料| F[进入编辑模式]
+    D -->|更换头像| G[头像上传流程]
+    D -->|修改密码| H[密码修改流程]
+    F --> I[修改个人信息]
+    I --> J[提交修改]
+    J --> K{数据验证}
+    K -->|失败| L[显示错误信息]
+    K -->|通过| M[更新数据库]
+    M --> N[返回更新结果]
+    N --> O[刷新页面信息]
+    G --> P[选择图片]
+    P --> Q[上传到云存储]
+    Q --> R[更新头像URL]
+    R --> S[显示新头像]
+    H --> T[输入原密码和新密码]
+    T --> U[验证原密码]
+    U -->|失败| V[提示原密码错误]
+    U -->|通过| W[加密新密码]
+    W --> X[更新密码]
+    X --> Y[强制重新登录]
+    L --> F
+    V --> T
+```
+
+#### 5.1.3 关键类设计
 
 **UserService类设计：**
 ```javascript
@@ -1037,7 +1666,100 @@ END FUNCTION
     └── search/index.js        // 搜索云函数
 ```
 
-#### 5.2.2 资源上传流程伪代码
+#### 5.2.2 资源共享模块流程图
+
+**资源上传详细流程：**
+```mermaid
+graph TD
+    A[用户点击上传按钮] --> B[选择文件]
+    B --> C{文件格式检查}
+    C -->|不支持| D[提示格式错误]
+    C -->|支持| E{文件大小检查}
+    E -->|超出限制| F[提示文件过大]
+    E -->|符合要求| G[显示上传表单]
+    G --> H[用户填写资源信息]
+    H --> I{表单验证}
+    I -->|验证失败| J[显示错误提示]
+    I -->|验证通过| K[开始文件上传]
+    K --> L[显示上传进度]
+    L --> M[云存储上传文件]
+    M -->|上传失败| N[提示上传失败]
+    M -->|上传成功| O[文件安全扫描]
+    O -->|发现威胁| P[删除文件，提示安全问题]
+    O -->|安全通过| Q[保存资源元数据]
+    Q --> R{用户角色检查}
+    R -->|教师用户| S[自动审核通过]
+    R -->|学生用户| T[提交待审核]
+    S --> U[发布资源成功]
+    T --> V[通知管理员审核]
+    U --> W[通知上传者成功]
+    V --> X[等待审核结果]
+    D --> B
+    F --> B
+    J --> H
+    N --> K
+```
+
+**资源浏览和搜索流程：**
+```mermaid
+graph TD
+    A[用户进入资源页面] --> B[加载资源列表]
+    B --> C[显示默认资源]
+    C --> D{用户操作}
+    D -->|浏览分类| E[按分类筛选]
+    D -->|搜索资源| F[输入搜索关键词]
+    D -->|查看详情| G[点击资源卡片]
+    D -->|下载资源| H[点击下载按钮]
+    E --> I[调用分类查询接口]
+    F --> J[调用搜索接口]
+    G --> K[跳转资源详情页]
+    H --> L{权限检查}
+    I --> M[返回分类结果]
+    J --> N[返回搜索结果]
+    K --> O[加载详细信息]
+    L -->|无权限| P[提示需要登录]
+    L -->|有权限| Q[记录下载行为]
+    M --> R[更新页面显示]
+    N --> R
+    O --> S[显示详情页面]
+    Q --> T[增加下载次数]
+    T --> U[开始文件下载]
+    U --> V[下载完成]
+    P --> W[跳转登录页面]
+    R --> X[用户继续操作]
+    S --> Y{用户操作}
+    Y -->|下载| H
+    Y -->|收藏| Z[添加收藏]
+    Y -->|评分| AA[提交评分]
+    Y -->|举报| BB[提交举报]
+```
+
+**资源审核流程：**
+```mermaid
+graph TD
+    A[管理员进入审核页面] --> B[加载待审核资源]
+    B --> C[显示资源列表]
+    C --> D[选择资源进行审核]
+    D --> E[查看资源详情]
+    E --> F[下载文件查看]
+    F --> G{审核决定}
+    G -->|通过| H[标记为已审核]
+    G -->|拒绝| I[填写拒绝原因]
+    H --> J[更新资源状态为approved]
+    I --> K[更新资源状态为rejected]
+    J --> L[通知上传者审核通过]
+    K --> M[通知上传者审核被拒]
+    L --> N[资源对外可见]
+    M --> O[资源保持隐藏状态]
+    N --> P[记录审核日志]
+    O --> P
+    P --> Q[返回审核列表]
+    Q --> R{继续审核}
+    R -->|是| C
+    R -->|否| S[退出审核]
+```
+
+#### 5.2.3 资源上传流程伪代码
 
 ```
 FUNCTION uploadResource(fileData, resourceInfo)
@@ -1142,7 +1864,103 @@ END FUNCTION
     └── moderation/index.js    // 内容审核云函数
 ```
 
-#### 5.3.2 讨论发布流程伪代码
+#### 5.3.2 讨论模块流程图
+
+**发布讨论流程：**
+```mermaid
+graph TD
+    A[用户点击发布讨论] --> B[进入发布页面]
+    B --> C[选择讨论类型]
+    C --> D{讨论类型}
+    D -->|普通讨论| E[填写标题和内容]
+    D -->|提问| F[填写问题标题和描述]
+    E --> G[添加标签和分类]
+    F --> G
+    G --> H[上传图片或附件]
+    H --> I{内容验证}
+    I -->|验证失败| J[显示错误提示]
+    I -->|验证通过| K[内容安全检查]
+    K -->|发现敏感内容| L[提示内容违规]
+    K -->|内容安全| M[保存讨论内容]
+    M --> N[更新用户活跃度]
+    N --> O{讨论类型检查}
+    O -->|提问类型| P[通知相关教师]
+    O -->|普通讨论| Q[添加到搜索索引]
+    P --> Q
+    Q --> R[发布成功]
+    R --> S[跳转到讨论详情]
+    J --> E
+    L --> E
+```
+
+**讨论互动流程：**
+```mermaid
+graph TD
+    A[用户浏览讨论列表] --> B[点击讨论项目]
+    B --> C[加载讨论详情]
+    C --> D[显示原帖内容]
+    D --> E[加载回复列表]
+    E --> F[显示完整讨论]
+    F --> G{用户操作}
+    G -->|点赞/取消点赞| H[更新点赞状态]
+    G -->|回复讨论| I[打开回复编辑器]
+    G -->|收藏讨论| J[添加到收藏夹]
+    G -->|分享讨论| K[生成分享链接]
+    G -->|举报内容| L[提交举报信息]
+    H --> M[更新点赞数显示]
+    I --> N[编写回复内容]
+    N --> O[提交回复]
+    O --> P{内容审核}
+    P -->|审核通过| Q[保存回复]
+    P -->|审核失败| R[提示违规内容]
+    Q --> S[通知原作者]
+    S --> T[更新回复列表]
+    T --> U[显示新回复]
+    J --> V[收藏成功提示]
+    L --> W[举报已提交]
+    R --> N
+```
+
+**最佳答案标记流程：**
+```mermaid
+graph TD
+    A[提问者查看回复] --> B{是否为提问者}
+    B -->|否| C[无标记权限]
+    B -->|是| D[选择最佳答案]
+    D --> E[确认标记操作]
+    E --> F[更新回复状态]
+    F --> G[标记问题已解决]
+    G --> H[增加回答者积分]
+    H --> I[通知回答者]
+    I --> J[更新问题状态显示]
+    J --> K[记录操作日志]
+    K --> L[完成标记]
+```
+
+**内容管理流程：**
+```mermaid
+graph TD
+    A[管理员进入内容管理] --> B[查看举报列表]
+    B --> C[选择处理项目]
+    C --> D[查看举报详情]
+    D --> E[审查讨论内容]
+    E --> F{处理决定}
+    F -->|内容正常| G[驳回举报]
+    F -->|内容违规| H[确认违规类型]
+    G --> I[通知举报者]
+    H --> J{违规程度}
+    J -->|轻微违规| K[隐藏内容]
+    J -->|严重违规| L[删除内容]
+    K --> M[通知作者修改]
+    L --> N[记录违规行为]
+    N --> O[可能封禁用户]
+    I --> P[更新举报状态]
+    M --> P
+    O --> P
+    P --> Q[处理完成]
+```
+
+#### 5.3.3 讨论发布流程伪代码
 
 ```
 FUNCTION publishDiscussion(discussionData)
