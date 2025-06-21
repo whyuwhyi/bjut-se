@@ -1,6 +1,6 @@
 # 日新智链平台软件设计说明书
 
-**团队编号：** SE2024-Team-01  
+**团队编号：** 03  
 **团队成员：** 高家中、李星原、余意、李桉弛、姚忠宝、江依山  
 **完成日期：** 2025年6月20日  
 
@@ -59,10 +59,10 @@
 
 ### 1.2 项目背景
 **委托单位：** 北京工业大学软件学院  
-**开发单位：** SE2024-Team-01开发团队  
+**开发单位：** 03开发团队  
 **主管部门：** 软件工程课程组  
 
-日新智链平台是一个基于微信小程序的校园学习交流平台，采用uni-app跨平台开发框架和微信云开发技术栈。系统与学校现有的教务管理系统、统一身份认证系统和图书馆系统进行数据接口对接，实现校园信息资源的统一整合和服务。
+日新智链平台是一个基于微信小程序的校园学习交流平台，采用uni-app跨平台开发框架和微信云开发技术栈。系统提供独立的用户管理、资源共享、学术讨论和活动管理功能，实现完整的校园学习交流生态。
 
 ### 1.3 定义
 - **uni-app：** 基于Vue.js的跨平台开发框架，支持编译到多个平台
@@ -177,24 +177,54 @@
 
 **前端技术栈：**
 - **框架：** uni-app (基于Vue.js 2.x)
-- **语言：** JavaScript ES6+ / TypeScript
+- **语言：** JavaScript ES6+
 - **样式：** SCSS / CSS3
-- **状态管理：** Vuex
-- **UI组件：** uni-ui组件库
-- **构建工具：** HBuilderX / Vue CLI
+- **状态管理：** Vuex (根据项目规模选用)
+- **UI组件：** 原生uni-app组件
+- **构建工具：** HBuilderX
+
+**实际项目结构：**
+```
+src/
+├── pages/              # 页面目录
+│   ├── index/         # 首页模块
+│   ├── login/         # 登录模块  
+│   ├── register/      # 注册模块
+│   ├── profile/       # 个人中心模块
+│   ├── resources/     # 资源管理模块
+│   ├── discussion/    # 讨论模块
+│   ├── activity/      # 活动模块
+│   └── notification/  # 通知模块
+├── static/           # 静态资源
+│   ├── images/       # 图片资源
+│   ├── icons/        # 图标资源
+│   └── logo.png      # 应用logo
+├── uni.scss         # 全局样式
+└── main.ts          # 应用入口
+
+cloudfunctions/       # 云函数目录
+├── user/            # 用户管理云函数
+├── resource/        # 资源管理云函数
+└── discussion/      # 讨论管理云函数
+
+utils/               # 工具函数
+├── api.js          # API接口封装
+├── auth.js         # 身份验证工具
+└── index.js        # 通用工具函数
+```
 
 **后端技术栈：**
 - **运行环境：** 微信云开发平台
-- **云函数：** Node.js 16.x
+- **云函数：** Node.js
 - **数据库：** 云数据库 (MongoDB)
-- **文件存储：** 云存储 (CDN加速)
-- **身份验证：** 微信登录 + 自定义登录
+- **文件存储：** 云存储
+- **身份验证：** 微信登录 + 独立用户系统
 
 **开发工具链：**
-- **IDE：** HBuilderX、VS Code
+- **IDE：** HBuilderX
 - **版本控制：** Git
 - **调试工具：** 微信开发者工具
-- **测试框架：** Jest (单元测试)
+- **测试工具：** 模拟器测试
 
 ### 2.3 处理流程设计
 
@@ -1518,7 +1548,59 @@ END FUNCTION
 - 重要功能易于发现和使用
 - 适配不同屏幕尺寸
 
-#### 6.1.2 视觉设计规范
+#### 6.1.2 实际实现的页面结构
+
+**已实现的主要页面：**
+
+1. **首页 (index/index.vue)**
+   - 顶部轮播图展示重要信息
+   - 最新公告模块，支持类型标签显示
+   - 热门资源列表，显示文件类型图标
+   - 热门活动卡片，包含图片、时间、地点信息
+   - 热门讨论列表，区分提问和普通讨论
+
+2. **登录页面 (login/login.vue)**
+   - 简洁的登录表单
+   - 支持用户名/密码登录
+   - 微信快捷登录选项
+
+3. **注册页面 (register/register.vue)**
+   - 用户注册表单
+   - 邮箱验证功能
+   - 用户信息收集
+
+4. **个人中心 (profile/profile.vue)**
+   - 用户基本信息展示
+   - 个人设置管理
+   - 学习数据统计
+
+5. **资源页面**
+   - **资源列表 (resources/resources.vue)** - 资源浏览和搜索
+   - **资源上传 (resources/upload.vue)** - 文件上传功能
+   - **资源详情 (resources/detail.vue)** - 资源详细信息
+
+6. **讨论页面**
+   - **讨论列表 (discussion/discussion.vue)** - 讨论浏览
+   - **发布讨论 (discussion/post.vue)** - 发布新讨论
+   - **讨论详情 (discussion/detail.vue)** - 讨论详细内容
+
+7. **活动页面**
+   - **活动列表 (activity/activity.vue)** - 活动浏览
+   - **活动详情 (activity/detail.vue)** - 活动详细信息
+
+8. **通知页面**
+   - **通知列表 (notification/notification.vue)** - 通知浏览
+   - **通知详情 (notification/detail.vue)** - 通知详细内容
+
+9. **个人功能扩展页面**
+   - 学习记录 (profile/learning-progress.vue)
+   - 收藏管理 (profile/favorites.vue)
+   - 我的讨论 (profile/my-discussions.vue)
+   - 我的资源 (profile/my-resources.vue)
+   - 消息中心 (profile/messages.vue)
+   - 设置页面 (profile/settings.vue)
+
+#### 6.1.3 视觉设计规范
 
 **色彩系统：**
 ```scss
@@ -1566,25 +1648,57 @@ $spacing-lg: 32rpx;             // 大间距
 $spacing-xl: 48rpx;             // 超大间距
 ```
 
-#### 6.1.3 主要页面设计
+#### 6.1.4 核心页面详细设计
 
-**登录页面设计：**
-- 渐变背景营造科技感
-- 居中卡片式登录表单
-- 支持账号密码和微信快捷登录
-- 简洁的视觉层次和清晰的操作引导
+**首页 (index.vue) 实现特点：**
+```vue
+<template>
+  <view class="container">
+    <!-- 顶部轮播图 -->
+    <swiper class="banner-swiper" indicator-dots="true" autoplay="true">
+      <!-- 轮播内容 -->
+    </swiper>
+    
+    <!-- 最新公告 -->
+    <view class="notice-section">
+      <view class="section-header">
+        <text class="section-title">最新公告</text>
+        <text class="section-more">更多</text>
+      </view>
+      <!-- 公告列表，支持类型标签 -->
+    </view>
+    
+    <!-- 热门资源 -->
+    <view class="resource-section">
+      <!-- 资源列表，显示文件类型emoji图标 -->
+    </view>
+    
+    <!-- 热门活动 -->
+    <view class="activity-section">
+      <!-- 活动卡片，包含图片、时间、地点、参与人数 -->
+    </view>
+    
+    <!-- 热门讨论 -->
+    <view class="discussion-section">
+      <!-- 讨论列表，区分提问和普通讨论 -->
+    </view>
+  </view>
+</template>
+```
 
-**首页设计：**
-- 顶部轮播图展示重要信息
-- 功能导航网格布局
-- 分模块展示最新公告、热门资源、热门讨论
-- 卡片式设计便于浏览和点击
+**实现的关键功能：**
+- 智能时间格式化 (formatTime, formatActivityTime)
+- 文件类型图标映射 (getFileIcon)
+- 活动状态文本显示 (getActivityStatusText)
+- 统一的页面导航处理 (navigateTo)
+- 模块化的数据加载 (loadNotices, loadHotResources等)
 
-**资源列表页设计：**
-- 顶部搜索栏和筛选功能
-- 列表式资源展示，包含图标、标题、作者、下载量
-- 支持上拉加载更多
-- 浮动操作按钮用于快速上传
+**样式设计特点：**
+- 卡片式布局，背景色为白色，圆角16rpx
+- 统一的section-header设计，标题加"更多"链接
+- 响应式的flex布局适配不同屏幕
+- 色彩系统：主色调蓝色系，辅助色绿色、橙色、红色
+- 字体大小层次：标题32rpx，正文28rpx，辅助文字22rpx
 
 ### 6.2 界面交互设计
 
