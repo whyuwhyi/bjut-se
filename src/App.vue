@@ -4,6 +4,12 @@
         mpType: 'app',
         onLaunch() {
             console.log('App Launch')
+            // 临时注释掉登录检查，直接进入首页
+            setTimeout(() => {
+                uni.reLaunch({
+                    url: '/pages/index/index'
+                })
+            }, 1000)
         },
         onShow() {
             console.log('App Show')
@@ -11,7 +17,7 @@
         onHide() {
             console.log('App Hide')
         }
-    });
+    } as any);
 </script>
 
 <style>

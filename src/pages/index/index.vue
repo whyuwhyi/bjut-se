@@ -114,7 +114,11 @@
 			}
 		},
 		onLoad() {
-			this.loadData()
+			console.log('首页 onLoad 开始')
+			// 检查登录状态，只有登录后才加载数据
+			if (this.checkLogin()) {
+				this.loadData()
+			}
 		},
 		onPullDownRefresh() {
 			this.loadData()
@@ -123,6 +127,24 @@
 			}, 1000)
 		},
 		methods: {
+			// 检查登录状态
+			checkLogin() {
+				const token = uni.getStorageSync('token')
+				const userInfo = uni.getStorageSync('userInfo')
+				
+				console.log('首页检查登录状态 - token:', token, 'userInfo:', userInfo)
+				
+				if (!token || !userInfo) {
+					console.log('首页：未登录，跳转到登录页面')
+					uni.reLaunch({
+						url: '/pages/login/login'
+					})
+					return false
+				}
+				console.log('首页：已登录，继续加载数据')
+				return true
+			},
+			
 			// 加载页面数据
 			async loadData() {
 				try {

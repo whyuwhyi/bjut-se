@@ -40,6 +40,7 @@ yarn-error.log*
 
 # Docker相关
 .dockerignore
+data/
 
 # 备份文件
 backup-*
