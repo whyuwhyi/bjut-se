@@ -7,8 +7,16 @@
 	"transformPx":false,
     "h5": {
         "title": "日新智链 - 北京工业大学学习交流平台",
+        "template": "index.html",
         "router": {
-            "mode": "hash"
+            "mode": "hash",
+            "base": "./"
+        },
+        "async": {
+            "loading": "AsyncLoading",
+            "error": "AsyncError",
+            "delay": 200,
+            "timeout": 60000
         },
         "devServer": {
             "port": 8080,

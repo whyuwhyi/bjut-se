@@ -1,41 +1,21 @@
 <script lang="ts">
     import Vue from 'vue';
     export default Vue.extend({
-        data() {
-            return {
-                keepAliveInclude: []
-            }
-        },
+        mpType: 'app',
         onLaunch() {
             console.log('App Launch')
-            this.checkLoginStatus()
+            // 临时注释掉登录检查，直接进入首页
+            setTimeout(() => {
+                uni.reLaunch({
+                    url: '/pages/index/index'
+                })
+            }, 1000)
         },
         onShow() {
             console.log('App Show')
         },
         onHide() {
             console.log('App Hide')
-        },
-        methods: {
-            checkLoginStatus() {
-                // 检查是否已登录
-                const token = uni.getStorageSync('token')
-                const userInfo = uni.getStorageSync('userInfo')
-                
-                console.log('检查登录状态 - token:', token, 'userInfo:', userInfo)
-                
-                if (!token || !userInfo) {
-                    // 未登录，跳转到登录页面
-                    console.log('未登录，跳转到登录页面')
-                    setTimeout(() => {
-                        uni.reLaunch({
-                            url: '/pages/login/login'
-                        })
-                    }, 100)
-                } else {
-                    console.log('已登录，用户信息:', userInfo)
-                }
-            }
         }
     } as any);
 </script>
