@@ -1,0 +1,241 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 测试阶段
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: wechat_education_test
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - name: Checkout代码
+      uses: actions/checkout@v4
+
+    - name: 设置Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: 安装前端依赖
+      run: npm ci
+
+    - name: 安装后端依赖
+      run: |
+        cd backend
+        npm ci
+
+    - name: 运行前端测试
+      run: npm run test:h5
+
+    - name: 运行后端测试
+      run: |
+        cd backend
+        npm test
+      env:
+        NODE_ENV: test
+        DB_HOST: localhost
+        DB_PORT: 3306
+        DB_NAME: wechat_education_test
+        DB_USER: testuser
+        DB_PASSWORD: testpass
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        JWT_SECRET: test-secret
+
+    - name: 运行代码质量检查
+      run: |
+        cd backend
+        npm run lint
+
+  # 构建阶段
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout代码
+      uses: actions/checkout@v4
+
+    - name: 设置Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: 安装依赖
+      run: npm ci
+
+    - name: 构建前端H5
+      run: npm run build:h5
+
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-dist
+        path: dist/build/h5/
+        retention-days: 7
+
+  # Docker镜像构建
+  docker-build:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout代码
+      uses: actions/checkout@v4
+
+    - name: 设置Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 登录容器注册表
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 提取元数据
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+
+    - name: 构建并推送后端镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: 提取前端元数据
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+
+    - name: 构建并推送前端镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.frontend
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # 部署到服务器
+  deploy:
+    needs: [docker-build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    environment: production
+    
+    steps:
+    - name: Checkout代码
+      uses: actions/checkout@v4
+
+    - name: 部署到服务器
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          cd /opt/wechat-education
+          
+          # 备份当前版本
+          if [ -d "current" ]; then
+            mv current backup-$(date +%Y%m%d-%H%M%S)
+          fi
+          
+          # 克隆最新代码
+          git clone https://github.com/${{ github.repository }}.git current
+          cd current
+          
+          # 创建环境配置
+          cp .env.example .env
+          
+          # 更新Docker镜像
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker-compose pull
+          
+          # 停止旧服务
+          docker-compose down
+          
+          # 启动新服务
+          docker-compose up -d
+          
+          # 等待服务启动
+          sleep 30
+          
+          # 健康检查
+          if curl -f http://localhost/health; then
+            echo "部署成功！"
+            # 清理旧备份（保留最近3个）
+            ls -t backup-* 2>/dev/null | tail -n +4 | xargs rm -rf
+          else
+            echo "部署失败，回滚..."
+            docker-compose down
+            if [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
+              cd ../backup-$(ls -t backup-* 2>/dev/null | head -n 1)
+              docker-compose up -d
+            fi
+            exit 1
+          fi
+
+  # 通知
+  notify:
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: 发送部署通知
+      if: github.ref == 'refs/heads/main'
+      run: |
+        if [ "${{ needs.deploy.result }}" == "success" ]; then
+          echo "✅ 部署成功！应用已更新到最新版本。"
+        else
+          echo "❌ 部署失败！请检查日志。"
+        fi

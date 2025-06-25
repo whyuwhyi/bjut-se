@@ -78,6 +78,17 @@ services:
       timeout: 5s
       retries: 3
 
+  # 前端H5构建
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: wechat-education-frontend
+    volumes:
+      - frontend_dist:/app/dist
+    networks:
+      - app-network
+
   # Nginx反向代理
   nginx:
     image: nginx:alpine
@@ -90,11 +101,13 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./ssl:/etc/nginx/ssl:ro
+      - frontend_dist:/var/www/html:ro
       - backend_uploads:/var/www/uploads:ro
     networks:
       - app-network
     depends_on:
       - backend
+      - frontend
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
@@ -109,6 +122,8 @@ volumes:
   backend_uploads:
     driver: local
   backend_logs:
+    driver: local
+  frontend_dist:
     driver: local
 
 networks:
