@@ -1,27 +1,56 @@
+# 系统文件
 .DS_Store
+Thumbs.db
+
+# 依赖目录
 node_modules/
-unpackage/
+backend/node_modules/
+
+# 构建产物
 dist/
-pages/
-publics/
-package-lock.json
+unpackage/
+build/
 
-
-# local env files
+# 环境配置
+.env
 .env.local
 .env.*.local
 
-# Log files
+# 日志文件
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Editor directories and files
-.project
-.idea
-.vscode
+# 编辑器配置
+.claude/
+.idea/
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw*
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# Docker相关
+.dockerignore
+
+# 备份文件
+backup-*
+*.backup
+
+# 上传文件
+uploads/
+backend/uploads/
+
+# 测试覆盖率
+coverage/
+
+# PM2
+.pm2/

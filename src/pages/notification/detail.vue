@@ -1,0 +1,534 @@
+<template>
+	<view class="detail-container">
+		<!-- 通知头部 -->
+		<view class="notification-header">
+			<view class="header-icon" :class="'icon-' + notification.type">
+				<text class="icon-emoji">{{ getNotificationIcon(notification.type) }}</text>
+			</view>
+			<view class="header-content">
+				<text class="notification-title">{{ notification.title }}</text>
+				<view class="notification-meta">
+					<view class="priority-tag" :class="'tag-' + notification.priority">
+						{{ getPriorityText(notification.priority) }}
+					</view>
+					<text class="sender-name" v-if="notification.senderName">{{ notification.senderName }}</text>
+				</view>
+				<text class="publish-time">{{ formatTime(notification.createTime) }}</text>
+			</view>
+		</view>
+
+		<!-- 通知内容 -->
+		<view class="notification-body">
+			<rich-text class="content-text" :nodes="notification.content"></rich-text>
+			
+			<!-- 附件列表 -->
+			<view class="attachments" v-if="notification.attachments && notification.attachments.length > 0">
+				<text class="attachments-title">📎 附件</text>
+				<view 
+					class="attachment-item" 
+					v-for="(attachment, index) in notification.attachments" 
+					:key="index"
+					@click="openAttachment(attachment)"
+				>
+					<text class="attachment-icon">{{ getFileIcon(attachment.type) }}</text>
+					<view class="attachment-info">
+						<text class="attachment-name">{{ attachment.name }}</text>
+						<text class="attachment-size">{{ formatFileSize(attachment.size) }}</text>
+					</view>
+					<text class="download-icon">⬇️</text>
+				</view>
+			</view>
+
+			<!-- 相关链接 -->
+			<view class="related-link" v-if="notification.linkUrl" @click="openLink">
+				<text class="link-icon">🔗</text>
+				<text class="link-text">查看详情</text>
+				<text class="arrow-icon">›</text>
+			</view>
+		</view>
+
+		<!-- 操作区域 -->
+		<view class="action-section">
+			<button class="action-btn" :class="{ active: notification.isStarred }" @click="toggleStar">
+				<text class="btn-icon">{{ notification.isStarred ? '⭐' : '☆' }}</text>
+				<text class="btn-text">{{ notification.isStarred ? '已收藏' : '收藏' }}</text>
+			</button>
+			
+			<button class="action-btn" @click="shareNotification">
+				<text class="btn-icon">📤</text>
+				<text class="btn-text">分享</text>
+			</button>
+			
+			<button class="action-btn danger" @click="deleteNotification">
+				<text class="btn-icon">🗑️</text>
+				<text class="btn-text">删除</text>
+			</button>
+		</view>
+
+		<!-- 确认删除弹窗 -->
+		<uni-popup ref="deletePopup" type="dialog">
+			<uni-popup-dialog 
+				type="warn" 
+				title="确认删除" 
+				content="删除后无法恢复，确定要删除这条通知吗？"
+				:before-close="true"
+				@confirm="confirmDelete"
+				@close="closeDeleteDialog"
+			></uni-popup-dialog>
+		</uni-popup>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				notificationId: '',
+				notification: {
+					id: '',
+					type: 'system',
+					priority: 'medium',
+					title: '',
+					content: '',
+					senderName: '',
+					isRead: false,
+					isStarred: false,
+					createTime: new Date(),
+					linkUrl: '',
+					attachments: []
+				}
+			}
+		},
+		
+		onLoad(options) {
+			this.notificationId = options.id || '';
+			this.loadNotificationDetail();
+		},
+		
+		methods: {
+			loadNotificationDetail() {
+				// 模拟数据 - 实际应用中从API获取
+				const mockData = {
+					id: this.notificationId,
+					type: 'system',
+					priority: 'high',
+					title: '系统维护通知',
+					content: `
+						<p>尊敬的用户：</p>
+						<p>为了提供更好的服务体验，我们将对系统进行维护升级。</p>
+						<p><strong>维护时间：</strong>2025年6月20日 22:00 - 23:00</p>
+						<p><strong>影响范围：</strong></p>
+						<ul>
+							<li>资源上传下载功能暂停</li>
+							<li>讨论区发布回复功能暂停</li>
+							<li>用户登录可能受影响</li>
+						</ul>
+						<p><strong>注意事项：</strong></p>
+						<ul>
+							<li>请在维护前保存好未完成的工作</li>
+							<li>维护期间请不要进行重要操作</li>
+							<li>如有紧急问题请联系客服</li>
+						</ul>
+						<p>给您带来不便，敬请谅解！</p>
+						<p>日新智链团队<br/>2025年6月20日</p>
+					`,
+					senderName: '系统管理员',
+					isRead: true,
+					isStarred: false,
+					createTime: new Date('2025-06-20 15:30:00'),
+					linkUrl: 'https://help.example.com/maintenance',
+					attachments: [
+						{
+							name: '维护详情说明.pdf',
+							type: 'pdf',
+							size: 1024000,
+							url: '/files/maintenance-detail.pdf'
+						}
+					]
+				};
+				
+				this.notification = mockData;
+				
+				// 标记为已读
+				if (!this.notification.isRead) {
+					this.markAsRead();
+				}
+			},
+			
+			markAsRead() {
+				// 调用API标记为已读
+				this.notification.isRead = true;
+			},
+			
+			toggleStar() {
+				this.notification.isStarred = !this.notification.isStarred;
+				// 调用API更新收藏状态
+				const message = this.notification.isStarred ? '已收藏' : '已取消收藏';
+				uni.showToast({
+					title: message,
+					icon: 'success'
+				});
+			},
+			
+			shareNotification() {
+				uni.share({
+					provider: 'weixin',
+					type: 0,
+					title: this.notification.title,
+					summary: this.notification.content.replace(/<[^>]*>/g, '').substring(0, 100),
+					success: () => {
+						uni.showToast({
+							title: '分享成功',
+							icon: 'success'
+						});
+					}
+				});
+			},
+			
+			deleteNotification() {
+				this.$refs.deletePopup.open();
+			},
+			
+			confirmDelete() {
+				// 调用API删除通知
+				uni.showToast({
+					title: '删除成功',
+					icon: 'success'
+				});
+				
+				setTimeout(() => {
+					uni.navigateBack();
+				}, 1000);
+			},
+			
+			closeDeleteDialog() {
+				this.$refs.deletePopup.close();
+			},
+			
+			openAttachment(attachment) {
+				// 下载或预览附件
+				uni.showActionSheet({
+					itemList: ['预览', '下载'],
+					success: (res) => {
+						if (res.tapIndex === 0) {
+							// 预览附件
+							this.previewAttachment(attachment);
+						} else if (res.tapIndex === 1) {
+							// 下载附件
+							this.downloadAttachment(attachment);
+						}
+					}
+				});
+			},
+			
+			previewAttachment(attachment) {
+				// 预览附件逻辑
+				console.log('预览附件:', attachment);
+			},
+			
+			downloadAttachment(attachment) {
+				// 下载附件逻辑
+				uni.showToast({
+					title: '开始下载',
+					icon: 'success'
+				});
+			},
+			
+			openLink() {
+				if (this.notification.linkUrl) {
+					// #ifdef H5
+					window.open(this.notification.linkUrl);
+					// #endif
+					
+					// #ifndef H5
+					uni.navigateTo({
+						url: `/pages/webview/webview?url=${encodeURIComponent(this.notification.linkUrl)}`
+					});
+					// #endif
+				}
+			},
+			
+			getNotificationIcon(type) {
+				const icons = {
+					system: '⚙️',
+					study: '📚',
+					interaction: '💬',
+					activity: '🎯'
+				};
+				return icons[type] || '📢';
+			},
+			
+			getPriorityText(priority) {
+				const texts = {
+					high: '重要',
+					medium: '一般',
+					low: '普通'
+				};
+				return texts[priority] || '一般';
+			},
+			
+			getFileIcon(type) {
+				const icons = {
+					pdf: '📄',
+					doc: '📝',
+					docx: '📝',
+					xls: '📊',
+					xlsx: '📊',
+					ppt: '📊',
+					pptx: '📊',
+					txt: '📄',
+					zip: '📦',
+					rar: '📦'
+				};
+				return icons[type] || '📎';
+			},
+			
+			formatFileSize(bytes) {
+				if (bytes === 0) return '0 B';
+				const k = 1024;
+				const sizes = ['B', 'KB', 'MB', 'GB'];
+				const i = Math.floor(Math.log(bytes) / Math.log(k));
+				return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+			},
+			
+			formatTime(date) {
+				return date.toLocaleString('zh-CN', {
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit'
+				});
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.detail-container {
+		background-color: #f8f8f8;
+		min-height: 100vh;
+	}
+
+	/* 通知头部 */
+	.notification-header {
+		background-color: #ffffff;
+		padding: 32rpx;
+		display: flex;
+		align-items: flex-start;
+		gap: 24rpx;
+		border-bottom: 1rpx solid #e0e0e0;
+	}
+
+	.header-icon {
+		width: 80rpx;
+		height: 80rpx;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.header-icon.icon-system {
+		background-color: #e8f4fd;
+	}
+
+	.header-icon.icon-study {
+		background-color: #fff2e8;
+	}
+
+	.header-icon.icon-interaction {
+		background-color: #f0f9ff;
+	}
+
+	.header-icon.icon-activity {
+		background-color: #f8f0ff;
+	}
+
+	.icon-emoji {
+		font-size: 36rpx;
+	}
+
+	.header-content {
+		flex: 1;
+	}
+
+	.notification-title {
+		font-size: 36rpx;
+		font-weight: 600;
+		color: #333333;
+		line-height: 1.4;
+		margin-bottom: 16rpx;
+	}
+
+	.notification-meta {
+		display: flex;
+		align-items: center;
+		gap: 16rpx;
+		margin-bottom: 12rpx;
+	}
+
+	.priority-tag {
+		padding: 6rpx 16rpx;
+		border-radius: 12rpx;
+		font-size: 22rpx;
+		color: #ffffff;
+	}
+
+	.priority-tag.tag-high {
+		background-color: #ff3b30;
+	}
+
+	.priority-tag.tag-medium {
+		background-color: #ff9500;
+	}
+
+	.priority-tag.tag-low {
+		background-color: #34c759;
+	}
+
+	.sender-name {
+		font-size: 26rpx;
+		color: #666666;
+	}
+
+	.publish-time {
+		font-size: 24rpx;
+		color: #999999;
+	}
+
+	/* 通知内容 */
+	.notification-body {
+		background-color: #ffffff;
+		margin-top: 16rpx;
+		padding: 32rpx;
+	}
+
+	.content-text {
+		font-size: 30rpx;
+		line-height: 1.6;
+		color: #333333;
+	}
+
+	/* 附件 */
+	.attachments {
+		margin-top: 32rpx;
+		padding-top: 32rpx;
+		border-top: 1rpx solid #e0e0e0;
+	}
+
+	.attachments-title {
+		font-size: 28rpx;
+		font-weight: 600;
+		color: #333333;
+		margin-bottom: 16rpx;
+	}
+
+	.attachment-item {
+		display: flex;
+		align-items: center;
+		padding: 16rpx 0;
+		border-bottom: 1rpx solid #f0f0f0;
+	}
+
+	.attachment-item:last-child {
+		border-bottom: none;
+	}
+
+	.attachment-icon {
+		font-size: 32rpx;
+		margin-right: 16rpx;
+	}
+
+	.attachment-info {
+		flex: 1;
+	}
+
+	.attachment-name {
+		font-size: 28rpx;
+		color: #333333;
+		display: block;
+		margin-bottom: 4rpx;
+	}
+
+	.attachment-size {
+		font-size: 24rpx;
+		color: #999999;
+	}
+
+	.download-icon {
+		font-size: 24rpx;
+		color: #007aff;
+	}
+
+	/* 相关链接 */
+	.related-link {
+		margin-top: 32rpx;
+		display: flex;
+		align-items: center;
+		padding: 20rpx;
+		background-color: #f8f9fa;
+		border-radius: 12rpx;
+		border: 1rpx solid #e0e0e0;
+	}
+
+	.link-icon {
+		font-size: 28rpx;
+		margin-right: 12rpx;
+	}
+
+	.link-text {
+		flex: 1;
+		font-size: 28rpx;
+		color: #007aff;
+	}
+
+	.arrow-icon {
+		font-size: 24rpx;
+		color: #cccccc;
+	}
+
+	/* 操作区域 */
+	.action-section {
+		background-color: #ffffff;
+		margin-top: 16rpx;
+		padding: 32rpx;
+		display: flex;
+		gap: 16rpx;
+	}
+
+	.action-btn {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 20rpx;
+		background-color: #f8f9fa;
+		border: 1rpx solid #e0e0e0;
+		border-radius: 12rpx;
+		color: #666666;
+		font-size: 24rpx;
+	}
+
+	.action-btn.active {
+		background-color: #007aff;
+		color: #ffffff;
+		border-color: #007aff;
+	}
+
+	.action-btn.danger {
+		background-color: #ff3b30;
+		color: #ffffff;
+		border-color: #ff3b30;
+	}
+
+	.btn-icon {
+		font-size: 32rpx;
+		margin-bottom: 8rpx;
+	}
+
+	.btn-text {
+		font-size: 24rpx;
+	}
+</style>
