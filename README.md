@@ -56,10 +56,13 @@
 - **路由**: uni-app内置路由
 
 ### 后端技术栈
-- **云开发**: 微信小程序云开发
-- **数据库**: 云数据库 (MongoDB)
-- **存储**: 云存储
-- **云函数**: Node.js
+- **运行时**: Node.js 18+
+- **框架**: Express.js
+- **ORM**: Sequelize
+- **数据库**: MySQL 8.0
+- **缓存**: Redis 7
+- **认证**: JWT
+- **测试**: Jest + Supertest
 
 ### 开发工具
 - **IDE**: HBuilderX / 微信开发者工具
@@ -70,91 +73,128 @@
 
 ```
 wechat_software/
-├── pages/                    # 页面文件
-│   ├── index/               # 首页
-│   ├── login/               # 登录页
-│   ├── register/            # 注册页
-│   ├── resources/           # 资源模块
-│   ├── discussion/          # 讨论模块
-│   ├── notification/        # 通知模块
-│   ├── learning/           # 学习记录模块
-│   ├── activity/           # 活动模块
-│   └── profile/            # 个人中心
-├── cloudfunctions/          # 云函数
-│   ├── user/               # 用户管理
-│   ├── resource/           # 资源管理
-│   ├── discussion/         # 讨论管理
-│   ├── notification/       # 通知管理
-│   ├── learning/           # 学习记录
-│   └── activity/           # 活动管理
-├── static/                 # 静态资源
-│   ├── css/               # 样式文件
-│   ├── images/            # 图片资源
-│   └── icons/             # 图标资源
-├── utils/                  # 工具函数
-│   ├── api.js             # API封装
-│   ├── auth.js            # 认证工具
-│   └── index.js           # 通用工具
-├── App.vue                 # 应用入口
-├── pages.json              # 页面配置
-├── manifest.json           # 应用配置
-└── package.json            # 依赖配置
+├── src/                      # 微信小程序前端
+│   ├── pages/               # 页面文件
+│   │   ├── index/          # 首页
+│   │   ├── login/          # 登录页
+│   │   ├── register/       # 注册页
+│   │   ├── resources/      # 资源模块
+│   │   ├── discussion/     # 讨论模块
+│   │   ├── notification/   # 通知模块
+│   │   ├── activity/       # 活动模块
+│   │   └── profile/        # 个人中心
+│   ├── static/             # 静态资源
+│   ├── utils/              # 工具函数
+│   ├── App.vue             # 应用入口
+│   └── pages.json          # 页面配置
+├── backend/                 # Node.js 后端
+│   ├── src/
+│   │   ├── config/         # 配置文件
+│   │   ├── controllers/    # 控制器
+│   │   ├── middleware/     # 中间件
+│   │   ├── models/         # 数据模型
+│   │   ├── routes/         # 路由
+│   │   ├── services/       # 业务逻辑
+│   │   ├── utils/          # 工具函数
+│   │   └── tests/          # 测试文件
+│   ├── Dockerfile          # Docker镜像配置
+│   └── package.json        # 后端依赖
+├── database/               # 数据库相关
+│   └── init/              # 初始化脚本
+├── nginx/                  # Nginx配置
+├── doc/                    # 项目文档
+├── docker-compose.yml      # Docker编排
+├── deploy.sh              # 部署脚本
+└── README.md              # 项目说明
 ```
 
 ## 快速开始
 
 ### 环境要求
-- Node.js >= 12.0.0
-- npm >= 6.0.0
-- HBuilderX 或微信开发者工具
+- Node.js 18+
+- Docker & Docker Compose
+- MySQL 8.0 (可选，Docker中已包含)
+- HBuilderX 或微信开发者工具（前端开发）
 
-### 安装依赖
+### 1. 克隆项目
 ```bash
+git clone <repository-url>
+cd wechat_software
+```
+
+### 2. 配置环境
+```bash
+cp .env.example .env
+# 编辑 .env 文件，配置数据库密码、JWT密钥等
+```
+
+### 3. 使用 Docker 部署（推荐）
+```bash
+# 完整部署
+./deploy.sh deploy
+
+# 或者分步执行
+./deploy.sh start      # 启动服务
+./deploy.sh status     # 查看状态
+./deploy.sh logs       # 查看日志
+./deploy.sh stop       # 停止服务
+```
+
+### 4. 手动部署后端
+```bash
+cd backend
+
+# 安装依赖
 npm install
+
+# 配置环境变量
+cp .env.example .env
+
+# 启动数据库（MySQL + Redis）
+docker-compose up -d mysql redis
+
+# 启动开发服务器
+npm run dev
+
+# 或启动生产服务器
+npm start
 ```
 
-### 开发运行
+### 5. 前端开发
 ```bash
-npm run dev:mp-weixin
+# 在微信开发者工具中打开 src 目录
+# 或使用 HBuilderX 打开项目
 ```
 
-### 生产构建
-```bash
-npm run build:mp-weixin
+## API 文档
+
+### 基础信息
+- **Base URL**: `http://localhost:3000/api/v1`
+- **认证方式**: Bearer Token (JWT)
+- **响应格式**: JSON
+
+### 健康检查
+```
+GET /health
 ```
 
-## 云开发配置
-
-### 1. 开通云开发
-1. 在微信开发者工具中打开项目
-2. 点击工具栏中的"云开发"按钮
-3. 按照指引开通云开发服务
-
-### 2. 配置云环境
-1. 在 `App.vue` 中配置环境ID：
-```javascript
-wx.cloud.init({
-  env: 'your-env-id', // 替换为您的云开发环境ID
-  traceUser: true,
-})
+### 用户相关
+```
+POST /users/register    # 用户注册
+POST /users/login       # 用户登录
+GET  /users/profile     # 获取用户信息
+PUT  /users/profile     # 更新用户信息
 ```
 
-### 3. 部署云函数
-1. 在微信开发者工具中右键云函数文件夹
-2. 选择"创建并部署：云端安装依赖"
-3. 等待部署完成
-
-### 4. 初始化数据库
-在云开发控制台中创建以下集合：
-- `users` - 用户信息
-- `resources` - 学习资源
-- `discussions` - 讨论帖子
-- `notifications` - 通知消息
-- `learning_records` - 学习记录
-- `activities` - 活动信息
-- `favorites` - 收藏记录
-- `likes` - 点赞记录
-- `ratings` - 评分记录
+### 响应格式
+```json
+{
+  "success": true|false,
+  "message": "描述信息",
+  "data": {}, // 成功时的数据
+  "errors": [] // 失败时的错误详情
+}
+```
 
 ## 项目团队
 

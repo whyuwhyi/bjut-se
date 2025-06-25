@@ -1,0 +1,47 @@
+# 依赖
+node_modules
+npm-debug.log*
+
+# 测试
+coverage
+*.log
+
+# 环境配置
+.env
+.env.local
+.env.development
+.env.test
+
+# IDE
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+
+# 文档
+README.md
+*.md
+
+# 临时文件
+.tmp
+.temp
+
+# 开发工具
+nodemon.json
+
+# 测试相关
+src/tests
+jest.config.js
+
+# 构建产物
+dist
+build
+
+# 日志
+logs
+*.log
+
+# 上传文件（在容器中重新创建）
+uploads/*
