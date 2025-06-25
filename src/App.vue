@@ -1,17 +1,43 @@
 <script lang="ts">
     import Vue from 'vue';
     export default Vue.extend({
-        mpType: 'app',
+        data() {
+            return {
+                keepAliveInclude: []
+            }
+        },
         onLaunch() {
             console.log('App Launch')
+            this.checkLoginStatus()
         },
         onShow() {
             console.log('App Show')
         },
         onHide() {
             console.log('App Hide')
+        },
+        methods: {
+            checkLoginStatus() {
+                // 检查是否已登录
+                const token = uni.getStorageSync('token')
+                const userInfo = uni.getStorageSync('userInfo')
+                
+                console.log('检查登录状态 - token:', token, 'userInfo:', userInfo)
+                
+                if (!token || !userInfo) {
+                    // 未登录，跳转到登录页面
+                    console.log('未登录，跳转到登录页面')
+                    setTimeout(() => {
+                        uni.reLaunch({
+                            url: '/pages/login/login'
+                        })
+                    }, 100)
+                } else {
+                    console.log('已登录，用户信息:', userInfo)
+                }
+            }
         }
-    });
+    } as any);
 </script>
 
 <style>

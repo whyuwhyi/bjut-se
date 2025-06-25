@@ -79,11 +79,30 @@ start_database() {
   # 启动数据库容器
   cd backend
   if [ -f docker-compose.yml ]; then
-    docker-compose up -d mysql redis
+    if command -v docker-compose &>/dev/null; then
+      docker-compose up -d mysql redis
+    elif docker compose version &>/dev/null; then
+      docker compose up -d mysql redis
+    else
+      print_warning "Docker Compose 不可用，请确保已安装 docker-compose"
+      exit 1
+    fi
     print_info "等待数据库启动..."
     sleep 10
   else
     print_warning "docker-compose.yml 不存在，请手动启动数据库"
+    # 直接启动MySQL容器
+    if ! docker ps | grep -q wechat_education_mysql; then
+      print_info "启动MySQL容器..."
+      docker run -d --name wechat_education_mysql \
+        -e MYSQL_ROOT_PASSWORD=password \
+        -e MYSQL_DATABASE=wechat_education \
+        -p 3306:3306 \
+        --restart unless-stopped \
+        mysql:8.0
+      print_info "等待MySQL启动..."
+      sleep 15
+    fi
   fi
   cd ..
 }
