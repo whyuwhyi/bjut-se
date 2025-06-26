@@ -69,22 +69,22 @@
 			</view>
 		</view>
 
-		<!-- 热门讨论 -->
-		<view class="discussion-section">
+		<!-- 热门帖子 -->
+		<view class="forum-section">
 			<view class="section-header">
-				<text class="section-title">热门讨论</text>
-				<text class="section-more" @click="navigateTo('/pages/discussion/discussion')">更多</text>
+				<text class="section-title">热门帖子</text>
+				<text class="section-more" @click="navigateTo('/pages/forum/forum')">更多</text>
 			</view>
-			<view class="discussion-list">
-				<view class="discussion-item" v-for="(item, index) in hotDiscussions" :key="index" @click="viewDiscussion(item)">
-					<view class="discussion-header">
-						<text class="discussion-title">{{ item.title }}</text>
-						<view class="discussion-tag" v-if="item.isQuestion">问题</view>
+			<view class="posts-list">
+				<view class="post-item" v-for="(item, index) in hotPosts" :key="index" @click="viewPost(item)">
+					<view class="post-header">
+						<text class="post-title">{{ item.title }}</text>
+						<view class="post-tag" v-if="item.isHot">热门</view>
 					</view>
-					<view class="discussion-meta">
-						<text class="discussion-author">{{ item.authorName }}</text>
-						<text class="discussion-reply">{{ item.replyCount }}回复</text>
-						<text class="discussion-time">{{ formatTime(item.createTime) }}</text>
+					<view class="post-meta">
+						<text class="post-author">{{ item.authorName }}</text>
+						<text class="post-comment">{{ item.commentCount }}评论</text>
+						<text class="post-time">{{ formatTime(item.createTime) }}</text>
 					</view>
 				</view>
 			</view>
@@ -110,7 +110,7 @@
 				notices: [],
 				hotResources: [],
 				hotActivities: [],
-				hotDiscussions: []
+				hotPosts: []
 			}
 		},
 		onLoad() {
@@ -152,7 +152,7 @@
 						this.loadNotices(),
 						this.loadHotResources(),
 						this.loadHotActivities(),
-						this.loadHotDiscussions()
+						this.loadHotPosts()
 					])
 				} catch (error) {
 					console.error('加载数据失败:', error)
@@ -253,10 +253,10 @@
 				]
 			},
 
-			// 加载热门讨论
-			async loadHotDiscussions() {
+			// 加载热门帖子
+			async loadHotPosts() {
 				// 模拟数据
-				this.hotDiscussions = [
+				this.hotPosts = [
 					{
 						id: 1,
 						title: '关于数据库设计的几个问题',
@@ -290,7 +290,7 @@
 				const tabBarPages = [
 					'/pages/index/index',
 					'/pages/resources/resources', 
-					'/pages/discussion/discussion',
+					'/pages/forum/forum',
 					'/pages/activity/activity',
 					'/pages/profile/profile'
 				]
@@ -327,10 +327,10 @@
 				})
 			},
 
-			// 查看讨论详情
-			viewDiscussion(discussion) {
+			// 查看帖子详情
+			viewPost(post) {
 				uni.navigateTo({
-					url: `/pages/discussion/detail?id=${discussion.id}`
+					url: `/pages/forum/detail?id=${post.id}`
 				})
 			},
 
@@ -636,14 +636,14 @@
 	}
 
 	// 讨论样式
-	.discussion-section {
+	.forum-section {
 		margin: 20rpx;
 		background: white;
 		border-radius: 16rpx;
 		padding: 30rpx;
 
-		.discussion-list {
-			.discussion-item {
+		.forum-list {
+			.forum-item {
 				padding: 20rpx 0;
 				border-bottom: 1rpx solid #f0f0f0;
 
@@ -651,18 +651,18 @@
 					border-bottom: none;
 				}
 
-				.discussion-header {
+				.forum-header {
 					display: flex;
 					align-items: center;
 					margin-bottom: 10rpx;
 
-					.discussion-title {
+					.forum-title {
 						flex: 1;
 						font-size: 28rpx;
 						color: #333;
 					}
 
-					.discussion-tag {
+					.forum-tag {
 						background: #ff9500;
 						color: white;
 						padding: 4rpx 12rpx;
@@ -671,17 +671,17 @@
 					}
 				}
 
-				.discussion-meta {
+				.forum-meta {
 					display: flex;
 					align-items: center;
 					font-size: 22rpx;
 					color: #999;
 
-					.discussion-author {
+					.forum-author {
 						margin-right: 20rpx;
 					}
 
-					.discussion-reply {
+					.forum-reply {
 						margin-right: 20rpx;
 					}
 				}

@@ -31,9 +31,9 @@
             }
         },
         {
-            "path": "pages/discussion/discussion",
+            "path": "pages/forum/forum",
             "style": {
-                "navigationBarTitleText": "讨论区"
+                "navigationBarTitleText": "论坛"
             }
         },
         {
@@ -55,15 +55,15 @@
             }
         },
         {
-            "path": "pages/discussion/detail",
+            "path": "pages/forum/detail",
             "style": {
-                "navigationBarTitleText": "讨论详情"
+                "navigationBarTitleText": "帖子详情"
             }
         },
         {
-            "path": "pages/discussion/post",
+            "path": "pages/forum/create",
             "style": {
-                "navigationBarTitleText": "发布讨论"
+                "navigationBarTitleText": "发布帖子"
             }
         },
         {
@@ -115,7 +115,7 @@
         {
             "path": "pages/profile/my-discussions",
             "style": {
-                "navigationBarTitleText": "我的讨论",
+                "navigationBarTitleText": "我的帖子",
                 "enablePullDownRefresh": true
             }
         },
@@ -214,7 +214,7 @@
                 "text": "📚"
             },
             {
-                "pagePath": "pages/discussion/discussion",
+                "pagePath": "pages/forum/forum",
                 "text": "💬"
             },
             {

@@ -22,9 +22,9 @@
 					<text class="stat-number">24</text>
 					<text class="stat-label">资源</text>
 				</view>
-				<view class="stat-item" @click="goToMyDiscussions">
+				<view class="stat-item" @click="goToMyPosts">
 					<text class="stat-number">156</text>
-					<text class="stat-label">讨论</text>
+					<text class="stat-label">帖子</text>
 				</view>
 				<view class="stat-item" @click="goToFollowing">
 					<text class="stat-number">89</text>
@@ -156,7 +156,7 @@ export default {
 				{
 					icon: '💬',
 					name: '话痨',
-					desc: '发布50个讨论'
+					desc: '发布50个帖子'
 				},
 				{
 					icon: '❤️',
@@ -194,7 +194,7 @@ export default {
 			})
 		},
 		
-		goToMyDiscussions() {
+		goToMyPosts() {
 			uni.navigateTo({
 				url: './my-discussions'
 			})

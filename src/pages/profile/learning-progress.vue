@@ -14,7 +14,7 @@
 						<text class="stat-label">浏览资源</text>
 					</view>
 					<view class="stat-item">
-						<text class="stat-value">{{ learningStats.discussionsJoined }}</text>
+						<text class="stat-value">{{ learningStats.postsJoined }}</text>
 						<text class="stat-label">参与讨论</text>
 					</view>
 					<view class="stat-item">
@@ -165,7 +165,7 @@
 				learningStats: {
 					totalStudyTime: 156,
 					resourcesViewed: 89,
-					discussionsJoined: 24,
+					postsJoined: 24,
 					activitiesJoined: 12
 				},
 				weeklyData: [
@@ -222,7 +222,7 @@
 					},
 					{
 						id: '2',
-						type: 'discussion',
+						type: 'post',
 						title: '参与讨论《关于React Hooks的使用》',
 						description: '在讨论区发表了观点',
 						createTime: new Date('2025-06-20 12:15:00'),
@@ -336,7 +336,7 @@
 			getActivityIcon(type) {
 				const icons = {
 					view: '👀',
-					discussion: '💬',
+					post: '💬',
 					upload: '📤',
 					activity: '🎯',
 					download: '📥',
@@ -638,7 +638,7 @@
 		background-color: #e8f4fd;
 	}
 
-	.activity-icon.icon-discussion {
+	.activity-icon.icon-post {
 		background-color: #f0f9ff;
 	}
 

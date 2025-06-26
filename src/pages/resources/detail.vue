@@ -239,16 +239,47 @@ export default {
 	
 	methods: {
 		async loadResourceDetail() {
-			// 模拟加载资源详情
 			try {
 				uni.showLoading({ title: '加载中...' })
-				// 这里应该调用API获取资源详情
-				// const result = await ApiService.getResourceDetail(this.resourceId)
-				setTimeout(() => {
-					uni.hideLoading()
-					// 模拟数据已在data中定义
-				}, 1000)
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${this.resourceId}`,
+					method: 'GET'
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					const data = response.data.data
+					this.resource = {
+						id: data.resource_id,
+						title: data.resource_name,
+						description: data.description,
+						uploaderName: data.publisher?.nickname || data.publisher?.name || '匿名用户',
+						uploadTime: new Date(data.created_at),
+						viewCount: data.view_count,
+						downloadCount: data.download_count,
+						rating: parseFloat(data.rating),
+						favoriteCount: data.collection_count,
+						isFavorited: false, // 后续根据用户状态查询
+						files: data.files || [],
+						comments: data.comments || [],
+						ratings: data.ratings || []
+					}
+					
+					if (data.files && data.files.length > 0) {
+						const file = data.files[0]
+						this.resource.fileType = file.file_type
+						this.resource.fileSize = file.file_size
+					}
+				} else {
+					throw new Error('获取资源详情失败')
+				}
+				
+				// 加载评论
+				await this.loadComments()
+				
+				uni.hideLoading()
 			} catch (error) {
+				console.error('加载资源详情错误:', error)
 				uni.hideLoading()
 				uni.showToast({
 					title: '加载失败',
@@ -257,18 +288,72 @@ export default {
 			}
 		},
 		
-		downloadResource() {
-			uni.showLoading({ title: '准备下载...' })
-			
-			// 模拟下载过程
-			setTimeout(() => {
-				uni.hideLoading()
-				this.resource.downloadCount++
-				uni.showToast({
-					title: '下载成功',
-					icon: 'success'
+		async downloadResource() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
+				}
+				
+				if (!this.resource.files || this.resource.files.length === 0) {
+					uni.showToast({
+						title: '没有可下载的文件',
+						icon: 'none'
+					})
+					return
+				}
+				
+				uni.showLoading({ title: '准备下载...' })
+				
+				const file = this.resource.files[0]
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${this.resource.id}/files/${file.file_id}/download`,
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
 				})
-			}, 2000)
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.resource.downloadCount++
+					
+					if (response.data.data.content) {
+						// 文本文件直接显示内容
+						uni.hideLoading()
+						uni.showModal({
+							title: '文件内容',
+							content: response.data.data.content.substring(0, 200) + '...',
+							showCancel: false
+						})
+					} else if (response.data.data.downloadUrl) {
+						// 其他文件显示下载链接
+						uni.hideLoading()
+						uni.showModal({
+							title: '下载地址',
+							content: '文件准备完成，实际项目中这里会触发文件下载',
+							showCancel: false
+						})
+					}
+					
+					uni.showToast({
+						title: '下载成功',
+						icon: 'success'
+					})
+				} else {
+					throw new Error(response.data.message || '下载失败')
+				}
+			} catch (error) {
+				console.error('下载失败:', error)
+				uni.hideLoading()
+				uni.showToast({
+					title: error.message || '下载失败',
+					icon: 'none'
+				})
+			}
 		},
 		
 		toggleFavorite() {
@@ -298,12 +383,48 @@ export default {
 			})
 		},
 		
-		rateResource(rating) {
-			this.userRating = rating
-			uni.showToast({
-				title: `评分：${rating}星`,
-				icon: 'none'
-			})
+		async rateResource(rating) {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${this.resource.id}/rating`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						rating: rating * 2, // 转换为10分制
+						review_text: ''
+					}
+				})
+				
+				if (response.statusCode === 200 || response.statusCode === 201) {
+					this.userRating = rating
+					uni.showToast({
+						title: response.data.message,
+						icon: 'success'
+					})
+					// 重新加载资源详情以更新评分
+					this.loadResourceDetail()
+				} else {
+					throw new Error(response.data.message || '评分失败')
+				}
+			} catch (error) {
+				console.error('评分失败:', error)
+				uni.showToast({
+					title: error.message || '评分失败',
+					icon: 'none'
+				})
+			}
 		},
 		
 		getRatingText(rating) {
@@ -311,7 +432,7 @@ export default {
 			return ratingTexts[rating] || '点击评分'
 		},
 		
-		submitComment() {
+		async submitComment() {
 			if (!this.commentText.trim()) {
 				uni.showToast({
 					title: '请输入评论内容',
@@ -320,31 +441,94 @@ export default {
 				return
 			}
 			
-			const newComment = {
-				id: Date.now(),
-				userName: '我',
-				userAvatar: '',
-				content: this.commentText,
-				createTime: new Date(),
-				likeCount: 0,
-				isLiked: false
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${this.resource.id}/comments`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						comment_content: this.commentText
+					}
+				})
+				
+				if (response.statusCode === 201 && response.data.success) {
+					// 重新加载评论列表
+					await this.loadComments()
+					this.commentText = ''
+					
+					uni.showToast({
+						title: '评论成功',
+						icon: 'success'
+					})
+				} else {
+					throw new Error(response.data.message || '评论失败')
+				}
+			} catch (error) {
+				console.error('评论失败:', error)
+				uni.showToast({
+					title: error.message || '评论失败',
+					icon: 'none'
+				})
 			}
-			
-			this.comments.unshift(newComment)
-			this.commentText = ''
-			
-			uni.showToast({
-				title: '评论成功',
-				icon: 'success'
-			})
 		},
 		
-		likeComment(comment) {
-			comment.isLiked = !comment.isLiked
-			if (comment.isLiked) {
-				comment.likeCount++
-			} else {
-				comment.likeCount--
+		async likeComment(comment) {
+			try {
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/comments/${comment.comment_id}/like`,
+					method: 'POST'
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					comment.like_count = response.data.data.like_count
+					comment.isLiked = true
+					uni.showToast({
+						title: '点赞成功',
+						icon: 'success'
+					})
+				}
+			} catch (error) {
+				console.error('点赞失败:', error)
+				uni.showToast({
+					title: '点赞失败',
+					icon: 'none'
+				})
+			}
+		},
+
+		// 加载评论列表
+		async loadComments() {
+			try {
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${this.resource.id}/comments`,
+					method: 'GET'
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.comments = response.data.data.comments.map(comment => ({
+						...comment,
+						userName: comment.user?.nickname || comment.user?.name || '匿名用户',
+						userAvatar: comment.user?.avatar_url || '',
+						content: comment.comment_content,
+						createTime: new Date(comment.created_at),
+						likeCount: comment.like_count,
+						isLiked: false
+					}))
+				}
+			} catch (error) {
+				console.error('加载评论失败:', error)
 			}
 		},
 		

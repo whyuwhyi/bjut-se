@@ -1,16 +1,15 @@
+-- 生产环境数据库初始化脚本
+-- 设置正确的字符集
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+SET CHARACTER SET utf8mb4;
+
 -- 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS wechat_education
+CREATE DATABASE IF NOT EXISTS wechat_education 
 CHARACTER SET utf8mb4 
-COLLATE utf8mb4_unicode_ci;
+COLLATE utf8mb4_0900_ai_ci;
 
 -- 使用数据库
 USE wechat_education;
 
--- 创建应用用户（如果不存在）
-CREATE USER IF NOT EXISTS 'appuser'@'%' IDENTIFIED BY 'apppassword123';
-
--- 授权
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER ON wechat_education.* TO 'appuser'@'%';
-
--- 刷新权限
-FLUSH PRIVILEGES;
+-- 确保数据库使用正确的字符集
+ALTER DATABASE wechat_education CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
