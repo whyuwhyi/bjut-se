@@ -55,7 +55,12 @@
 | comment_count | INT | DEFAULT 0 | 资源评论数量，0-999999999 |
 | rating | DECIMAL(4,2) | DEFAULT 0.00 | 资源评分，0-10分 |
 | view_count | INT | DEFAULT 0 | 浏览次数 |
-| status | ENUM('draft','published','archived') | DEFAULT 'draft' | 资源状态 |
+| status | ENUM('draft','pending','published','rejected','archived') | DEFAULT 'draft' | 资源状态：draft-草稿，pending-待审核，published-已发布，rejected-已拒绝，archived-已归档 |
+| reviewer_phone | VARCHAR(11) | FOREIGN KEY | 审核者手机号（外键到用户表） |
+| review_comment | TEXT | | 审核意见 |
+| reviewed_at | DATETIME | | 审核时间 |
+| download_count | INT | DEFAULT 0 | 下载次数 |
+| category_id | VARCHAR(20) | FOREIGN KEY | 资源分类ID（外键到分类表） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
@@ -78,33 +83,30 @@
 | file_id | VARCHAR(9) | PRIMARY KEY | 9位数字的文件唯一标识符 |
 | resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源表 |
 | file_name | VARCHAR(255) | NOT NULL | 文件名称，1-255个字符 |
-| file_size | BIGINT | | 文件大小（字节），最大2GB |
+| file_size | BIGINT | | 文件大小（字节） |
 | file_type | VARCHAR(50) | | 文件类型/MIME类型 |
-| storage_path | VARCHAR(1000) | | 文件存储路径，以/开头，最多1000个字符 |
-| storage_method | ENUM('local', 'cloud', 'table') | NOT NULL | 文件存储方式 |
+| storage_path | VARCHAR(1000) | | 文件存储路径 |
+| storage_method | ENUM('local', 'cloud', 'table') | NOT NULL DEFAULT 'local' | 文件存储方式 |
 | content | LONGTEXT | | 文件内容（用于文本文件） |
 | download_count | INT | DEFAULT 0 | 下载次数 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 2.5 标签表 (tags)
+### 2.5 资源分类表 (categories)
 
-支持资源标签化管理，提升检索效率。
+支持资源分类管理，分类可通过后台动态管理。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| tag_id | VARCHAR(9) | PRIMARY KEY | 9位数字的标签唯一标识符 |
-| tag_name | VARCHAR(50) | UNIQUE, NOT NULL | 标签名称，1-50个字符 |
+| category_id | VARCHAR(20) | PRIMARY KEY | 分类唯一标识符 |
+| category_name | VARCHAR(50) | UNIQUE, NOT NULL | 分类名称，1-50个字符 |
+| category_value | VARCHAR(50) | UNIQUE, NOT NULL | 分类值（用于API参数） |
+| description | TEXT | | 分类描述 |
+| icon | VARCHAR(10) | | 分类图标（emoji） |
+| sort_order | INT | NOT NULL, DEFAULT 0 | 排序顺序 |
+| status | ENUM('active','inactive') | NOT NULL, DEFAULT 'active' | 状态：active-启用，inactive-禁用 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 2.6 资源标签关联表 (resource_tags)
-
-实现资源与标签的多对多关系。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| relation_id | INT | PRIMARY KEY, AUTO_INCREMENT | 关联记录唯一标识符 |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源表 |
-| tag_id | VARCHAR(9) | FOREIGN KEY | 关联标签表 |
 
 ---
 
@@ -167,41 +169,82 @@
 
 ---
 
-## 4. 讨论交流模块
+## 4. 论坛交流模块
 
-### 4.1 讨论表 (discussions)
+### 4.1 帖子表 (posts)
 
-存储用户发起的主题讨论。
+存储用户发布的帖子信息。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| discussion_id | VARCHAR(9) | PRIMARY KEY | 9位数字的讨论唯一标识符 |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源表 |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 关联用户表（讨论发起者） |
-| discussion_content | TEXT | NOT NULL | 讨论内容，1-65535个字符 |
-| comment_count | INT | DEFAULT 0 | 讨论的评论总数，0-999999999 |
-| status | ENUM('active','hidden','deleted') | DEFAULT 'active' | 讨论状态 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 讨论创建时间 |
+| post_id | VARCHAR(9) | PRIMARY KEY | 9位数字的帖子唯一标识符 |
+| author_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 作者手机号（外键到用户表） |
+| title | VARCHAR(200) | NOT NULL | 帖子标题，最多200个字符 |
+| content | TEXT | NOT NULL | 帖子内容（支持Markdown格式） |
+| view_count | INT | DEFAULT 0 | 浏览次数 |
+| like_count | INT | DEFAULT 0 | 点赞次数 |
+| comment_count | INT | DEFAULT 0 | 评论数量 |
+| status | ENUM('active','hidden','deleted') | DEFAULT 'active' | 帖子状态 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 4.2 评论表 (comments)
+### 4.2 帖子标签表 (post_tags)
 
-支持多层级回复的评论系统。
+存储论坛帖子的标签信息，支持动态扩展。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| tag_id | VARCHAR(9) | PRIMARY KEY | 9位数字的标签唯一标识符 |
+| tag_name | VARCHAR(50) | UNIQUE, NOT NULL | 标签名称，1-50个字符 |
+| tag_color | VARCHAR(7) | DEFAULT '#007aff' | 标签颜色（十六进制） |
+| usage_count | INT | DEFAULT 0 | 使用次数统计 |
+| status | ENUM('active','inactive') | DEFAULT 'active' | 标签状态 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+### 4.3 帖子标签关联表 (post_tag_relations)
+
+实现帖子与标签的多对多关系。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| relation_id | INT | PRIMARY KEY, AUTO_INCREMENT | 关联记录唯一标识符 |
+| post_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联帖子表 |
+| tag_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联标签表 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+### 4.4 评论表 (comments)
+
+支持帖子和资源的多层级回复评论系统。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
 | comment_id | INT | PRIMARY KEY, AUTO_INCREMENT | 评论唯一标识符 |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 关联用户表（评论者） |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源表 |
-| discussion_id | VARCHAR(9) | FOREIGN KEY | 关联讨论表 |
+| author_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 评论作者手机号（外键到用户表） |
+| post_id | VARCHAR(9) | FOREIGN KEY | 关联帖子ID（如果是帖子评论） |
+| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源ID（如果是资源评论） |
 | parent_comment_id | INT | FOREIGN KEY | 父评论ID（用于回复） |
-| comment_content | TEXT | NOT NULL | 评论内容，1-65535个字符 |
-| like_count | INT | DEFAULT 0 | 评论点赞数，0-999999999 |
+| content | TEXT | NOT NULL | 评论内容 |
+| like_count | INT | DEFAULT 0 | 点赞数 |
 | status | ENUM('active','hidden','deleted') | DEFAULT 'active' | 评论状态 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 评论时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 4.3 图片表 (images)
+### 4.5 评分表 (ratings)
+
+用户对资源的评分记录。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| rating_id | INT | PRIMARY KEY, AUTO_INCREMENT | 评分记录唯一标识符 |
+| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 评分者手机号（外键） |
+| resource_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联资源表 |
+| rating | DECIMAL(3,2) | NOT NULL | 评分（0-10分） |
+| review_text | TEXT | | 评价文字内容 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 评分时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+### 4.6 图片表 (images)
 
 存储评论中上传的图片信息。
 
@@ -240,7 +283,7 @@
 | collection_id | VARCHAR(9) | PRIMARY KEY | 9位数字的收藏记录唯一标识符 |
 | user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 关联用户表（收藏者） |
 | content_id | VARCHAR(9) | NOT NULL | 被收藏内容的唯一标识符，9位数字 |
-| collection_type | ENUM('discussion', 'resource', 'activity') | NOT NULL | 收藏内容类型 |
+| collection_type | ENUM('post', 'resource', 'activity') | NOT NULL | 收藏内容类型 |
 | status | ENUM('active','cancelled') | DEFAULT 'active' | 收藏状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 收藏时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
@@ -408,11 +451,9 @@
 
 #### 2. 资源管理关系网络
 ```
-资源类型表 ←--多对多--→ 资源表 ←--一对多--→ 文件表
-     ↑                    ↓
-   类型管理          资源标签关联表
-                          ↓
-                       标签表
+分类表 ←--一对多--→ 资源表 ←--一对多--→ 文件表
+  ↑                    ↓
+分类管理            资源内容管理
 ```
 
 #### 3. 活动管理关系网络
@@ -422,12 +463,15 @@
    类型管理              用户参与
 ```
 
-#### 4. 讨论交流关系层次
+#### 4. 论坛交流关系层次
 ```
-资源表 ←--一对多--→ 讨论表 ←--一对多--→ 评论表 ←--一对多--→ 图片表
-                                    ↓
-                               层级回复关系
-                           （parent_comment_id）
+帖子表 ←--多对多--→ 帖子标签表（通过post_tag_relations）
+  ↓
+评论表 ←--一对多--→ 图片表
+  ↓
+层级回复关系（parent_comment_id）
+
+资源表 ←--一对多--→ 评论表（资源评论）
 ```
 
 #### 5. 用户社交关系网络
@@ -443,10 +487,9 @@
 
 #### 资源分享流程
 1. 用户发布资源 → `resources` 表
-2. 关联资源类型 → `resource_type_relations` 表
+2. 选择资源分类 → `category_id` 字段关联
 3. 上传相关文件 → `files` 表
-4. 添加标签 → `resource_tags` 表
-5. 其他用户浏览/下载 → 更新统计字段
+4. 其他用户浏览/下载 → 更新统计字段
 
 #### 活动组织流程
 1. 用户创建活动 → `community_activities` 表
@@ -454,11 +497,12 @@
 3. 用户报名参与 → `registrations` 表
 4. 系统发送通知 → `notifications` 表
 
-#### 讨论交流流程
-1. 用户发起讨论 → `discussions` 表
-2. 其他用户评论 → `comments` 表
-3. 支持图片评论 → `images` 表
-4. 层级回复机制 → `parent_comment_id` 字段
+#### 论坛交流流程
+1. 用户发布帖子 → `posts` 表
+2. 关联帖子标签 → `post_tag_relations` 表
+3. 其他用户评论 → `comments` 表
+4. 支持图片评论 → `images` 表
+5. 层级回复机制 → `parent_comment_id` 字段
 
 ---
 

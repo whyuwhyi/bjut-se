@@ -67,6 +67,50 @@ install_backend() {
   print_info "后端依赖安装完成"
 }
 
+# 初始化数据库
+init_database() {
+  print_info "初始化数据库..."
+
+  if ! command -v docker &>/dev/null; then
+    print_warning "Docker 未安装，请手动初始化数据库"
+    return
+  fi
+
+  # 检查MySQL容器是否运行
+  if ! docker ps | grep -q mysql; then
+    print_error "MySQL容器未运行，请先启动数据库"
+    return
+  fi
+
+  # 等待MySQL完全启动
+  print_info "等待MySQL准备就绪..."
+  sleep 5
+
+  # 检查是否需要初始化
+  MYSQL_CONTAINER=$(docker ps --filter "name=mysql" --format "{{.Names}}" | head -1)
+  if [ -z "$MYSQL_CONTAINER" ]; then
+    print_warning "找不到MySQL容器"
+    return
+  fi
+
+  # 检查数据库是否已初始化
+  TABLE_COUNT=$(docker exec $MYSQL_CONTAINER mysql -uroot -ppassword -e "USE wechat_education; SHOW TABLES;" 2>/dev/null | wc -l || echo "0")
+  
+  if [ "$TABLE_COUNT" -gt 1 ]; then
+    print_info "数据库已初始化，跳过数据初始化"
+  else
+    print_info "初始化测试数据..."
+    # 执行数据库初始化脚本
+    if [ -f "database/init/02-init-test-data.sql" ]; then
+      docker exec $MYSQL_CONTAINER mysql -uroot -ppassword wechat_education < database/init/02-init-test-data.sql
+      print_info "测试数据初始化完成"
+      print_info "测试账号: 13800138001, 13800138002, 13800138003 (密码: 123456)"
+    else
+      print_warning "初始化脚本不存在: database/init/02-init-test-data.sql"
+    fi
+  fi
+}
+
 # 启动数据库
 start_database() {
   print_info "启动数据库服务..."
@@ -98,6 +142,7 @@ start_database() {
         -e MYSQL_ROOT_PASSWORD=password \
         -e MYSQL_DATABASE=wechat_education \
         -p 3306:3306 \
+        -v $(pwd)/../database/init:/docker-entrypoint-initdb.d \
         --restart unless-stopped \
         mysql:8.0
       print_info "等待MySQL启动..."
@@ -105,6 +150,9 @@ start_database() {
     fi
   fi
   cd ..
+  
+  # 初始化数据库
+  init_database
 }
 
 # 启动后端开发服务器

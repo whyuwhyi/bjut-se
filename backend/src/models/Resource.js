@@ -68,9 +68,48 @@ const Resource = sequelize.define('Resource', {
     comment: '浏览次数'
   },
   status: {
-    type: DataTypes.ENUM('draft', 'published', 'archived'),
+    type: DataTypes.ENUM('draft', 'pending', 'published', 'rejected', 'archived'),
     defaultValue: 'draft',
-    comment: '资源状态'
+    comment: '资源状态：draft-草稿，pending-待审核，published-已发布，rejected-已拒绝，archived-已归档'
+  },
+  // 审核信息
+  reviewer_phone: {
+    type: DataTypes.STRING(11),
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'phone_number'
+    },
+    comment: '审核者手机号（外键）'
+  },
+  review_comment: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: '审核意见'
+  },
+  reviewed_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '审核时间'
+  },
+  // 下载统计
+  download_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    validate: {
+      min: 0
+    },
+    comment: '下载次数'
+  },
+  // 分类信息
+  category_id: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    references: {
+      model: 'categories',
+      key: 'category_id'
+    },
+    comment: '资源分类ID（外键）'
   }
 }, {
   tableName: 'resources',

@@ -24,6 +24,8 @@ jobs:
           MYSQL_DATABASE: wechat_education_test
           MYSQL_USER: testuser
           MYSQL_PASSWORD: testpass
+          MYSQL_CHARACTER_SET_SERVER: utf8mb4
+          MYSQL_COLLATION_SERVER: utf8mb4_0900_ai_ci
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
@@ -242,20 +244,40 @@ jobs:
           # 等待服务启动
           sleep 30
           
+          # 等待服务启动
+          echo "等待服务启动..."
+          sleep 60
+          
           # 健康检查
-          if curl -f http://localhost/health; then
-            echo "部署成功！"
-            # 清理旧备份（保留最近3个）
-            ls -t backup-* 2>/dev/null | tail -n +4 | xargs rm -rf
-          else
-            echo "部署失败，回滚..."
-            docker-compose down
-            if [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
-              cd ../backup-$(ls -t backup-* 2>/dev/null | head -n 1)
-              docker-compose up -d
+          max_attempts=10
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            if curl -f http://localhost:3000/api/health 2>/dev/null; then
+              echo "✅ 后端API服务正常"
+              if curl -f http://localhost/health 2>/dev/null; then
+                echo "✅ Nginx代理服务正常"
+              fi
+              echo "✅ 部署成功！"
+              # 清理旧备份（保留最近3个）
+              ls -t backup-* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+              exit 0
+            else
+              echo "尝试 $attempt/$max_attempts: 服务尚未就绪，等待10秒..."
+              docker-compose ps
+              sleep 10
+              attempt=$((attempt + 1))
             fi
-            exit 1
+          done
+          
+          echo "❌ 部署失败，服务健康检查未通过，开始回滚..."
+          docker-compose logs --tail=50
+          docker-compose down
+          if [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
+            cd ../backup-$(ls -t backup-* 2>/dev/null | head -n 1)
+            docker-compose up -d
+            echo "🔄 已回滚到上一个版本"
           fi
+          exit 1
 
   # 通知
   notify:

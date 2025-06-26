@@ -16,32 +16,14 @@
 				
 				<view class="form-item">
 					<text class="form-label">资源分类</text>
-					<picker :value="selectedCategory" :range="categories" @change="categoryChange">
+					<picker :value="selectedCategory" :range="categoryNames" @change="categoryChange">
 						<view class="picker-view">
-							{{ selectedCategory >= 0 ? categories[selectedCategory] : '请选择分类' }}
+							{{ selectedCategory >= 0 ? categoryNames[selectedCategory] : '请选择分类' }}
 						</view>
 					</picker>
 				</view>
 				
-				<view class="form-item">
-					<text class="form-label">难度等级</text>
-					<picker :value="selectedDifficulty" :range="difficulties" @change="difficultyChange">
-						<view class="picker-view">
-							{{ selectedDifficulty >= 0 ? difficulties[selectedDifficulty] : '请选择难度' }}
-						</view>
-					</picker>
-				</view>
 				
-				<view class="form-item">
-					<text class="form-label">标签</text>
-					<view class="tags-input">
-						<view class="tag-item" v-for="(tag, index) in uploadForm.tags" :key="index">
-							<text class="tag-text">{{ tag }}</text>
-							<text class="tag-remove" @click="removeTag(index)">×</text>
-						</view>
-						<input class="tag-input" placeholder="输入标签后按回车" v-model="newTag" @confirm="addTag"/>
-					</view>
-				</view>
 			</view>
 
 			<view class="form-section">
@@ -68,40 +50,6 @@
 				</view>
 			</view>
 
-			<view class="form-section">
-				<text class="section-title">⚙️ 权限设置</text>
-				
-				<view class="permission-item">
-					<text class="permission-label">资源可见性</text>
-					<radio-group @change="visibilityChange">
-						<label class="radio-item">
-							<radio value="public" checked/>
-							<text>公开 - 所有用户可见</text>
-						</label>
-						<label class="radio-item">
-							<radio value="college"/>
-							<text>学院内 - 仅本学院用户可见</text>
-						</label>
-						<label class="radio-item">
-							<radio value="private"/>
-							<text>私有 - 仅自己可见</text>
-						</label>
-					</radio-group>
-				</view>
-				
-				<view class="permission-item">
-					<text class="permission-label">下载权限</text>
-					<view class="switch-item">
-						<text class="switch-label">允许下载</text>
-						<switch @change="downloadChange" checked/>
-					</view>
-					<view class="switch-item">
-						<text class="switch-label">需要积分</text>
-						<switch @change="pointsChange"/>
-						<input class="points-input" placeholder="积分" v-model="uploadForm.requiredPoints" v-if="uploadForm.requirePoints"/>
-					</view>
-				</view>
-			</view>
 		</view>
 
 		<view class="action-buttons">
@@ -121,45 +69,49 @@ export default {
 				title: '',
 				description: '',
 				category: '',
-				difficulty: '',
-				tags: [],
-				file: null,
-				visibility: 'public',
-				allowDownload: true,
-				requirePoints: false,
-				requiredPoints: 0
+				file: null
 			},
-			categories: ['课件', '作业', '实验', '考试', '项目', '论文', '其他'],
-			difficulties: ['入门', '中级', '高级'],
+			categories: [],
 			selectedCategory: -1,
-			selectedDifficulty: -1,
-			newTag: '',
 			uploading: false,
 			uploadProgress: 0
 		}
 	},
 	
+	computed: {
+		categoryNames() {
+			return this.categories.map(cat => cat.name)
+		}
+	},
+	
+	onLoad() {
+		this.loadCategories()
+	},
+	
 	methods: {
-		categoryChange(e) {
-			this.selectedCategory = e.detail.value
-			this.uploadForm.category = this.categories[e.detail.value]
-		},
-		
-		difficultyChange(e) {
-			this.selectedDifficulty = e.detail.value
-			this.uploadForm.difficulty = this.difficulties[e.detail.value]
-		},
-		
-		addTag() {
-			if (this.newTag.trim() && !this.uploadForm.tags.includes(this.newTag.trim())) {
-				this.uploadForm.tags.push(this.newTag.trim())
-				this.newTag = ''
+		// 加载分类列表
+		async loadCategories() {
+			try {
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/categories/options',
+					method: 'GET'
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.categories = response.data.data
+				}
+			} catch (error) {
+				console.error('加载分类失败:', error)
 			}
 		},
 		
-		removeTag(index) {
-			this.uploadForm.tags.splice(index, 1)
+		categoryChange(e) {
+			this.selectedCategory = e.detail.value
+			const selectedCat = this.categories[e.detail.value]
+			this.uploadForm.category = selectedCat.name
 		},
+		
+		
 		
 		chooseFile() {
 			uni.chooseFile({
@@ -185,17 +137,6 @@ export default {
 			})
 		},
 		
-		visibilityChange(e) {
-			this.uploadForm.visibility = e.detail.value
-		},
-		
-		downloadChange(e) {
-			this.uploadForm.allowDownload = e.detail.value
-		},
-		
-		pointsChange(e) {
-			this.uploadForm.requirePoints = e.detail.value
-		},
 		
 		previewResource() {
 			if (!this.validateForm()) {
@@ -204,13 +145,13 @@ export default {
 			
 			uni.showModal({
 				title: '资源预览',
-				content: `标题：${this.uploadForm.title}\n分类：${this.uploadForm.category}\n难度：${this.uploadForm.difficulty}\n描述：${this.uploadForm.description}`,
+				content: `标题：${this.uploadForm.title}\n分类：${this.uploadForm.category}\n描述：${this.uploadForm.description}`,
 				showCancel: false
 			})
 		},
 		
 		validateForm() {
-			const { title, description, category, difficulty, file } = this.uploadForm
+			const { title, description, category, file } = this.uploadForm
 			
 			if (!title.trim()) {
 				uni.showToast({
@@ -236,14 +177,6 @@ export default {
 				return false
 			}
 			
-			if (!difficulty) {
-				uni.showToast({
-					title: '请选择难度等级',
-					icon: 'none'
-				})
-				return false
-			}
-			
 			if (!file) {
 				uni.showToast({
 					title: '请选择要上传的文件',
@@ -255,34 +188,101 @@ export default {
 			return true
 		},
 		
-		submitUpload() {
+		async submitUpload() {
 			if (!this.validateForm()) {
 				return
 			}
 			
-			this.uploading = true
-			this.uploadProgress = 0
-			
-			// 模拟上传进度
-			const progressInterval = setInterval(() => {
-				this.uploadProgress += Math.random() * 20
-				if (this.uploadProgress >= 100) {
-					this.uploadProgress = 100
-					clearInterval(progressInterval)
-					
-					setTimeout(() => {
-						this.uploading = false
-						uni.showModal({
-							title: '上传成功',
-							content: '您的资源已成功发布，等待审核通过后将对其他用户可见。',
-							showCancel: false,
-							success: () => {
-								uni.navigateBack()
-							}
-						})
-					}, 500)
+			try {
+				this.uploading = true
+				this.uploadProgress = 0
+				
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
 				}
-			}, 200)
+				
+				// 1. 创建资源记录
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/resources',
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						resource_name: this.uploadForm.title,
+						description: this.uploadForm.description
+					}
+				})
+				
+				if (response.statusCode !== 201 || !response.data.success) {
+					throw new Error(response.data.message || '创建资源失败')
+				}
+				
+				const resourceId = response.data.data.resource_id
+				this.uploadProgress = 30
+				
+				// 2. 上传文件（这里简化处理，实际需要文件上传接口）
+				// 模拟文件上传进度
+				const progressInterval = setInterval(() => {
+					this.uploadProgress += Math.random() * 10
+					if (this.uploadProgress >= 90) {
+						this.uploadProgress = 90
+						clearInterval(progressInterval)
+						
+						// 3. 提交审核
+						this.submitForReview(resourceId)
+					}
+				}, 200)
+				
+			} catch (error) {
+				console.error('上传失败:', error)
+				this.uploading = false
+				uni.showToast({
+					title: error.message || '上传失败',
+					icon: 'none'
+				})
+			}
+		},
+		
+		async submitForReview(resourceId) {
+			try {
+				const token = uni.getStorageSync('token')
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${resourceId}/submit-review`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				this.uploadProgress = 100
+				
+				setTimeout(() => {
+					this.uploading = false
+					uni.showModal({
+						title: '上传成功',
+						content: response.data.message || '您的资源已成功发布，等待审核通过后将对其他用户可见。',
+						showCancel: false,
+						success: () => {
+							uni.navigateBack()
+						}
+					})
+				}, 500)
+				
+			} catch (error) {
+				console.error('提交审核失败:', error)
+				this.uploading = false
+				uni.showToast({
+					title: '提交审核失败',
+					icon: 'none'
+				})
+			}
 		},
 		
 		getFileIcon(fileType) {
@@ -368,39 +368,48 @@ export default {
 				color: #333;
 			}
 			
-			.tags-input {
-				display: flex;
-				flex-wrap: wrap;
-				align-items: center;
-				min-height: 80rpx;
-				padding: 15rpx;
-				border: 2rpx solid #e0e0e0;
-				border-radius: 10rpx;
-				background: #fafafa;
-				
-				.tag-item {
+			.tags-section {
+				.selected-tags {
 					display: flex;
-					align-items: center;
-					background: #007aff;
-					color: white;
-					padding: 8rpx 15rpx;
-					border-radius: 20rpx;
-					margin: 5rpx;
-					font-size: 24rpx;
+					flex-wrap: wrap;
+					margin-bottom: 20rpx;
 					
-					.tag-remove {
-						margin-left: 10rpx;
-						font-size: 32rpx;
-						font-weight: bold;
+					.tag-item {
+						display: flex;
+						align-items: center;
+						background: #007aff;
+						color: white;
+						padding: 8rpx 15rpx;
+						border-radius: 20rpx;
+						margin: 5rpx 10rpx 5rpx 0;
+						font-size: 24rpx;
+						
+						.tag-remove {
+							margin-left: 10rpx;
+							font-size: 32rpx;
+							font-weight: bold;
+						}
 					}
 				}
 				
-				.tag-input {
-					flex: 1;
-					min-width: 150rpx;
-					border: none;
-					background: transparent;
-					font-size: 28rpx;
+				.tag-actions {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					
+					.select-tag-btn {
+						background: #f0f0f0;
+						color: #333;
+						border: 2rpx solid #e0e0e0;
+						border-radius: 10rpx;
+						padding: 15rpx 30rpx;
+						font-size: 26rpx;
+					}
+					
+					.tag-count {
+						font-size: 24rpx;
+						color: #666;
+					}
 				}
 			}
 		}
@@ -479,49 +488,6 @@ export default {
 	}
 }
 
-.permission-item {
-	margin-bottom: 30rpx;
-	
-	.permission-label {
-		display: block;
-		font-size: 28rpx;
-		color: #666;
-		margin-bottom: 20rpx;
-	}
-	
-	.radio-item {
-		display: flex;
-		align-items: center;
-		margin-bottom: 20rpx;
-		font-size: 26rpx;
-		color: #333;
-		
-		radio {
-			margin-right: 15rpx;
-		}
-	}
-	
-	.switch-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 20rpx;
-		
-		.switch-label {
-			font-size: 26rpx;
-			color: #333;
-		}
-		
-		.points-input {
-			width: 150rpx;
-			padding: 10rpx;
-			border: 1rpx solid #ddd;
-			border-radius: 8rpx;
-			text-align: center;
-			font-size: 24rpx;
-		}
-	}
-}
 
 .action-buttons {
 	position: fixed;

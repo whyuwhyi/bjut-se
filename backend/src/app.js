@@ -17,8 +17,10 @@ app.use(helmet())
 
 // CORS配置
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: true
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:8080', 'http://127.0.0.1:8080'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }))
 
 // 压缩中间件
@@ -72,6 +74,7 @@ const startServer = async () => {
     if (config.server.env === 'development') {
       await sequelize.sync({ alter: true })
       console.log('数据库模型同步完成')
+      console.log('测试数据请通过database/init/02-init-test-data.sql文件初始化')
     }
 
     // 启动服务器

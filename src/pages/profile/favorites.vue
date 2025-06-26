@@ -105,7 +105,7 @@
 				favoriteTypes: [
 					{ name: '全部', value: 'all', count: 25 },
 					{ name: '资源', value: 'resource', count: 12 },
-					{ name: '讨论', value: 'discussion', count: 8 },
+					{ name: '帖子', value: 'post', count: 8 },
 					{ name: '活动', value: 'activity', count: 5 }
 				],
 				favorites: [
@@ -121,13 +121,13 @@
 					},
 					{
 						id: '2',
-						type: 'discussion',
+						type: 'post',
 						title: '关于React Hooks的深度解析',
 						description: '详细讲解React Hooks的使用方法和最佳实践',
 						author: '张同学',
 						favoriteTime: new Date('2025-06-18 16:45:00'),
 						tags: ['React', '前端', 'Hooks'],
-						url: '/pages/discussion/detail?id=2'
+						url: '/pages/forum/detail?id=POST00002'
 					},
 					{
 						id: '3',
@@ -151,13 +151,13 @@
 					},
 					{
 						id: '5',
-						type: 'discussion',
+						type: 'post',
 						title: '算法面试题解析',
 						description: '常见算法面试题的详细解答和思路分析',
 						author: '刘同学',
 						favoriteTime: new Date('2025-06-15 20:30:00'),
 						tags: ['算法', '面试', '编程'],
-						url: '/pages/discussion/detail?id=5'
+						url: '/pages/forum/detail?id=POST00005'
 					}
 				],
 				itemToDelete: null
@@ -275,7 +275,7 @@
 				// 更新各类型的数量
 				this.favoriteTypes[0].count = this.favorites.length;
 				this.favoriteTypes[1].count = this.favorites.filter(f => f.type === 'resource').length;
-				this.favoriteTypes[2].count = this.favorites.filter(f => f.type === 'discussion').length;
+				this.favoriteTypes[2].count = this.favorites.filter(f => f.type === 'post').length;
 				this.favoriteTypes[3].count = this.favorites.filter(f => f.type === 'activity').length;
 			},
 			
@@ -288,7 +288,7 @@
 			getTypeIcon(type) {
 				const icons = {
 					resource: '📚',
-					discussion: '💬',
+					post: '💬',
 					activity: '🎯'
 				};
 				return icons[type] || '📄';
@@ -412,7 +412,7 @@
 		background-color: #e8f4fd;
 	}
 
-	.item-icon.icon-discussion {
+	.item-icon.icon-post {
 		background-color: #f0f9ff;
 	}
 

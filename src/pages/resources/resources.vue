@@ -8,36 +8,25 @@
 				<input class="search-input" placeholder="搜索学习资源..." v-model="searchKeyword" @input="handleSearch"/>
 			</view>
 			
-			<!-- 快速筛选栏 -->
-			<view class="quick-filters">
-				<!-- 分类筛选 -->
-				<scroll-view class="category-scroll" scroll-x="true">
-					<view class="category-list">
-						<view 
-							class="category-item" 
-							:class="{ active: selectedCategory === index }"
-							v-for="(category, index) in categories" 
-							:key="index"
-							@click="selectCategory(index)"
-						>
-							<text class="category-text">{{ category.name }}</text>
-						</view>
+			<!-- 筛选条件区域 -->
+			<view class="filter-section">
+				<view class="filter-row">
+					<view class="filter-item">
+						<text class="filter-label">分类</text>
+						<picker :value="selectedCategoryIndex" :range="categoryNames" @change="categoryChange">
+							<view class="picker-view">
+								{{ selectedCategoryIndex >= 0 ? categoryNames[selectedCategoryIndex] : '全部分类' }}
+							</view>
+						</picker>
 					</view>
-				</scroll-view>
-				
-				<!-- 文件类型和排序按钮 -->
-				<view class="filter-controls">
-					<view class="filter-btn" @click="showFileTypeModal">
-						<text class="filter-text">类型</text>
-						<text class="filter-icon">📁</text>
-					</view>
-					<view class="filter-btn" @click="showDifficultyModal">
-						<text class="filter-text">难度</text>
-						<text class="filter-icon">⭐</text>
-					</view>
-					<view class="sort-btn" @click="showSortModal">
-						<text class="sort-text">{{ getSortText() }}</text>
-						<text class="sort-icon">🔽</text>
+					
+					<view class="filter-item">
+						<text class="filter-label">排序</text>
+						<picker :value="selectedSortIndex" :range="sortNames" @change="sortChange">
+							<view class="picker-view">
+								{{ sortNames[selectedSortIndex] }}
+							</view>
+						</picker>
 					</view>
 				</view>
 			</view>
@@ -71,7 +60,6 @@
 						<text class="resource-title">{{ item.title }}</text>
 						<view class="resource-tags">
 							<text class="tag">{{ item.category }}</text>
-							<text class="tag difficulty" :class="'level-' + item.difficulty">{{ item.difficultyText }}</text>
 						</view>
 					</view>
 					<view class="resource-actions">
@@ -112,169 +100,120 @@ export default {
 	data() {
 		return {
 			searchKeyword: '',
-			selectedCategory: 0,
 			currentSort: 'latest',
-			categories: [
-				{ name: '全部', value: 'all' },
-				{ name: '课件', value: 'courseware' },
-				{ name: '作业', value: 'homework' },
-				{ name: '实验', value: 'experiment' },
-				{ name: '考试', value: 'exam' },
-				{ name: '项目', value: 'project' },
-				{ name: '论文', value: 'paper' }
-			],
+			categories: [],
 			sortOptions: [
 				{ label: '最新上传', value: 'latest' },
 				{ label: '下载最多', value: 'download' },
 				{ label: '评分最高', value: 'rating' },
 				{ label: '浏览最多', value: 'view' }
 			],
-			resources: [
-				{
-					id: 1,
-					title: '数据结构与算法 - 第一章课件',
-					description: '包含基础概念、时间复杂度分析、常用数据结构介绍等内容',
-					fileType: 'pdf',
-					category: '课件',
-					difficulty: 1,
-					difficultyText: '入门',
-					uploaderName: '张教授',
-					uploadTime: new Date('2025-06-15'),
-					viewCount: 256,
-					downloadCount: 128,
-					rating: 4.8,
-					isFavorited: false,
-					thumbnail: require('@/static/logo.png')
-				},
-				{
-					id: 2,
-					title: '机器学习实验代码包',
-					description: '包含线性回归、决策树、SVM等经典算法的完整实现代码',
-					fileType: 'zip',
-					category: '实验',
-					difficulty: 3,
-					difficultyText: '高级',
-					uploaderName: '李同学',
-					uploadTime: new Date('2025-06-14'),
-					viewCount: 189,
-					downloadCount: 67,
-					rating: 4.6,
-					isFavorited: true,
-					thumbnail: require('@/static/logo.png')
-				},
-				{
-					id: 3,
-					title: '软件工程期末复习资料',
-					description: '涵盖软件开发生命周期、设计模式、项目管理等重点知识',
-					fileType: 'doc',
-					category: '考试',
-					difficulty: 2,
-					difficultyText: '中级',
-					uploaderName: '王老师',
-					uploadTime: new Date('2025-06-13'),
-					viewCount: 342,
-					downloadCount: 198,
-					rating: 4.9,
-					isFavorited: false,
-					thumbnail: require('@/static/logo.png')
-				}
-			],
-			filteredResources: [],
-			filterOptions: {
-				fileTypes: [],
-				difficulties: []
-			},
-			fileTypes: [
-				{ label: 'PDF文档', value: 'pdf' },
-				{ label: 'Word文档', value: 'doc' },
-				{ label: 'PPT演示', value: 'ppt' },
-				{ label: '压缩包', value: 'zip' },
-				{ label: '视频', value: 'video' }
-			],
-			difficulties: [
-				{ label: '入门', value: 1 },
-				{ label: '中级', value: 2 },
-				{ label: '高级', value: 3 }
-			]
+			selectedCategoryIndex: -1,
+			selectedSortIndex: 0,
+			resources: [],
+			loading: false,
+			filteredResources: []
+		}
+	},
+	
+	computed: {
+		categoryNames() {
+			return this.categories.map(cat => cat.name)
+		},
+		sortNames() {
+			return this.sortOptions.map(sort => sort.label)
 		}
 	},
 	
 	onLoad() {
-		this.filteredResources = this.resources
+		this.loadCategories()
+		this.loadResources()
 	},
 	
 	methods: {
+		// 加载分类列表
+		async loadCategories() {
+			try {
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/categories/options',
+					method: 'GET'
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.categories = response.data.data
+				}
+			} catch (error) {
+				console.error('加载分类失败:', error)
+			}
+		},
+		
+		// 加载资源列表
+		async loadResources() {
+			try {
+				this.loading = true
+				
+				const params = {
+					page: 1,
+					limit: 50,
+					sortBy: this.currentSort
+				}
+				
+				// 添加筛选条件
+				if (this.selectedCategoryIndex >= 0 && this.categories[this.selectedCategoryIndex]) {
+					params.categories = this.categories[this.selectedCategoryIndex].value
+				}
+				
+				
+				if (this.searchKeyword) {
+					params.search = this.searchKeyword
+				}
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/resources',
+					method: 'GET',
+					data: params
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.resources = response.data.data.resources || []
+					this.filteredResources = this.resources
+				} else {
+					uni.showToast({
+						title: '加载失败',
+						icon: 'none'
+					})
+				}
+			} catch (error) {
+				console.error('加载资源列表错误:', error)
+				uni.showToast({
+					title: '网络错误',
+					icon: 'none'
+				})
+			} finally {
+				this.loading = false
+			}
+		},
 		handleSearch() {
-			this.filterResources()
+			this.loadResources()
 		},
 		
-		selectCategory(index) {
-			this.selectedCategory = index
-			this.filterResources()
+
+		// 分类选择
+		categoryChange(e) {
+			this.selectedCategoryIndex = e.detail.value
+			this.loadResources()
 		},
 		
-		filterResources() {
-			let filtered = this.resources
-			
-			// 分类筛选
-			if (this.selectedCategory > 0) {
-				const categoryValue = this.categories[this.selectedCategory].value
-				filtered = filtered.filter(item => item.category === this.categories[this.selectedCategory].name)
-			}
-			
-			// 搜索筛选
-			if (this.searchKeyword) {
-				filtered = filtered.filter(item => 
-					item.title.toLowerCase().includes(this.searchKeyword.toLowerCase()) ||
-					item.description.toLowerCase().includes(this.searchKeyword.toLowerCase())
-				)
-			}
-			
-			// 文件类型筛选
-			if (this.filterOptions.fileTypes.length > 0) {
-				filtered = filtered.filter(item => this.filterOptions.fileTypes.includes(item.fileType))
-			}
-			
-			// 难度筛选
-			if (this.filterOptions.difficulties.length > 0) {
-				filtered = filtered.filter(item => this.filterOptions.difficulties.includes(item.difficulty))
-			}
-			
-			this.filteredResources = filtered
-			this.sortResources()
+		
+		// 排序选择
+		sortChange(e) {
+			this.selectedSortIndex = e.detail.value
+			this.currentSort = this.sortOptions[e.detail.value].value
+			this.loadResources()
 		},
 		
-		showFileTypeModal() {
-			uni.showActionSheet({
-				itemList: this.fileTypes.map(type => type.label),
-				success: (res) => {
-					const selectedType = this.fileTypes[res.tapIndex].value
-					this.toggleFileType(selectedType)
-					this.filterResources()
-				}
-			})
-		},
 		
-		showDifficultyModal() {
-			uni.showActionSheet({
-				itemList: this.difficulties.map(diff => diff.label),
-				success: (res) => {
-					const selectedDiff = this.difficulties[res.tapIndex].value
-					this.toggleDifficulty(selectedDiff)
-					this.filterResources()
-				}
-			})
-		},
-		
-		showSortModal() {
-			uni.showActionSheet({
-				itemList: this.sortOptions.map(sort => sort.label),
-				success: (res) => {
-					this.currentSort = this.sortOptions[res.tapIndex].value
-					this.sortResources()
-				}
-			})
-		},
+
 		
 		getSortText() {
 			const sort = this.sortOptions.find(s => s.value === this.currentSort)
@@ -282,70 +221,36 @@ export default {
 		},
 		
 		hasActiveFilters() {
-			return this.filterOptions.fileTypes.length > 0 || 
-				   this.filterOptions.difficulties.length > 0 ||
-				   this.selectedCategory > 0
+			return this.selectedCategoryIndex >= 0
 		},
 		
 		getActiveFilterTags() {
 			const tags = []
 			
 			// 分类标签
-			if (this.selectedCategory > 0) {
+			if (this.selectedCategoryIndex >= 0 && this.categories[this.selectedCategoryIndex]) {
+				const category = this.categories[this.selectedCategoryIndex]
 				tags.push({
-					key: 'category',
-					label: this.categories[this.selectedCategory].name,
-					type: 'category'
+					key: `category_${category.value}`,
+					label: category.name,
+					type: 'category',
+					value: this.selectedCategoryIndex
 				})
 			}
-			
-			// 文件类型标签
-			this.filterOptions.fileTypes.forEach(type => {
-				const fileType = this.fileTypes.find(f => f.value === type)
-				if (fileType) {
-					tags.push({
-						key: `filetype_${type}`,
-						label: fileType.label,
-						type: 'fileType',
-						value: type
-					})
-				}
-			})
-			
-			// 难度标签
-			this.filterOptions.difficulties.forEach(diff => {
-				const difficulty = this.difficulties.find(d => d.value === diff)
-				if (difficulty) {
-					tags.push({
-						key: `difficulty_${diff}`,
-						label: difficulty.label,
-						type: 'difficulty',
-						value: diff
-					})
-				}
-			})
 			
 			return tags
 		},
 		
 		removeFilter(tag) {
 			if (tag.type === 'category') {
-				this.selectedCategory = 0
-			} else if (tag.type === 'fileType') {
-				this.toggleFileType(tag.value)
-			} else if (tag.type === 'difficulty') {
-				this.toggleDifficulty(tag.value)
+				this.selectedCategoryIndex = -1
 			}
-			this.filterResources()
+			this.loadResources()
 		},
 		
 		clearAllFilters() {
-			this.selectedCategory = 0
-			this.filterOptions = {
-				fileTypes: [],
-				difficulties: []
-			}
-			this.filterResources()
+			this.selectedCategoryIndex = -1
+			this.loadResources()
 		},
 		
 		sortResources() {
@@ -370,31 +275,46 @@ export default {
 			this.filteredResources = sorted
 		},
 		
-		toggleFileType(type) {
-			const index = this.filterOptions.fileTypes.indexOf(type)
-			if (index > -1) {
-				this.filterOptions.fileTypes.splice(index, 1)
-			} else {
-				this.filterOptions.fileTypes.push(type)
+		
+		
+		async toggleFavorite(item) {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${item.id}/favorite`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					item.isFavorited = response.data.data.isFavorited
+					uni.showToast({
+						title: response.data.message,
+						icon: 'none'
+					})
+				} else {
+					uni.showToast({
+						title: '操作失败',
+						icon: 'none'
+					})
+				}
+			} catch (error) {
+				console.error('收藏操作错误:', error)
+				uni.showToast({
+					title: '网络错误',
+					icon: 'none'
+				})
 			}
-		},
-		
-		toggleDifficulty(difficulty) {
-			const index = this.filterOptions.difficulties.indexOf(difficulty)
-			if (index > -1) {
-				this.filterOptions.difficulties.splice(index, 1)
-			} else {
-				this.filterOptions.difficulties.push(difficulty)
-			}
-		},
-		
-		
-		toggleFavorite(item) {
-			item.isFavorited = !item.isFavorited
-			uni.showToast({
-				title: item.isFavorited ? '已收藏' : '已取消收藏',
-				icon: 'none'
-			})
 		},
 		
 		viewResource(item) {
@@ -421,8 +341,16 @@ export default {
 		},
 		
 		formatTime(time) {
+			if (!time) return '未知时间'
+			
+			// 确保 time 是 Date 对象
+			const date = new Date(time)
+			if (isNaN(date.getTime())) {
+				return '时间格式错误'
+			}
+			
 			const now = new Date()
-			const diff = now - time
+			const diff = now - date
 			const day = 24 * 60 * 60 * 1000
 			
 			if (diff < day) {
@@ -431,7 +359,7 @@ export default {
 			} else if (diff < 7 * day) {
 				return `${Math.floor(diff / day)}天前`
 			} else {
-				return time.toLocaleDateString()
+				return date.toLocaleDateString()
 			}
 		}
 	}
@@ -468,6 +396,51 @@ export default {
 			flex: 1;
 			height: 80rpx;
 			font-size: 28rpx;
+		}
+	}
+	
+	.filter-section {
+		margin-top: 20rpx;
+		
+		.filter-row {
+			display: flex;
+			gap: 15rpx;
+			margin-bottom: 15rpx;
+			
+			&:last-child {
+				margin-bottom: 0;
+			}
+			
+			.filter-item {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				gap: 8rpx;
+				
+				&.sort-item {
+					flex: 2;
+				}
+				
+				.filter-label {
+					font-size: 24rpx;
+					color: #666;
+					font-weight: 500;
+				}
+				
+				.picker-view {
+					background: #f8f8f8;
+					border: 1rpx solid #e0e0e0;
+					border-radius: 8rpx;
+					padding: 15rpx 20rpx;
+					font-size: 26rpx;
+					color: #333;
+					text-align: center;
+					
+					&:active {
+						background: #eeeeee;
+					}
+				}
+			}
 		}
 	}
 	
