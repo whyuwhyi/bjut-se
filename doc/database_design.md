@@ -110,61 +110,94 @@
 
 ---
 
-## 3. 社团活动模块
+## 3. 学习管理模块
 
-### 3.1 活动类型表 (activity_types)
+### 3.1 学习计划表 (study_plans)
 
-定义活动分类体系，支持动态扩展活动类型。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| type_id | INT | PRIMARY KEY, AUTO_INCREMENT | 活动类型ID |
-| type_name | VARCHAR(50) | UNIQUE, NOT NULL | 活动类型名称 |
-| description | TEXT | | 类型描述 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-
-### 3.2 社区活动表 (community_activities)
-
-存储所有社团活动的详细信息。
+用户个人学习计划管理，支持制定和跟踪学习目标。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| activity_id | VARCHAR(9) | PRIMARY KEY | 9位数字的活动唯一标识符 |
-| publisher_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 发布者手机号（外键到用户表） |
-| activity_name | VARCHAR(200) | NOT NULL | 活动名称，1-200个字符 |
-| activity_address | VARCHAR(300) | | 活动地点，最多300个字符 |
-| activity_description | VARCHAR(5000) | | 活动详细描述，最多5000个字符 |
-| registration_fee | DECIMAL(7,2) | DEFAULT 0.00 | 报名费用，最大99999.99元 |
-| max_participants | INT | | 最大参与人数，1-9999人 |
-| current_participants | INT | DEFAULT 0 | 当前已报名人数，0到最大人数 |
-| start_time | DATETIME | | 活动开始时间 |
-| end_time | DATETIME | | 活动结束时间 |
-| registration_deadline | DATETIME | | 报名截止时间 |
-| status | ENUM('draft','published','cancelled','completed') | DEFAULT 'draft' | 活动状态 |
+| plan_id | VARCHAR(9) | PRIMARY KEY | 9位数字的计划唯一标识符 |
+| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号（外键到用户表） |
+| title | VARCHAR(200) | NOT NULL | 计划标题，1-200个字符 |
+| description | TEXT | | 计划详细描述 |
+| start_date | DATE | NOT NULL | 开始日期 |
+| end_date | DATE | NOT NULL | 结束日期 |
+| status | ENUM('active','completed','paused','cancelled') | DEFAULT 'active' | 计划状态：active-进行中，completed-已完成，paused-已暂停，cancelled-已取消 |
+| progress_percent | INT | DEFAULT 0 | 整体进度百分比，0-100 |
+| plan_type | VARCHAR(50) | DEFAULT '自定义计划' | 计划类型（前端开发、算法练习、考试复习等） |
+| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 3.3 活动类型关联表 (activity_type_relations)
+### 3.2 学习任务表 (study_tasks)
 
-实现活动与类型的多对多关系。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| relation_id | INT | PRIMARY KEY, AUTO_INCREMENT | 关联记录唯一标识符 |
-| activity_id | VARCHAR(9) | FOREIGN KEY | 关联活动表 |
-| type_id | INT | FOREIGN KEY | 关联活动类型表 |
-
-### 3.4 活动报名表 (registrations)
-
-记录用户的活动报名信息。
+学习计划下的具体任务管理。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| registration_id | INT | PRIMARY KEY, AUTO_INCREMENT | 报名记录唯一标识符 |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 报名用户手机号（外键到用户表） |
-| activity_id | VARCHAR(9) | FOREIGN KEY | 关联社区活动表 |
-| status | ENUM('registered','cancelled','attended') | DEFAULT 'registered' | 报名状态 |
-| registration_time | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 报名时间 |
+| task_id | VARCHAR(9) | PRIMARY KEY | 9位数字的任务唯一标识符 |
+| plan_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联学习计划表 |
+| title | VARCHAR(200) | NOT NULL | 任务标题 |
+| description | TEXT | | 任务描述 |
+| deadline | DATE | | 截止日期 |
+| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 任务优先级 |
+| status | ENUM('pending','in_progress','completed','cancelled') | DEFAULT 'pending' | 任务状态 |
+| estimated_hours | INT | | 预估学习时长（小时） |
+| actual_hours | INT | DEFAULT 0 | 实际学习时长（小时） |
+| tags | VARCHAR(500) | | 标签（JSON格式存储） |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+### 3.3 子任务表 (sub_tasks)
+
+支持任务的细化分解。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| subtask_id | INT | PRIMARY KEY, AUTO_INCREMENT | 子任务ID |
+| task_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联学习任务表 |
+| title | VARCHAR(200) | NOT NULL | 子任务标题 |
+| completed | BOOLEAN | DEFAULT FALSE | 是否已完成 |
+| sort_order | INT | DEFAULT 0 | 排序顺序 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+### 3.4 学习记录表 (study_records)
+
+记录用户的详细学习活动和进度。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| record_id | INT | PRIMARY KEY, AUTO_INCREMENT | 记录ID |
+| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
+| plan_id | VARCHAR(9) | FOREIGN KEY | 关联学习计划（可选） |
+| task_id | VARCHAR(9) | FOREIGN KEY | 关联学习任务（可选） |
+| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源（可选） |
+| activity_type | ENUM('resource_view','resource_download','task_complete','plan_create','discussion_join') | NOT NULL | 活动类型 |
+| duration_minutes | INT | DEFAULT 0 | 学习时长（分钟） |
+| experience_gained | INT | DEFAULT 0 | 获得经验值 |
+| study_date | DATE | NOT NULL | 学习日期 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+### 3.5 学习目标表 (study_goals)
+
+用户设定的学习目标管理。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| goal_id | VARCHAR(9) | PRIMARY KEY | 9位数字的目标唯一标识符 |
+| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
+| title | VARCHAR(200) | NOT NULL | 目标标题 |
+| description | TEXT | | 目标描述 |
+| target_value | INT | NOT NULL | 目标数值 |
+| current_value | INT | DEFAULT 0 | 当前进度 |
+| unit | VARCHAR(20) | DEFAULT '次' | 计量单位（小时、次、个等） |
+| goal_type | ENUM('daily','weekly','monthly','custom') | NOT NULL | 目标类型 |
+| deadline | DATE | NOT NULL | 截止日期 |
+| status | ENUM('active','completed','paused','expired') | DEFAULT 'active' | 目标状态 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 ---
@@ -261,18 +294,24 @@
 
 ## 5. 用户交互模块
 
-### 5.1 关注表 (follows)
+### 5.1 用户关注表 (user_follows)
 
-实现用户间的关注关系。
+实现用户间的关注关系，支持关注/取消关注功能。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| follow_id | INT | PRIMARY KEY, AUTO_INCREMENT | 关注记录唯一标识符 |
-| follower_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 关注者手机号 |
-| followee_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 被关注者手机号 |
-| status | ENUM('active','cancelled') | DEFAULT 'active' | 关注状态 |
+| follow_id | VARCHAR(9) | PRIMARY KEY | 9位数字的关注记录唯一标识符 |
+| follower_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 关注者手机号（外键） |
+| following_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 被关注者手机号（外键） |
+| status | ENUM('active','cancelled') | DEFAULT 'active' | 关注状态：active-关注中，cancelled-已取消 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 关注时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**业务特点：**
+- 支持用户互相关注，构建社交网络
+- 提供关注列表和粉丝列表查询
+- 关注状态可以重复变更（关注→取消→重新关注）
+- 建立唯一索引防止重复关注记录
 
 ### 5.2 收藏表 (collections)
 
@@ -324,44 +363,9 @@
 
 ---
 
-## 7. 学习管理模块
+## 7. 用户激励模块
 
-### 7.1 学习计划表 (study_plans)
-
-用户个人学习计划管理。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| plan_id | VARCHAR(9) | PRIMARY KEY | 计划ID |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
-| title | VARCHAR(200) | NOT NULL | 计划标题 |
-| description | TEXT | | 计划描述 |
-| start_date | DATE | | 开始日期 |
-| end_date | DATE | | 结束日期 |
-| status | ENUM('active','completed','paused') | DEFAULT 'active' | 状态 |
-| progress | INT | DEFAULT 0 | 进度百分比 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-### 7.2 学习进度表 (learning_progress)
-
-记录用户的详细学习进度。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| progress_id | INT | PRIMARY KEY, AUTO_INCREMENT | 进度ID |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 资源ID |
-| plan_id | VARCHAR(9) | FOREIGN KEY | 学习计划ID |
-| progress_type | ENUM('view','download','complete') | NOT NULL | 进度类型 |
-| progress_value | INT | DEFAULT 0 | 进度值 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
----
-
-## 8. 用户激励模块
-
-### 8.1 用户成就表 (user_achievements)
+### 7.1 用户成就表 (user_achievements)
 
 用户成就系统，提升用户参与度。
 
@@ -375,7 +379,7 @@
 | icon | VARCHAR(10) | | 成就图标 |
 | earned_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 获得时间 |
 
-### 8.2 用户等级表 (user_levels)
+### 7.2 用户等级表 (user_levels)
 
 用户等级经验系统。
 
@@ -389,9 +393,9 @@
 
 ---
 
-## 9. 系统管理模块
+## 8. 系统管理模块
 
-### 9.1 轮播图表 (banners)
+### 8.1 轮播图表 (banners)
 
 首页轮播图管理系统。
 
@@ -407,20 +411,32 @@
 | end_time | TIMESTAMP | | 结束时间 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 9.2 下载记录表 (download_records)
+### 8.2 下载记录表 (download_records)
 
-统计和审计用户下载行为。
+统计和审计用户下载行为，提供详细的下载追踪功能。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| record_id | INT | PRIMARY KEY, AUTO_INCREMENT | 记录ID |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 资源ID |
-| file_id | VARCHAR(9) | FOREIGN KEY | 文件ID |
-| download_time | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 下载时间 |
-| ip_address | VARCHAR(45) | | IP地址 |
+| download_id | VARCHAR(9) | PRIMARY KEY | 9位数字的下载记录唯一标识符 |
+| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 下载者手机号（外键） |
+| resource_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 资源ID（外键） |
+| file_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 文件ID（外键） |
+| download_size | INT | | 下载文件大小（字节） |
+| download_time | INT | | 下载耗时（毫秒） |
+| ip_address | VARCHAR(45) | | 下载IP地址（支持IPv6） |
+| user_agent | TEXT | | 用户代理字符串 |
+| status | ENUM('completed','failed','cancelled') | DEFAULT 'completed' | 下载状态 |
+| downloaded_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 下载时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 9.3 用户设置表 (user_settings)
+**业务特点：**
+- 记录用户的完整下载历史
+- 支持下载失败和取消状态跟踪
+- 提供下载性能统计（文件大小、耗时）
+- 支持用户代理和IP追踪，便于数据分析
+- 为用户提供个人下载记录查询功能
+
+### 8.3 用户设置表 (user_settings)
 
 个性化用户偏好设置。
 
@@ -456,11 +472,13 @@
 分类管理            资源内容管理
 ```
 
-#### 3. 活动管理关系网络
+#### 3. 学习管理关系网络
 ```
-活动类型表 ←--多对多--→ 社区活动表 ←--一对多--→ 活动报名表
-     ↑                    ↓
-   类型管理              用户参与
+学习计划表 ←--一对多--→ 学习任务表 ←--一对多--→ 子任务表
+     ↓                    ↓
+   学习目标表            学习记录表
+     ↓                    ↓
+ 进度跟踪              经验积累
 ```
 
 #### 4. 论坛交流关系层次
@@ -491,11 +509,13 @@
 3. 上传相关文件 → `files` 表
 4. 其他用户浏览/下载 → 更新统计字段
 
-#### 活动组织流程
-1. 用户创建活动 → `community_activities` 表
-2. 关联活动类型 → `activity_type_relations` 表
-3. 用户报名参与 → `registrations` 表
-4. 系统发送通知 → `notifications` 表
+#### 学习管理流程
+1. 用户创建学习计划 → `study_plans` 表
+2. 制定学习任务 → `study_tasks` 表
+3. 分解子任务 → `sub_tasks` 表
+4. 记录学习进度 → `study_records` 表
+5. 设定学习目标 → `study_goals` 表
+6. 获得成就奖励 → `user_achievements` 表
 
 #### 论坛交流流程
 1. 用户发布帖子 → `posts` 表

@@ -191,8 +191,35 @@ export default {
 	methods: {
 		async loadUserProfile() {
 			try {
-				// 模拟加载用户资料
-				console.log('加载用户资料')
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.redirectTo({
+						url: '/pages/login/login'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/users/profile',
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.data.success) {
+					const user = response.data.data.user
+					this.userInfo = {
+						nickname: user.nickname || '',
+						avatar: user.avatar_url || '',
+						name: user.name || '',
+						phone: user.phone_number || '',
+						email: user.email || '',
+						studentId: user.student_id || '',
+						bio: user.bio || ''
+					}
+					this.originalData = JSON.parse(JSON.stringify(this.userInfo))
+				}
 			} catch (error) {
 				console.error('加载用户资料失败:', error)
 				uni.showToast({
@@ -222,11 +249,48 @@ export default {
 								return
 							}
 							
-							this.userInfo.avatar = tempFilePath
-							uni.showToast({
-								title: '头像更新成功',
-								icon: 'success'
-							})
+							this.uploadAvatar(tempFilePath)
+						}
+					})
+				}
+			})
+		},
+		
+		async uploadAvatar(filePath) {
+			try {
+				const token = uni.getStorageSync('token')
+				uni.showLoading({
+					title: '上传中...'
+				})
+				
+				const response = await uni.uploadFile({
+					url: 'http://localhost:3000/api/v1/users/avatar',
+					filePath: filePath,
+					name: 'avatar',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				const result = JSON.parse(response.data)
+				if (result.success) {
+					this.userInfo.avatar = result.data.avatar_url
+					uni.showToast({
+						title: '头像上传成功',
+						icon: 'success'
+					})
+				} else {
+					throw new Error(result.message)
+				}
+			} catch (error) {
+				console.error('头像上传失败:', error)
+				uni.showToast({
+					title: '上传失败',
+					icon: 'none'
+				})
+			} finally {
+				uni.hideLoading()
+			}
 						}
 					})
 				}
@@ -301,40 +365,49 @@ export default {
 			})
 			
 			try {
+				const token = uni.getStorageSync('token')
+				
 				// 构建保存数据
 				const profileData = {
-					...this.userInfo,
-					gender: this.genderOptions[this.genderIndex],
-					college: this.collegeOptions[this.collegeIndex],
-					major: this.majorOptions[this.majorIndex],
-					grade: this.gradeOptions[this.gradeIndex],
-					interests: this.selectedTags
+					name: this.userInfo.name,
+					nickname: this.userInfo.nickname,
+					email: this.userInfo.email,
+					student_id: this.userInfo.studentId
 				}
 				
-				console.log('保存用户资料:', profileData)
-				
-				// 模拟API调用
-				await new Promise(resolve => setTimeout(resolve, 2000))
-				
-				uni.hideLoading()
-				uni.showToast({
-					title: '保存成功',
-					icon: 'success'
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/users/profile',
+					method: 'PUT',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: profileData
 				})
 				
-				// 更新原始数据
-				this.originalData = JSON.parse(JSON.stringify(this.userInfo))
-				
-				setTimeout(() => {
-					uni.navigateBack()
-				}, 1500)
+				if (response.data.success) {
+					uni.showToast({
+						title: '保存成功',
+						icon: 'success'
+					})
+					
+					// 更新原始数据
+					this.originalData = JSON.parse(JSON.stringify(this.userInfo))
+					
+					setTimeout(() => {
+						uni.navigateBack()
+					}, 1500)
+				} else {
+					throw new Error(response.data.message || '保存失败')
+				}
 			} catch (error) {
-				uni.hideLoading()
 				console.error('保存失败:', error)
 				uni.showToast({
-					title: '保存失败',
+					title: error.message || '保存失败',
 					icon: 'none'
 				})
+			} finally {
+				uni.hideLoading()
 			}
 		},
 		

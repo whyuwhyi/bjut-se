@@ -140,7 +140,7 @@ class ResourceController {
             as: 'comments',
             include: [{
               model: User,
-              as: 'user',
+              as: 'author',
               attributes: ['name', 'nickname', 'avatar_url']
             }],
             where: { status: 'active' },

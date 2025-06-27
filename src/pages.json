@@ -43,9 +43,9 @@
             }
         },
         {
-            "path": "pages/activity/activity",
+            "path": "pages/learning/learning",
             "style": {
-                "navigationBarTitleText": "社团活动"
+                "navigationBarTitleText": "学习管理"
             }
         },
         {
@@ -67,12 +67,6 @@
             }
         },
         {
-            "path": "pages/activity/detail",
-            "style": {
-                "navigationBarTitleText": "活动详情"
-            }
-        },
-        {
             "path": "pages/notification/notification",
             "style": {
                 "navigationBarTitleText": "系统通知",
@@ -83,19 +77,6 @@
             "path": "pages/notification/detail",
             "style": {
                 "navigationBarTitleText": "通知详情"
-            }
-        },
-        {
-            "path": "pages/profile/learning-progress",
-            "style": {
-                "navigationBarTitleText": "学习进度",
-                "enablePullDownRefresh": true
-            }
-        },
-        {
-            "path": "pages/profile/study-plan",
-            "style": {
-                "navigationBarTitleText": "学习计划"
             }
         },
         {
@@ -218,8 +199,8 @@
                 "text": "💬"
             },
             {
-                "pagePath": "pages/activity/activity",
-                "text": "🎯"
+                "pagePath": "pages/learning/learning",
+                "text": "📖"
             },
             {
                 "pagePath": "pages/profile/profile",

@@ -6,6 +6,7 @@ const commentRoutes = require('./comments')
 const ratingRoutes = require('./ratings')
 const tagRoutes = require('./tags')
 const categoryRoutes = require('./categories')
+const studyPlanRoutes = require('./studyPlans')
 
 const router = express.Router()
 
@@ -25,8 +26,8 @@ router.use('/resources', resourceRoutes)
 router.use('/posts', postRoutes)
 router.use('/tags', tagRoutes)
 router.use('/categories', categoryRoutes)
+router.use('/study-plans', studyPlanRoutes)
 router.use('/', commentRoutes)
 router.use('/', ratingRoutes)
-// router.use('/activities', activityRoutes)  // 待创建
 
 module.exports = router

@@ -49,7 +49,7 @@
 		<view class="activity-section">
 			<view class="section-header">
 				<text class="section-title">热门活动</text>
-				<text class="section-more" @click="navigateTo('/pages/activity/activity')">更多</text>
+				<text class="section-more" @click="navigateTo('/pages/learning/learning')">更多</text>
 			</view>
 			<view class="activity-list">
 				<view class="activity-item" v-for="(item, index) in hotActivities" :key="index" @click="viewActivity(item)">
@@ -291,7 +291,7 @@
 					'/pages/index/index',
 					'/pages/resources/resources', 
 					'/pages/forum/forum',
-					'/pages/activity/activity',
+					'/pages/learning/learning',
 					'/pages/profile/profile'
 				]
 				

@@ -19,10 +19,10 @@ class CommentController {
 
       // 创建评论
       const comment = await Comment.create({
-        user_phone: userPhone,
+        author_phone: userPhone,
         resource_id: resourceId,
         parent_comment_id: parent_comment_id || null,
-        comment_content,
+        content: comment_content,
         status: 'active'
       })
 
@@ -33,7 +33,7 @@ class CommentController {
       const fullComment = await Comment.findByPk(comment.comment_id, {
         include: [{
           model: User,
-          as: 'user',
+          as: 'author',
           attributes: ['name', 'nickname', 'avatar_url']
         }]
       })
@@ -70,7 +70,7 @@ class CommentController {
         include: [
           {
             model: User,
-            as: 'user',
+            as: 'author',
             attributes: ['name', 'nickname', 'avatar_url']
           },
           {
@@ -78,7 +78,7 @@ class CommentController {
             as: 'replies',
             include: [{
               model: User,
-              as: 'user',
+              as: 'author',
               attributes: ['name', 'nickname', 'avatar_url']
             }]
           }

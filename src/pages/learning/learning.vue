@@ -1,0 +1,871 @@
+<template>
+	<view class="learning-container">
+		<!-- 顶部操作栏 -->
+		<view class="top-actions">
+			<view class="plan-selector">
+				<picker @change="onPlanChange" :value="selectedPlanIndex" :range="planOptions" range-key="name">
+					<view class="selector-trigger">
+						<text class="current-plan">{{ currentPlanName }}</text>
+						<text class="dropdown-icon">⌄</text>
+					</view>
+				</picker>
+			</view>
+			<button class="add-btn" @click="addNewPlan">
+				<text class="add-icon">+</text>
+				<text class="add-text">新建计划</text>
+			</button>
+		</view>
+
+		<!-- 当前计划概览 -->
+		<view class="current-plan-overview" v-if="currentPlan">
+			<view class="plan-header">
+				<text class="plan-title">{{ currentPlan.title }}</text>
+				<view class="plan-status" :class="'status-' + currentPlan.status">
+					{{ getPlanStatusText(currentPlan.status) }}
+				</view>
+			</view>
+			<text class="plan-description">{{ currentPlan.description }}</text>
+			
+			<view class="plan-progress">
+				<view class="progress-info">
+					<text class="progress-label">完成进度</text>
+					<text class="progress-percent">{{ currentPlan.progressPercent }}%</text>
+				</view>
+				<view class="progress-bar-container">
+					<view 
+						class="progress-bar-fill" 
+						:style="{ width: currentPlan.progressPercent + '%' }"
+					></view>
+				</view>
+			</view>
+			
+			<view class="plan-meta">
+				<view class="meta-item">
+					<text class="meta-icon">📅</text>
+					<text class="meta-text">{{ formatDateRange(currentPlan.startDate, currentPlan.endDate) }}</text>
+				</view>
+				<view class="meta-item">
+					<text class="meta-icon">🎯</text>
+					<text class="meta-text">{{ currentPlan.tasks.length }}个任务</text>
+				</view>
+				<view class="meta-item">
+					<text class="meta-icon">⏰</text>
+					<text class="meta-text">剩余{{ getRemainingDays(currentPlan.endDate) }}天</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 任务列表 -->
+		<view class="tasks-section">
+			<view class="section-header">
+				<text class="section-title">学习任务</text>
+				<view class="filter-tabs">
+					<text 
+						class="filter-tab" 
+						:class="{ active: selectedFilter === index }"
+						v-for="(filter, index) in taskFilters" 
+						:key="index"
+						@click="selectFilter(index)"
+					>
+						{{ filter.name }}
+					</text>
+				</view>
+			</view>
+			
+			<view class="task-list">
+				<view 
+					class="task-item" 
+					:class="{ completed: task.completed }"
+					v-for="(task, index) in filteredTasks" 
+					:key="index"
+					@click="viewTask(task)"
+				>
+					<view class="task-checkbox" @click.stop="toggleTask(task)">
+						<text class="checkbox-icon" v-if="task.completed">✓</text>
+					</view>
+					
+					<view class="task-content">
+						<text class="task-title">{{ task.title }}</text>
+						<text class="task-description">{{ task.description }}</text>
+						
+						<view class="task-meta">
+							<view class="task-priority" :class="'priority-' + task.priority">
+								{{ getPriorityText(task.priority) }}
+							</view>
+							<text class="task-deadline" v-if="task.deadline">{{ formatDate(task.deadline) }}</text>
+							<view class="task-tags">
+								<text 
+									class="task-tag" 
+									v-for="tag in task.tags" 
+									:key="tag"
+								>
+									{{ tag }}
+								</text>
+							</view>
+						</view>
+						
+						<!-- 子任务进度 -->
+						<view class="subtask-progress" v-if="task.subtasks && task.subtasks.length > 0">
+							<text class="progress-text">
+								{{ task.subtasks.filter(s => s.completed).length }}/{{ task.subtasks.length }} 子任务完成
+							</text>
+							<view class="mini-progress-bar">
+								<view 
+									class="mini-progress-fill" 
+									:style="{ width: getSubtaskProgress(task) + '%' }"
+								></view>
+							</view>
+						</view>
+					</view>
+					
+					<text class="task-arrow">›</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 学习进度统计 -->
+		<view class="progress-section">
+			<view class="section-header">
+				<text class="section-title">学习进度</text>
+				<view class="time-filter">
+					<text 
+						class="filter-option" 
+						:class="{ active: selectedPeriod === index }"
+						v-for="(period, index) in timePeriods" 
+						:key="index"
+						@click="selectPeriod(index)"
+					>
+						{{ period }}
+					</text>
+				</view>
+			</view>
+			
+			<!-- 学习时长图表 -->
+			<view class="chart-container">
+				<view class="chart-title">📊 每日学习时长</view>
+				<view class="chart-content">
+					<view class="chart-bars">
+						<view 
+							class="bar-item" 
+							v-for="(day, index) in weeklyData" 
+							:key="index"
+						>
+							<view 
+								class="bar-fill" 
+								:style="{ height: getBarHeight(day.minutes) + '%' }"
+							></view>
+							<text class="bar-value">{{ formatMinutes(day.minutes) }}</text>
+							<text class="bar-label">{{ day.day }}</text>
+						</view>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 新建计划/任务按钮 -->
+		<view class="create-btn" @click="showCreateOptions">
+			<text class="create-icon">➕</text>
+		</view>
+	</view>
+</template>
+
+<script>
+export default {
+	data() {
+		return {
+			selectedPlanIndex: 0,
+			selectedFilter: 0,
+			selectedPeriod: 0,
+			timePeriods: ['本周', '本月', '本年'],
+			taskFilters: [
+				{ name: '全部', value: 'all' },
+				{ name: '进行中', value: 'active' },
+				{ name: '已完成', value: 'completed' },
+				{ name: '已逾期', value: 'overdue' }
+			],
+			studyPlans: [
+				{
+					id: '1',
+					title: '前端开发学习计划',
+					description: '系统学习Vue.js、React等前端技术栈',
+					status: 'active',
+					progressPercent: 65,
+					startDate: new Date('2025-06-01'),
+					endDate: new Date('2025-08-31'),
+					tasks: [
+						{
+							id: '1',
+							title: '学习Vue.js基础',
+							description: '掌握Vue.js组件、指令、生命周期等基础概念',
+							completed: true,
+							priority: 'high',
+							deadline: new Date('2025-06-15'),
+							tags: ['Vue.js', '前端'],
+							subtasks: [
+								{ id: '1-1', title: 'Vue实例和模板语法', completed: true },
+								{ id: '1-2', title: '组件基础', completed: true },
+								{ id: '1-3', title: '组件通信', completed: false }
+							]
+						},
+						{
+							id: '2',
+							title: '实践Vue项目',
+							description: '开发一个完整的Vue.js单页应用',
+							completed: false,
+							priority: 'high',
+							deadline: new Date('2025-07-01'),
+							tags: ['Vue.js', '实践', '项目'],
+							subtasks: [
+								{ id: '2-1', title: '项目初始化', completed: true },
+								{ id: '2-2', title: '路由配置', completed: false },
+								{ id: '2-3', title: '状态管理', completed: false }
+							]
+						},
+						{
+							id: '3',
+							title: '学习React基础',
+							description: '掌握React组件、Hooks等核心概念',
+							completed: false,
+							priority: 'medium',
+							deadline: new Date('2025-07-15'),
+							tags: ['React', '前端'],
+							subtasks: []
+						}
+					]
+				},
+				{
+					id: '2',
+					title: '算法练习计划',
+					description: '通过LeetCode等平台提升算法能力',
+					status: 'active',
+					progressPercent: 40,
+					startDate: new Date('2025-06-15'),
+					endDate: new Date('2025-07-15'),
+					tasks: [
+						{
+							id: '4',
+							title: '数组和字符串算法',
+							description: '练习数组和字符串相关算法题',
+							completed: false,
+							priority: 'high',
+							deadline: new Date('2025-06-25'),
+							tags: ['算法', '数组'],
+							subtasks: [
+								{ id: '4-1', title: '双指针技巧', completed: true },
+								{ id: '4-2', title: '滑动窗口', completed: false }
+							]
+						}
+					]
+				}
+			],
+			weeklyData: [
+				{ day: '周一', minutes: 120 },
+				{ day: '周二', minutes: 90 },
+				{ day: '周三', minutes: 150 },
+				{ day: '周四', minutes: 80 },
+				{ day: '周五', minutes: 200 },
+				{ day: '周六', minutes: 45 },
+				{ day: '周日', minutes: 110 }
+			]
+		}
+	},
+	
+	computed: {
+		currentPlan() {
+			return this.studyPlans[this.selectedPlanIndex] || null;
+		},
+		
+		currentPlanName() {
+			return this.currentPlan ? this.currentPlan.title : '选择学习计划';
+		},
+		
+		planOptions() {
+			return this.studyPlans.map(plan => ({ name: plan.title, value: plan.id }));
+		},
+		
+		filteredTasks() {
+			if (!this.currentPlan) return [];
+			const filter = this.taskFilters[this.selectedFilter];
+			
+			if (filter.value === 'all') {
+				return this.currentPlan.tasks;
+			} else if (filter.value === 'completed') {
+				return this.currentPlan.tasks.filter(task => task.completed);
+			} else if (filter.value === 'active') {
+				return this.currentPlan.tasks.filter(task => !task.completed && new Date() <= task.deadline);
+			} else if (filter.value === 'overdue') {
+				return this.currentPlan.tasks.filter(task => !task.completed && new Date() > task.deadline);
+			}
+			
+			return this.currentPlan.tasks;
+		}
+	},
+	
+	onLoad() {
+		// 页面加载时初始化数据
+	},
+	
+	methods: {
+		onPlanChange(e) {
+			this.selectedPlanIndex = e.detail.value;
+		},
+		
+		addNewPlan() {
+			uni.navigateTo({
+				url: '/pages/profile/study-plan'
+			});
+		},
+		
+		selectFilter(index) {
+			this.selectedFilter = index;
+		},
+		
+		selectPeriod(index) {
+			this.selectedPeriod = index;
+			// 根据选择的时间段加载数据
+			this.loadProgressData();
+		},
+		
+		loadProgressData() {
+			// 根据时间段加载对应的学习进度数据
+			console.log('加载进度数据:', this.timePeriods[this.selectedPeriod]);
+		},
+		
+		toggleTask(task) {
+			task.completed = !task.completed;
+			// 更新计划进度
+			this.updatePlanProgress();
+			uni.showToast({
+				title: task.completed ? '任务已完成' : '任务已重新激活',
+				icon: 'success'
+			});
+		},
+		
+		viewTask(task) {
+			uni.navigateTo({
+				url: `/pages/profile/task-detail?id=${task.id}`
+			});
+		},
+		
+		updatePlanProgress() {
+			if (!this.currentPlan) return;
+			const completed = this.currentPlan.tasks.filter(task => task.completed).length;
+			const total = this.currentPlan.tasks.length;
+			this.currentPlan.progressPercent = Math.round((completed / total) * 100);
+		},
+		
+		showCreateOptions() {
+			uni.showActionSheet({
+				itemList: ['新建学习计划', '添加学习任务'],
+				success: (res) => {
+					if (res.tapIndex === 0) {
+						this.addNewPlan();
+					} else if (res.tapIndex === 1) {
+						this.addNewTask();
+					}
+				}
+			});
+		},
+		
+		addNewTask() {
+			if (!this.currentPlan) {
+				uni.showToast({
+					title: '请先选择学习计划',
+					icon: 'none'
+				});
+				return;
+			}
+			uni.navigateTo({
+				url: `/pages/profile/task-create?planId=${this.currentPlan.id}`
+			});
+		},
+		
+		getBarHeight(minutes) {
+			const maxMinutes = Math.max(...this.weeklyData.map(d => d.minutes));
+			return maxMinutes > 0 ? (minutes / maxMinutes) * 100 : 0;
+		},
+		
+		formatMinutes(minutes) {
+			if (minutes < 60) {
+				return minutes + '分';
+			} else {
+				const hours = Math.floor(minutes / 60);
+				const mins = minutes % 60;
+				return hours + 'h' + (mins > 0 ? mins + 'm' : '');
+			}
+		},
+		
+		getPlanStatusText(status) {
+			const texts = {
+				active: '进行中',
+				completed: '已完成',
+				paused: '已暂停',
+				cancelled: '已取消'
+			};
+			return texts[status] || '未知';
+		},
+		
+		getPriorityText(priority) {
+			const texts = {
+				high: '高优先级',
+				medium: '中优先级',
+				low: '低优先级'
+			};
+			return texts[priority] || '普通';
+		},
+		
+		getSubtaskProgress(task) {
+			if (!task.subtasks || task.subtasks.length === 0) return 0;
+			const completed = task.subtasks.filter(s => s.completed).length;
+			return Math.round((completed / task.subtasks.length) * 100);
+		},
+		
+		getRemainingDays(endDate) {
+			const now = new Date();
+			const end = new Date(endDate);
+			const diff = end - now;
+			const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+			return Math.max(0, days);
+		},
+		
+		formatDate(date) {
+			return new Date(date).toLocaleDateString('zh-CN', {
+				month: '2-digit',
+				day: '2-digit'
+			});
+		},
+		
+		formatDateRange(startDate, endDate) {
+			const start = new Date(startDate).toLocaleDateString('zh-CN', {
+				month: '2-digit',
+				day: '2-digit'
+			});
+			const end = new Date(endDate).toLocaleDateString('zh-CN', {
+				month: '2-digit',
+				day: '2-digit'
+			});
+			return `${start} - ${end}`;
+		}
+	}
+}
+</script>
+
+<style lang="scss" scoped>
+.learning-container {
+	background: #f5f5f5;
+	min-height: 100vh;
+	padding-bottom: 160rpx;
+}
+
+/* 顶部操作栏 */
+.top-actions {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 32rpx;
+	background-color: #ffffff;
+	border-bottom: 1rpx solid #e0e0e0;
+}
+
+.plan-selector .selector-trigger {
+	display: flex;
+	align-items: center;
+	gap: 12rpx;
+}
+
+.current-plan {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333333;
+}
+
+.dropdown-icon {
+	font-size: 24rpx;
+	color: #666666;
+}
+
+.add-btn {
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+	padding: 16rpx 24rpx;
+	background-color: #007aff;
+	color: #ffffff;
+	border-radius: 24rpx;
+	font-size: 26rpx;
+	border: none;
+}
+
+/* 当前计划概览 */
+.current-plan-overview {
+	margin: 32rpx;
+	background-color: #ffffff;
+	border-radius: 16rpx;
+	padding: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.plan-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 16rpx;
+}
+
+.plan-title {
+	font-size: 36rpx;
+	font-weight: 600;
+	color: #333333;
+}
+
+.plan-status {
+	padding: 6rpx 16rpx;
+	border-radius: 12rpx;
+	font-size: 22rpx;
+	color: #ffffff;
+}
+
+.plan-status.status-active {
+	background-color: #007aff;
+}
+
+.plan-status.status-completed {
+	background-color: #34c759;
+}
+
+.plan-description {
+	font-size: 28rpx;
+	color: #666666;
+	line-height: 1.5;
+	margin-bottom: 24rpx;
+}
+
+.plan-progress {
+	margin-bottom: 24rpx;
+}
+
+.progress-info {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 12rpx;
+}
+
+.progress-label {
+	font-size: 26rpx;
+	color: #666666;
+}
+
+.progress-percent {
+	font-size: 26rpx;
+	color: #007aff;
+	font-weight: 600;
+}
+
+.progress-bar-container {
+	height: 12rpx;
+	background-color: #f0f0f0;
+	border-radius: 6rpx;
+	overflow: hidden;
+}
+
+.progress-bar-fill {
+	height: 100%;
+	background: linear-gradient(to right, #667eea, #764ba2);
+	transition: width 0.3s ease;
+}
+
+.plan-meta {
+	display: flex;
+	gap: 32rpx;
+}
+
+.meta-item {
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+}
+
+.meta-icon {
+	font-size: 24rpx;
+}
+
+.meta-text {
+	font-size: 24rpx;
+	color: #666666;
+}
+
+/* 任务部分 */
+.tasks-section {
+	margin: 16rpx 32rpx;
+	background-color: #ffffff;
+	border-radius: 16rpx;
+	padding: 32rpx;
+}
+
+.section-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 24rpx;
+}
+
+.section-title {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #333333;
+}
+
+.filter-tabs {
+	display: flex;
+	gap: 16rpx;
+}
+
+.filter-tab {
+	padding: 8rpx 16rpx;
+	font-size: 24rpx;
+	color: #666666;
+	border-radius: 16rpx;
+	background-color: #f0f0f0;
+}
+
+.filter-tab.active {
+	color: #007aff;
+	background-color: #e8f4fd;
+}
+
+.task-list {
+	margin-top: 16rpx;
+}
+
+.task-item {
+	display: flex;
+	align-items: flex-start;
+	padding: 24rpx 0;
+	border-bottom: 1rpx solid #f0f0f0;
+	transition: opacity 0.3s ease;
+}
+
+.task-item.completed {
+	opacity: 0.6;
+}
+
+.task-item:last-child {
+	border-bottom: none;
+}
+
+.task-checkbox {
+	width: 40rpx;
+	height: 40rpx;
+	border: 2rpx solid #ddd;
+	border-radius: 8rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 24rpx;
+	flex-shrink: 0;
+	background-color: #ffffff;
+	transition: all 0.3s ease;
+}
+
+.task-item.completed .task-checkbox {
+	background-color: #007aff;
+	border-color: #007aff;
+}
+
+.checkbox-icon {
+	color: #ffffff;
+	font-size: 24rpx;
+	font-weight: bold;
+}
+
+.task-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.task-title {
+	font-size: 28rpx;
+	color: #333333;
+	font-weight: 500;
+	display: block;
+	margin-bottom: 8rpx;
+}
+
+.task-item.completed .task-title {
+	text-decoration: line-through;
+}
+
+.task-description {
+	font-size: 24rpx;
+	color: #666666;
+	display: block;
+	margin-bottom: 12rpx;
+}
+
+.task-meta {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	margin-bottom: 12rpx;
+}
+
+.task-priority {
+	padding: 4rpx 12rpx;
+	border-radius: 8rpx;
+	font-size: 20rpx;
+	color: #ffffff;
+}
+
+.task-priority.priority-high {
+	background-color: #ff3b30;
+}
+
+.task-priority.priority-medium {
+	background-color: #ff9500;
+}
+
+.task-priority.priority-low {
+	background-color: #34c759;
+}
+
+.task-deadline {
+	font-size: 22rpx;
+	color: #999999;
+}
+
+.task-tags {
+	display: flex;
+	gap: 8rpx;
+}
+
+.task-tag {
+	padding: 4rpx 8rpx;
+	background-color: #f0f0f0;
+	border-radius: 8rpx;
+	font-size: 20rpx;
+	color: #666666;
+}
+
+.subtask-progress {
+	margin-top: 12rpx;
+}
+
+.progress-text {
+	font-size: 22rpx;
+	color: #666666;
+	margin-bottom: 8rpx;
+	display: block;
+}
+
+.mini-progress-bar {
+	height: 4rpx;
+	background-color: #f0f0f0;
+	border-radius: 2rpx;
+	overflow: hidden;
+}
+
+.mini-progress-fill {
+	height: 100%;
+	background-color: #007aff;
+	transition: width 0.3s ease;
+}
+
+.task-arrow {
+	font-size: 24rpx;
+	color: #cccccc;
+	margin-left: 16rpx;
+	align-self: center;
+}
+
+/* 学习进度部分 */
+.progress-section {
+	margin: 16rpx 32rpx;
+	background-color: #ffffff;
+	border-radius: 16rpx;
+	padding: 32rpx;
+}
+
+.time-filter {
+	display: flex;
+	gap: 16rpx;
+}
+
+.filter-option {
+	padding: 8rpx 16rpx;
+	font-size: 26rpx;
+	color: #666666;
+	border-radius: 20rpx;
+	background-color: #f0f0f0;
+}
+
+.filter-option.active {
+	color: #007aff;
+	background-color: #e8f4fd;
+}
+
+.chart-container {
+	margin-top: 24rpx;
+}
+
+.chart-title {
+	font-size: 28rpx;
+	color: #333333;
+	margin-bottom: 24rpx;
+}
+
+.chart-bars {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-end;
+	height: 200rpx;
+	padding: 0 16rpx;
+}
+
+.bar-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex: 1;
+	position: relative;
+}
+
+.bar-fill {
+	width: 24rpx;
+	background: linear-gradient(to top, #007aff, #5ac8fa);
+	border-radius: 12rpx 12rpx 0 0;
+	margin-bottom: 8rpx;
+	min-height: 8rpx;
+}
+
+.bar-value {
+	font-size: 20rpx;
+	color: #666666;
+	margin-bottom: 8rpx;
+}
+
+.bar-label {
+	font-size: 22rpx;
+	color: #999999;
+}
+
+/* 创建按钮 */
+.create-btn {
+	position: fixed;
+	right: 40rpx;
+	bottom: 160rpx;
+	width: 120rpx;
+	height: 120rpx;
+	background: linear-gradient(45deg, #667eea, #764ba2);
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 8rpx 25rpx rgba(102, 126, 234, 0.4);
+	z-index: 100;
+	
+	.create-icon {
+		font-size: 40rpx;
+		color: white;
+	}
+}
+</style>

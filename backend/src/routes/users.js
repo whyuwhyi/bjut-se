@@ -1,6 +1,7 @@
 const express = require('express')
 const UserController = require('../controllers/UserController')
-const auth = require('../middleware/auth')
+const { auth } = require('../middleware/auth')
+const { uploadAvatar, handleUploadError } = require('../middleware/upload')
 const { validateRegister, validateLogin, validateUpdateProfile } = require('../middleware/validators')
 
 const router = express.Router()
@@ -12,5 +13,22 @@ router.post('/login', validateLogin, UserController.login)
 // 需要认证的路由
 router.get('/profile', auth, UserController.getProfile)
 router.put('/profile', auth, validateUpdateProfile, UserController.updateProfile)
+
+// 头像上传
+router.post('/avatar', auth, uploadAvatar, handleUploadError, UserController.uploadAvatar)
+
+// 用户内容管理
+router.get('/my-resources', auth, UserController.getUserResources)
+router.get('/my-posts', auth, UserController.getUserPosts)
+router.get('/my-collections', auth, UserController.getUserCollections)
+router.get('/my-downloads', auth, UserController.getUserDownloads)
+
+// 社交功能
+router.get('/following', auth, UserController.getUserFollowing)
+router.get('/followers', auth, UserController.getUserFollowers)
+router.post('/follow/:following_phone', auth, UserController.toggleFollow)
+
+// 用户统计
+router.get('/stats', auth, UserController.getUserStats)
 
 module.exports = router

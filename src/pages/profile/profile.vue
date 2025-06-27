@@ -52,16 +52,6 @@
 					<text class="menu-text">下载记录</text>
 					<text class="menu-arrow">></text>
 				</view>
-				<view class="menu-item" @click="goToLearningProgress">
-					<text class="menu-icon">📊</text>
-					<text class="menu-text">学习进度</text>
-					<text class="menu-arrow">></text>
-				</view>
-				<view class="menu-item" @click="goToStudyPlan">
-					<text class="menu-icon">📝</text>
-					<text class="menu-text">学习计划</text>
-					<text class="menu-arrow">></text>
-				</view>
 			</view>
 
 			<view class="menu-group">
@@ -224,17 +214,6 @@ export default {
 			})
 		},
 		
-		goToLearningProgress() {
-			uni.navigateTo({
-				url: './learning-progress'
-			})
-		},
-		
-		goToStudyPlan() {
-			uni.navigateTo({
-				url: './study-plan'
-			})
-		},
 		
 		goToMessages() {
 			uni.navigateTo({

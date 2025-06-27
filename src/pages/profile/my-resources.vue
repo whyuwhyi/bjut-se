@@ -278,9 +278,64 @@
 			}
 		},
 		
+		onLoad() {
+			this.loadResources()
+		},
+
 		methods: {
+			async loadResources() {
+				try {
+					const token = uni.getStorageSync('token')
+					if (!token) {
+						uni.redirectTo({
+							url: '/pages/login/login'
+						})
+						return
+					}
+					
+					const status = this.statusFilters[this.selectedStatus].value
+					const params = {
+						page: 1,
+						limit: 50
+					}
+					if (status !== 'all') {
+						params.status = status
+					}
+					
+					const response = await uni.request({
+						url: 'http://localhost:3000/api/v1/users/my-resources',
+						method: 'GET',
+						header: {
+							'Authorization': `Bearer ${token}`
+						},
+						data: params
+					})
+					
+					if (response.data.success) {
+						this.myResources = response.data.data.resources
+						this.calculateStats()
+					}
+				} catch (error) {
+					console.error('加载资源失败:', error)
+					uni.showToast({
+						title: '加载失败',
+						icon: 'none'
+					})
+				}
+			},
+			
+			calculateStats() {
+				this.totalUploads = this.myResources.length
+				this.totalDownloads = this.myResources.reduce((sum, r) => sum + (r.download_count || 0), 0)
+				this.totalViews = this.myResources.reduce((sum, r) => sum + (r.view_count || 0), 0)
+				this.avgRating = this.myResources.length > 0 
+					? this.myResources.reduce((sum, r) => sum + (r.rating || 0), 0) / this.myResources.length 
+					: 0
+			},
+			
 			selectStatus(index) {
 				this.selectedStatus = index;
+				this.loadResources(); // 重新加载数据
 			},
 			
 			onSortChange(e) {
