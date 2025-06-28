@@ -335,6 +335,16 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (sender_phone) REFERENCES users(phone_number) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知表';
 
+-- 22. 验证码表
+CREATE TABLE IF NOT EXISTS VerificationCode (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone_number STRING NOT NULL,
+    code STRING NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    status ENUM('valid', 'used', 'expired') DEFAULT 'valid'
+);
+
 -- ================================================================
 -- 第三部分：测试数据插入
 -- ================================================================

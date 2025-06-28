@@ -10,6 +10,10 @@ const router = express.Router()
 router.post('/register', validateRegister, UserController.register)
 router.post('/login', validateLogin, UserController.login)
 
+// 验证码相关路由
+router.post('/send-verification-code', UserController.sendVerificationCode);
+router.post('/verify-code', UserController.verifyCode);
+
 // 需要认证的路由
 router.get('/profile', auth, UserController.getProfile)
 router.put('/profile', auth, validateUpdateProfile, UserController.updateProfile)

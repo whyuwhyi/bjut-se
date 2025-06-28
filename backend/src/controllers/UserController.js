@@ -5,6 +5,9 @@ const config = require('../config/app')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs').promises
+const twilio = require('twilio'); // 确保安装Twilio以发送短信
+const { VerificationCode } = require('../models'); // 假设你有一个 VerificationCode 模型用于存储验证码
+
 
 class UserController {
   // 用户注册
@@ -74,6 +77,85 @@ class UserController {
         success: false,
         message: '服务器内部错误'
       })
+    }
+  }
+
+  // 发送验证码
+  async sendVerificationCode(req, res) {
+    const { phone_number } = req.body;
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 生成6位验证码
+
+    try {
+      // 发送短信
+      await twilio(config.twilio.accountSid, config.twilio.authToken).messages.create({
+        to: phone_number,
+        from: config.twilio.fromPhone,
+        body: `您的验证码是：${verificationCode}`,
+      });
+
+      // 计算验证码过期时间（例如5分钟后）
+      const expiresIn = new Date(Date.now() + 5 * 60 * 1000);
+
+      // 存储验证码到数据库
+      await VerificationCode.create({
+        phone_number,
+        code: verificationCode,
+        expires_at: expiresIn,
+        status: 'valid',
+      });
+
+      res.json({
+        success: true,
+        message: '验证码已发送',
+      });
+    } catch (error) {
+      console.error('发送验证码错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '发送验证码失败',
+      });
+    }
+  }
+
+  async verifyCode(req, res) {
+    const { phone_number, verification_code } = req.body;
+
+    try {
+      // 查找验证码记录
+      const record = await VerificationCode.findOne({
+        where: {
+          phone_number,
+          code: verification_code,
+          status: 'valid',
+          expires_at: {
+            [Op.gt]: new Date() // 确保验证码未过期
+          },
+        }
+      });
+
+      if (!record) {
+        return res.status(400).json({
+          success: false,
+          message: '验证码无效或已过期'
+        });
+      }
+
+      // 验证成功后，更新验证码状态
+      await VerificationCode.update(
+        { status: 'used' },
+        { where: { id: record.id } }
+      );
+
+      res.json({
+        success: true,
+        message: '验证码验证成功'
+      });
+    } catch (error) {
+      console.error('验证验证码错误:', error);
+      res.status(500).json({
+        success: false,
+        message: '验证验证码失败'
+      });
     }
   }
 
@@ -232,7 +314,7 @@ class UserController {
   async uploadAvatar(req, res) {
     try {
       const phone_number = req.user.phone_number
-      
+
       if (!req.file) {
         return res.status(400).json({
           success: false,

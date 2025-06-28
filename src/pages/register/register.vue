@@ -68,7 +68,7 @@
 			<!-- 密码 -->
 			<view class="form-item required">
 				<view class="form-label">
-					<text class="icon"></text>
+					<text class=\"icon\"></text>
 					<input 
 						class="form-input" 
 						type="password"
@@ -82,7 +82,7 @@
 			<!-- 确认密码 -->
 			<view class="form-item required">
 				<view class="form-label">
-					<text class="icon"></text>
+					<text class="icon\"></text>
 					<input 
 						class="form-input" 
 						type="password"
@@ -113,6 +113,7 @@
 				<text class="login-text">已有账号？</text>
 				<text class="login-action" @click="goToLogin">立即登录</text>
 			</view>
+			
 		</view>
 	</view>
 </template>
@@ -193,7 +194,7 @@ export default {
 			}
 			
 			// 格式验证
-			const phonePattern = /^1[3-9]\d{9}$/
+			const phonePattern = /^1[3-9]\\d{9}$/
 			if (!phonePattern.test(this.registerForm.phone_number)) {
 				uni.showToast({
 					title: '手机号格式不正确',
@@ -204,7 +205,7 @@ export default {
 			
 			// 学号格式验证（如果填写了）
 			if (this.registerForm.student_id) {
-				const studentIdPattern = /^(\d{8}|S\d{9})$/
+				const studentIdPattern = /^(\\d{8}|S\\d{9})$/
 				if (!studentIdPattern.test(this.registerForm.student_id)) {
 					uni.showToast({
 						title: '学号格式不正确（8位数字或S+9位数字）',
@@ -216,7 +217,7 @@ export default {
 			
 			// 邮箱格式验证（如果填写了）
 			if (this.registerForm.email) {
-				const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+				const emailPattern = /^[^\s@]+@[^\s@]+\\.[^\s@]+$/
 				if (!emailPattern.test(this.registerForm.email)) {
 					uni.showToast({
 						title: '邮箱格式不正确',
