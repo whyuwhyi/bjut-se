@@ -2,11 +2,6 @@
 
 FROM node:18-alpine AS builder
 
-# Set proxy environment variables for build
-ENV HTTP_PROXY=http://127.0.0.1:7897
-ENV HTTPS_PROXY=http://127.0.0.1:7897
-ENV NO_PROXY=localhost,127.0.0.1,::1
-
 # 设置工作目录
 WORKDIR /app
 
