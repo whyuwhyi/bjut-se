@@ -86,36 +86,51 @@ class UserController {
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 生成6位验证码
 
     try {
-      // 使用Twilio发送短信
+      // 发送短信
       await twilio(config.twilio.accountSid, config.twilio.authToken).messages.create({
         to: phone_number,
-        from: 'YOUR_TWILIO_PHONE_NUMBER',
+        from: config.twilio.fromPhone,
         body: `您的验证码是：${verificationCode}`,
       });
 
+      // 计算验证码过期时间（例如5分钟后）
+      const expiresIn = new Date(Date.now() + 5 * 60 * 1000);
+
       // 存储验证码到数据库
-      await VerificationCode.create({ phone_number, code: verificationCode });
+      await VerificationCode.create({
+        phone_number,
+        code: verificationCode,
+        expires_at: expiresIn,
+        status: 'valid',
+      });
 
       res.json({
         success: true,
-        message: '验证码已发送'
+        message: '验证码已发送',
       });
     } catch (error) {
       console.error('发送验证码错误:', error);
       res.status(500).json({
         success: false,
-        message: '发送验证码失败'
+        message: '发送验证码失败',
       });
     }
   }
 
-  // 验证验证码
   async verifyCode(req, res) {
     const { phone_number, verification_code } = req.body;
 
     try {
+      // 查找验证码记录
       const record = await VerificationCode.findOne({
-        where: { phone_number, code: verification_code }
+        where: {
+          phone_number,
+          code: verification_code,
+          status: 'valid',
+          expires_at: {
+            [Op.gt]: new Date() // 确保验证码未过期
+          },
+        }
       });
 
       if (!record) {
@@ -125,8 +140,11 @@ class UserController {
         });
       }
 
-      // 可选：删除验证码记录以防止重用
-      await VerificationCode.destroy({ where: { phone_number, code: verification_code } });
+      // 验证成功后，更新验证码状态
+      await VerificationCode.update(
+        { status: 'used' },
+        { where: { id: record.id } }
+      );
 
       res.json({
         success: true,

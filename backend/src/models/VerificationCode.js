@@ -1,4 +1,4 @@
-// models/VerificationCode.js
+
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require('../config/database'); // 你的数据库配置
 
@@ -12,12 +12,24 @@ VerificationCode.init({
 	},
 	code: {
 		type: DataTypes.STRING,
-		allowNull: false
+		allowNull: false,
+	},
+	created_at: {
+		type: DataTypes.DATE,
+		defaultValue: DataTypes.NOW,
+	},
+	expires_at: {
+		type: DataTypes.DATE,
+		allowNull: false,
+	},
+	status: {
+		type: DataTypes.ENUM('valid', 'used', 'expired'),
+		defaultValue: 'valid',
 	},
 }, {
 	sequelize,
 	modelName: 'VerificationCode',
-	timestamps: true // 可选，记录创建时间
+	timestamps: false, // 如果不需要自动生成时间戳
 });
 
 module.exports = VerificationCode;

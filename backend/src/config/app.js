@@ -50,5 +50,14 @@ module.exports = {
     accountSid: process.env.TWILIO_ACCOUNT_SID || '',
     authToken: process.env.TWILIO_AUTH_TOKEN || '',
     fromPhone: process.env.TWILIO_FROM_PHONE || ''
-  }
+  },
+
+  // 腾讯云短信服务配置
+  sms: {
+    secretId: '你的腾讯云 SecretId',
+    secretKey: '你的腾讯云 SecretKey',
+    appId: '你的短信应用 ID',
+    signName: '你的短信签名',
+    templateId: '你的短信模板ID'
+  },
 }
