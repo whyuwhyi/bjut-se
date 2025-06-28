@@ -11,7 +11,7 @@
 			<!-- 手机号（必填，主要登录方式） -->
 			<view class="form-item required">
 				<view class="form-label">
-					<text class="icon">📱</text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="number"
@@ -26,7 +26,7 @@
 			<!-- 真实姓名（必填） -->
 			<view class="form-item required">
 				<view class="form-label">
-					<text class="icon">👤</text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="text"
@@ -40,7 +40,7 @@
 			<!-- 学号/工号（可选） -->
 			<view class="form-item">
 				<view class="form-label">
-					<text class="icon">🎓</text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="text"
@@ -55,7 +55,7 @@
 			<!-- 邮箱（可选） -->
 			<view class="form-item">
 				<view class="form-label">
-					<text class="icon">📧</text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="text"
@@ -68,7 +68,7 @@
 			<!-- 密码 -->
 			<view class="form-item required">
 				<view class="form-label">
-					<text class="icon">🔒</text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="password"
@@ -82,7 +82,7 @@
 			<!-- 确认密码 -->
 			<view class="form-item required">
 				<view class="form-label">
-					<text class="icon">🔐</text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="password"
@@ -112,22 +112,6 @@
 			<view class="login-link">
 				<text class="login-text">已有账号？</text>
 				<text class="login-action" @click="goToLogin">立即登录</text>
-			</view>
-		</view>
-
-		<!-- 注册说明 -->
-		<view class="info-section">
-			<view class="info-item">
-				<text class="info-icon">💡</text>
-				<text class="info-text">手机号为主要登录方式，请确保手机号正确</text>
-			</view>
-			<view class="info-item">
-				<text class="info-icon">🔐</text>
-				<text class="info-text">学号/工号可选填，有助于身份验证和权限管理</text>
-			</view>
-			<view class="info-item">
-				<text class="info-icon">🎯</text>
-				<text class="info-text">标有 * 的为必填项，其他为可选项</text>
 			</view>
 		</view>
 	</view>
@@ -350,9 +334,40 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+/* 定义动画 */
+@keyframes fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes fadeInDown {
+	from { opacity: 0; transform: translateY(-20rpx); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(20rpx); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+/* 新增背景渐变动画 (与登录页面一致) */
+@keyframes backgroundPan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 .register-container {
 	min-height: 100vh;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	background-image: linear-gradient(135deg, #A8BFFF 0%, #88A6E0 100%); /* 与登录页面一致的柔和蓝色渐变 */
+	background-size: 400% 400%; /* 使背景足够大以便移动 */
+	animation: backgroundPan 15s ease infinite; /* 应用动画 */
 	padding: 40rpx;
 }
 
@@ -377,7 +392,7 @@ export default {
 
 .register-form {
 	.form-item {
-		margin-bottom: 25rpx;
+		margin-bottom: 40rpx;
 		
 		&.required::before {
 			content: "*";
@@ -392,35 +407,43 @@ export default {
 		.form-label {
 			display: flex;
 			align-items: center;
-			background: white;
+			background: rgba(255, 255, 255, 0.95);
 			border-radius: 50rpx;
 			padding: 0 30rpx;
-			border: 2rpx solid rgba(255, 255, 255, 0.8);
+			border: none;
+			box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.08);
+			transition: all 0.3s ease;
+			
+			&:focus-within {
+				box-shadow: 0 15rpx 45rpx rgba(0, 0, 0, 0.2);
+				transform: translateY(-5rpx) scale(1.01);
+			}
 			
 			.icon {
-				font-size: 32rpx;
-				margin-right: 20rpx;
+				font-size: 36rpx;
+				margin-right: 25rpx;
+				color: #88A6E0;
 			}
 			
 			.form-input {
 				flex: 1;
-				height: 90rpx;
-				font-size: 30rpx;
+				height: 110rpx;
+				font-size: 32rpx;
 				color: #333;
 				
 				&::placeholder {
-					color: #999;
+					color: #A0A0A0;
 				}
 			}
 		}
 		
 		.field-tip {
 			display: block;
-			font-size: 22rpx;
-			color: rgba(255, 255, 255, 0.7);
-			margin-top: 8rpx;
-			padding-left: 30rpx;
-			line-height: 1.4;
+			font-size: 24rpx;
+			color: rgba(255, 255, 255, 0.9);
+			margin-top: 15rpx;
+			padding-left: 35rpx;
+			line-height: 1.6;
 		}
 	}
 	
@@ -492,35 +515,6 @@ export default {
 			color: #ffd93d;
 			font-size: 28rpx;
 			font-weight: bold;
-		}
-	}
-}
-
-.info-section {
-	background: rgba(255, 255, 255, 0.1);
-	border-radius: 20rpx;
-	padding: 30rpx;
-	
-	.info-item {
-		display: flex;
-		align-items: flex-start;
-		margin-bottom: 20rpx;
-		
-		&:last-child {
-			margin-bottom: 0;
-		}
-		
-		.info-icon {
-			font-size: 28rpx;
-			margin-right: 15rpx;
-			margin-top: 2rpx;
-		}
-		
-		.info-text {
-			flex: 1;
-			font-size: 24rpx;
-			color: rgba(255, 255, 255, 0.8);
-			line-height: 1.5;
 		}
 	}
 }

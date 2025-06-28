@@ -1,17 +1,17 @@
 <template>
 	<view class="login-container">
 		<!-- 顶部Logo区域 -->
-		<view class="login-header">
-			<image class="logo" src="/static/logo.png" mode="aspectFit"></image>
-			<text class="app-name">日新智链</text>
-			<text class="app-slogan">让学习更简单，让知识更流动</text>
+		<view class="login-header animated fadeInDown">
+			<image class="logo animated fadeIn" src="/static/logo.png" mode="aspectFit"></image>
+			<text class="app-name animated fadeInUp">日新智链</text>
+			<text class="app-slogan animated fadeInUp delay-100">让学习更简单，让知识更流动</text>
 		</view>
 
 		<!-- 登录表单 -->
-		<view class="login-form">
+		<view class="login-form animated fadeInUp delay-200">
 			<view class="form-item">
 				<view class="form-label">
-					<text class="icon">📱</text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="number"
@@ -25,7 +25,7 @@
 			
 			<view class="form-item">
 				<view class="form-label">
-					<text class="icon">🔒</text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="password"
@@ -44,39 +44,14 @@
 				<text class="forgot-password" @click="forgotPassword">忘记密码？</text>
 			</view>
 
-			<button class="login-btn" @click="handleLogin" :disabled="isLoading">
+			<button class="login-btn animated fadeInUp delay-300" @click="handleLogin" :disabled="isLoading">
 				<text v-if="!isLoading">登录</text>
 				<text v-else>登录中...</text>
 			</button>
 			
-			<view class="register-link">
+			<view class="register-link animated fadeInUp delay-400">
 				<text class="register-text">还没有账号？</text>
 				<text class="register-action" @click="goToRegister">立即注册</text>
-			</view>
-		</view>
-
-		<!-- 其他登录方式 -->
-		<view class="other-login">
-			<view class="divider">
-				<text class="divider-text">其他登录方式</text>
-			</view>
-			<view class="social-login">
-				<view class="social-item" @click="wechatLogin">
-					<text class="social-icon">💬</text>
-					<text class="social-text">微信登录</text>
-				</view>
-			</view>
-		</view>
-
-		<!-- 帮助提示 -->
-		<view class="help-section">
-			<view class="help-item">
-				<text class="help-icon">💡</text>
-				<text class="help-text">使用手机号作为登录账号，更安全便捷</text>
-			</view>
-			<view class="help-item">
-				<text class="help-icon">🔐</text>
-				<text class="help-text">首次使用请先注册，学号/工号可选填</text>
 			</view>
 		</view>
 	</view>
@@ -175,10 +150,36 @@ export default {
 				}
 			} catch (error) {
 				console.error('登录错误:', error)
-				uni.showToast({
-					title: '网络错误，请稍后重试',
-					icon: 'none'
-				})
+				// 生产环境下，应直接抛出错误，让上层处理
+				// 这里为了开发演示，保留模拟数据，实际项目中应移除
+				if (process.env.NODE_ENV === 'development') {
+					return new Promise((resolve) => {
+						setTimeout(() => {
+							// 模拟登录成功
+							if (this.loginForm.phone_number === '13912345678' && this.loginForm.password === 'password123') {
+								resolve({
+									success: true,
+									data: {
+										user: {
+											phone_number: this.loginForm.phone_number,
+											name: '张同学',
+											nickname: '张三',
+											student_id: '12345678'
+										},
+										token: 'mock_token_123456'
+									}
+								})
+							} else {
+								resolve({
+									success: false,
+									message: '手机号或密码错误'
+								})
+							}
+						}, 1000)
+					})
+				} else {
+					throw error // 生产环境下直接抛出错误
+				}
 			} finally {
 				this.isLoading = false
 			}
@@ -203,31 +204,36 @@ export default {
 				return response.data
 			} catch (error) {
 				console.error('API调用失败:', error)
-				// 开发阶段的模拟数据
-				return new Promise((resolve) => {
-					setTimeout(() => {
-						// 模拟登录成功
-						if (this.loginForm.phone_number === '13912345678' && this.loginForm.password === 'password123') {
-							resolve({
-								success: true,
-								data: {
-									user: {
-										phone_number: this.loginForm.phone_number,
-										name: '张同学',
-										nickname: '张三',
-										student_id: '12345678'
-									},
-									token: 'mock_token_123456'
-								}
-							})
-						} else {
-							resolve({
-								success: false,
-								message: '手机号或密码错误'
-							})
-						}
-					}, 1000)
-				})
+				// 生产环境下，应直接抛出错误，让上层处理
+				// 这里为了开发演示，保留模拟数据，实际项目中应移除
+				if (process.env.NODE_ENV === 'development') {
+					return new Promise((resolve) => {
+						setTimeout(() => {
+							// 模拟登录成功
+							if (this.loginForm.phone_number === '13912345678' && this.loginForm.password === 'password123') {
+								resolve({
+									success: true,
+									data: {
+										user: {
+											phone_number: this.loginForm.phone_number,
+											name: '张同学',
+											nickname: '张三',
+											student_id: '12345678'
+										},
+										token: 'mock_token_123456'
+									}
+								})
+							} else {
+								resolve({
+									success: false,
+									message: '手机号或密码错误'
+								})
+							}
+						}, 1000)
+					})
+				} else {
+					throw error // 生产环境下直接抛出错误
+				}
 			}
 		},
 		
@@ -247,89 +253,150 @@ export default {
 			uni.navigateTo({
 				url: '../register/register'
 			})
-		},
-		
-		wechatLogin() {
-			uni.showToast({
-				title: '微信登录功能开发中',
-				icon: 'none'
-			})
 		}
 	}
 }
 </script>
 
 <style lang="scss" scoped>
+/* 定义动画 */
+@keyframes fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes fadeInDown {
+	from { opacity: 0; transform: translateY(-20rpx); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(20rpx); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+/* 新增背景渐变动画 */
+@keyframes backgroundPan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated {
+	animation-duration: 0.6s;
+	animation-fill-mode: both;
+	animation-timing-function: ease-out;
+}
+
+.fadeIn { animation-name: fadeIn; }
+.fadeInDown { animation-name: fadeInDown; }
+.fadeInUp { animation-name: fadeInUp; }
+
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-600 { animation-delay: 0.6s; }
+
 .login-container {
 	min-height: 100vh;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	padding: 60rpx 40rpx;
+	background-image: linear-gradient(135deg, #A8BFFF 0%, #88A6E0 100%); /* 恢复为原始渐变色 */
+	background-size: 400% 400%; /* 恢复背景尺寸 */
+	animation: backgroundPan 15s ease infinite; /* 恢复动画属性 */
+	
+	padding: 80rpx 50rpx; /* 增加内边距 */
 	display: flex;
 	flex-direction: column;
 }
 
 .login-header {
 	text-align: center;
-	margin-bottom: 80rpx;
+	margin-bottom: 100rpx; /* 增加底部间距 */
 	
 	.logo {
-		width: 120rpx;
-		height: 120rpx;
-		border-radius: 20rpx;
-		margin-bottom: 30rpx;
+		width: 160rpx; /* 调整大小 */
+		height: 160rpx; /* 调整大小 */
+		border-radius: 30rpx; /* 调整圆角 */
+		margin-bottom: 40rpx;
+		box-shadow: 0 15rpx 40rpx rgba(0, 0, 0, 0.1); /* 添加柔和阴影 */
+		background-color: rgba(255, 255, 255, 0.9); /* 添加白色半透明背景 */
+		padding: 20rpx; /* 增加内边距 */
+		box-sizing: content-box; /* 确保 padding 不会影响原有的 width/height */
 	}
-	
+
 	.app-name {
 		display: block;
-		font-size: 48rpx;
+		font-size: 56rpx; /* 调整字体大小 */
 		font-weight: bold;
-		color: white;
-		margin-bottom: 10rpx;
+		margin-bottom: 15rpx; /* 调整间距 */
+		text-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.1);
+		/* 添加渐变文本样式 */
+		background-image: linear-gradient(135deg, #FFFDE7 0%, #FFCC80 100%); /* 浅黄到浅橙 */
+		-webkit-background-clip: text; /* 将背景裁剪到文字 */
+		-webkit-text-fill-color: transparent; /* 将文字填充色设为透明 */
 	}
-	
+
 	.app-slogan {
-		font-size: 28rpx;
-		color: rgba(255, 255, 255, 0.8);
+		font-size: 32rpx; /* 调整字体大小 */
+		/* 添加渐变文本样式 */
+		background-image: linear-gradient(135deg, #FFFDE7 0%, #FFCC80 100%); /* 浅黄到浅橙 */
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
 	}
 }
 
 .login-form {
 	flex: 1;
-	
+
 	.form-item {
-		margin-bottom: 30rpx;
+		margin-bottom: 40rpx; /* 增加间距 */
 		
 		.form-label {
 			display: flex;
 			align-items: center;
-			background: white;
+			background: rgba(255, 255, 255, 0.95); /* 更不透明的白色 */
 			border-radius: 50rpx;
 			padding: 0 30rpx;
-			border: 2rpx solid rgba(255, 255, 255, 0.8);
+			border: none; /* 移除边框 */
+			box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.08); /* 添加柔和阴影 */
+			transition: all 0.3s ease; /* 添加过渡效果 */
+			
+			&:focus-within { /* 聚焦时增加阴影和微小缩放 */
+				box-shadow: 0 15rpx 45rpx rgba(0, 0, 0, 0.2); /* 调整阴影更深 */
+				transform: translateY(-5rpx) scale(1.01); /* 增加微小放大效果 */
+			}
 			
 			.icon {
-				font-size: 32rpx;
-				margin-right: 20rpx;
+				font-size: 36rpx; /* 调整图标大小 */
+				margin-right: 25rpx;
+				color: #88A6E0; /* 调整图标颜色 */
 			}
 			
 			.form-input {
 				flex: 1;
-				height: 100rpx;
+				height: 110rpx; /* 调整高度 */
 				font-size: 32rpx;
 				color: #333;
 				
 				&::placeholder {
-					color: #999;
+					color: #A0A0A0; /* 调整占位符颜色 */
 				}
 			}
 		}
 		
 		.field-tip {
 			display: block;
-			font-size: 22rpx;
-			color: rgba(255, 255, 255, 0.7);
-			margin-top: 10rpx;
-			padding-left: 30rpx;
+			font-size: 24rpx; /* 调整字体大小 */
+			color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
+			margin-top: 15rpx;
+			padding-left: 35rpx; /* 调整内边距 */
 		}
 	}
 	
@@ -344,129 +411,87 @@ export default {
 			align-items: center;
 			
 			.checkbox {
-				width: 36rpx;
-				height: 36rpx;
-				border: 2rpx solid rgba(255, 255, 255, 0.6);
-				border-radius: 6rpx;
+				width: 40rpx; /* 调整大小 */
+				height: 40rpx; /* 调整大小 */
+				border: 2rpx solid rgba(255, 255, 255, 0.7); /* 调整边框颜色 */
+				border-radius: 8rpx; /* 调整圆角 */
 				margin-right: 15rpx;
 				text-align: center;
-				line-height: 32rpx;
-				font-size: 24rpx;
+				line-height: 36rpx; /* 调整行高 */
+				font-size: 28rpx; /* 调整字体大小 */
 				color: white;
+				transition: all 0.2s ease; /* 添加过渡效果 */
 				
 				&.active {
-					background: rgba(255, 255, 255, 0.2);
+					background: rgba(255, 255, 255, 0.3); /* 调整选中背景色 */
+					border-color: rgba(255, 255, 255, 0.4); /* 调整选中边框色 */
 				}
 			}
 			
 			.option-text {
-				color: rgba(255, 255, 255, 0.8);
-				font-size: 28rpx;
+				color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
+				font-size: 30rpx; /* 调整字体大小 */
 			}
 		}
 		
 		.forgot-password {
-			color: rgba(255, 255, 255, 0.8);
-			font-size: 28rpx;
+			color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
+			font-size: 30rpx; /* 调整字体大小 */
+			transition: color 0.2s ease; /* 添加过渡效果 */
+			
+			&:active {
+				color: rgba(255, 255, 255, 0.6); /* 点击时颜色变暗 */
+			}
 		}
 	}
 	
 	.login-btn {
 		width: 100%;
 		height: 100rpx;
-		background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+		background: linear-gradient(135deg, #4A76EC 0%, #6F8EE7 100%); /* 调整为更协调的蓝色渐变 */
 		border: none;
 		border-radius: 50rpx;
 		color: white;
 		font-size: 36rpx;
 		font-weight: bold;
 		margin-bottom: 40rpx;
-		box-shadow: 0 10rpx 30rpx rgba(255, 107, 107, 0.3);
+		box-shadow: 0 15rpx 40rpx rgba(74, 118, 236, 0.4); /* 调整阴影，更柔和且与渐变色协调 */
+		transition: all 0.3s ease; /* 添加过渡效果 */
 		
 		&:disabled {
 			opacity: 0.6;
+		}
+		
+		&:hover { /* 新增悬停效果 */
+			transform: translateY(-5rpx) scale(1.01); /* 悬停时轻微上浮和放大 */
+			box-shadow: 0 20rpx 50rpx rgba(74, 118, 236, 0.5); /* 悬停时阴影更明显 */
+		}
+		
+		&:active {
+			transform: scale(0.96); /* 点击时更明显的缩小 */
+			box-shadow: 0 5rpx 20rpx rgba(74, 118, 236, 0.2); /* 点击时阴影变浅 */
 		}
 	}
 	
 	.register-link {
 		text-align: center;
+		margin-top: 30rpx; /* 增加顶部间距 */
 		
 		.register-text {
-			color: rgba(255, 255, 255, 0.8);
-			font-size: 28rpx;
+			color: rgba(255, 255, 255, 0.8); /* 调整颜色 */
+			font-size: 30rpx; /* 调整字体大小 */
 		}
 		
 		.register-action {
-			color: #ffd93d;
-			font-size: 28rpx;
+			color: #FFDE6B; /* 调整为更柔和的黄色 */
+			font-size: 30rpx; /* 调整字体大小 */
 			font-weight: bold;
-		}
-	}
-}
-
-.other-login {
-	margin-top: 60rpx;
-	
-	.divider {
-		text-align: center;
-		margin-bottom: 30rpx;
-		
-		.divider-text {
-			color: rgba(255, 255, 255, 0.6);
-			font-size: 24rpx;
-		}
-	}
-	
-	.social-login {
-		display: flex;
-		justify-content: center;
-		
-		.social-item {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			padding: 20rpx;
-			margin: 0 20rpx;
+			margin-left: 10rpx;
+			transition: color 0.2s ease; /* 添加过渡效果 */
 			
-			.social-icon {
-				font-size: 60rpx;
-				margin-bottom: 10rpx;
+			&:active {
+				color: #FFE58B; /* 点击时颜色变浅 */
 			}
-			
-			.social-text {
-				color: rgba(255, 255, 255, 0.8);
-				font-size: 24rpx;
-			}
-		}
-	}
-}
-
-.help-section {
-	margin-top: 40rpx;
-	padding: 30rpx;
-	background: rgba(255, 255, 255, 0.1);
-	border-radius: 20rpx;
-	
-	.help-item {
-		display: flex;
-		align-items: flex-start;
-		margin-bottom: 15rpx;
-		
-		&:last-child {
-			margin-bottom: 0;
-		}
-		
-		.help-icon {
-			font-size: 28rpx;
-			margin-right: 15rpx;
-			margin-top: 2rpx;
-		}
-		
-		.help-text {
-			flex: 1;
-			font-size: 24rpx;
-			color: rgba(255, 255, 255, 0.8);
-			line-height: 1.5;
 		}
 	}
 }

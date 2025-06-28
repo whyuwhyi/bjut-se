@@ -211,7 +211,7 @@ start_backend() {
   # 设置开发环境变量
   export NODE_ENV=development
   export DB_HOST=localhost
-  export DB_PORT=3306
+  export DB_PORT=3307
   export DB_NAME=wechat_education
   export DB_USER=appuser
   export DB_PASSWORD=apppassword
@@ -305,7 +305,7 @@ show_dev_info() {
   echo "   - 健康检查: http://localhost:3000/api/v1/health"
   echo ""
   echo "📚 数据库信息："
-  echo "   - MySQL: localhost:3306"
+  echo "   - MySQL: localhost:3307"
   echo "   - Redis: localhost:6379"
   echo "   - 数据库: wechat_education"
   echo "   - 用户: appuser"
