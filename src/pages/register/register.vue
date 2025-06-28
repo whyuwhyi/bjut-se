@@ -68,7 +68,7 @@
 			<!-- 密码 -->
 			<view class="form-item required">
 				<view class="form-label">
-					<text class=\"icon\"></text>
+					<text class="icon"></text>
 					<input 
 						class="form-input" 
 						type="password"
