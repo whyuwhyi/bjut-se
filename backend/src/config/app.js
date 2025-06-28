@@ -43,5 +43,12 @@ module.exports = {
   wechat: {
     appId: process.env.WECHAT_APP_ID || '',
     appSecret: process.env.WECHAT_APP_SECRET || ''
+  },
+
+  // 邮件服务配置
+  twilio: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID || '',
+    authToken: process.env.TWILIO_AUTH_TOKEN || '',
+    fromPhone: process.env.TWILIO_FROM_PHONE || ''
   }
 }

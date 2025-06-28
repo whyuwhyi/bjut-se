@@ -113,6 +113,7 @@
 				<text class="login-text">已有账号？</text>
 				<text class="login-action" @click="goToLogin">立即登录</text>
 			</view>
+			
 		</view>
 
 		<!-- 注册说明 -->
@@ -130,8 +131,29 @@
 				<text class="info-text">标有 * 的为必填项，其他为可选项</text>
 			</view>
 		</view>
+
+		<!-- 模态框 -->
+<view v-if="showModal" class="modal">
+    <view class="modal-content">
+        <text class="modal-title">输入验证码</text>
+        <input 
+            class="form-input" 
+            type="text" 
+            placeholder="请输入验证码"
+            v-model="verificationCode"
+            maxlength="6"
+        />
+        <button class="send-code-btn" @click="sendVerificationCode">发送验证码</button>
+        <button class="modal-submit-btn" @click="verifyCode">确认</button>
+        <button class="modal-close-btn" @click="closeModal">关闭</button>
+    </view>
+</view>
+
 	</view>
+
+	
 </template>
+
 
 <script>
 export default {
@@ -143,11 +165,13 @@ export default {
 				student_id: '',
 				email: '',
 				password: '',
-				confirmPassword: ''
+				confirmPassword: '',
 			},
 			agreedToTerms: false,
+			verificationCode: '',
+			showModal: false,
 			isLoading: false
-		}
+		};
 	},
 	
 	computed: {
@@ -156,13 +180,13 @@ export default {
 				   this.registerForm.name && 
 				   this.registerForm.password && 
 				   this.registerForm.confirmPassword && 
-				   this.agreedToTerms
+				   this.agreedToTerms;
 		}
 	},
 	
 	methods: {
 		toggleAgreement() {
-			this.agreedToTerms = !this.agreedToTerms
+			this.agreedToTerms = !this.agreedToTerms;
 		},
 		
 		showTerms() {
@@ -170,7 +194,7 @@ export default {
 				title: '用户协议',
 				content: '这里是用户协议的详细内容...',
 				showCancel: false
-			})
+			});
 		},
 		
 		showPrivacy() {
@@ -178,7 +202,7 @@ export default {
 				title: '隐私政策',
 				content: '这里是隐私政策的详细内容...',
 				showCancel: false
-			})
+			});
 		},
 		
 		// 处理注册
@@ -188,168 +212,285 @@ export default {
 				uni.showToast({
 					title: '请输入手机号',
 					icon: 'none'
-				})
-				return
+				});
+				return;
 			}
-			
+
 			if (!this.registerForm.name) {
 				uni.showToast({
 					title: '请输入真实姓名',
 					icon: 'none'
-				})
-				return
+				});
+				return;
 			}
-			
+
 			if (!this.registerForm.password) {
 				uni.showToast({
 					title: '请设置密码',
 					icon: 'none'
-				})
-				return
+				});
+				return;
 			}
-			
+
 			// 格式验证
-			const phonePattern = /^1[3-9]\d{9}$/
+			const phonePattern = /^1[3-9]\d{9}$/;
 			if (!phonePattern.test(this.registerForm.phone_number)) {
 				uni.showToast({
 					title: '手机号格式不正确',
 					icon: 'none'
-				})
-				return
+				});
+				return;
 			}
-			
+
 			// 学号格式验证（如果填写了）
 			if (this.registerForm.student_id) {
-				const studentIdPattern = /^(\d{8}|S\d{9})$/
+				const studentIdPattern = /^(\d{8}|S\d{9})$/;
 				if (!studentIdPattern.test(this.registerForm.student_id)) {
 					uni.showToast({
 						title: '学号格式不正确（8位数字或S+9位数字）',
 						icon: 'none'
-					})
-					return
+					});
+					return;
 				}
 			}
-			
+
 			// 邮箱格式验证（如果填写了）
 			if (this.registerForm.email) {
-				const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+				const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 				if (!emailPattern.test(this.registerForm.email)) {
 					uni.showToast({
 						title: '邮箱格式不正确',
 						icon: 'none'
-					})
-					return
+					});
+					return;
 				}
 			}
-			
+
 			if (this.registerForm.password.length < 6) {
 				uni.showToast({
 					title: '密码至少6位',
 					icon: 'none'
-				})
-				return
+				});
+				return;
 			}
-			
+
 			if (this.registerForm.password !== this.registerForm.confirmPassword) {
 				uni.showToast({
 					title: '两次密码输入不一致',
 					icon: 'none'
-				})
-				return
+				});
+				return;
 			}
-			
+
 			if (!this.agreedToTerms) {
 				uni.showToast({
 					title: '请同意用户协议和隐私政策',
 					icon: 'none'
-				})
-				return
+				});
+				return;
 			}
-			
-			this.isLoading = true
-			
+
+			this.isLoading = true;
+
 			try {
-				// 调用注册API
-				const result = await this.register()
-				
-				if (result.success) {
-					uni.showModal({
-						title: '注册成功',
-						content: '欢迎加入日新智链学习社区！请使用手机号登录。',
-						showCancel: false,
-						success: () => {
-							uni.navigateBack()
-						}
-					})
-				} else {
-					uni.showToast({
-						title: result.message || '注册失败',
-						icon: 'none'
-					})
-				}
+				// 发送验证码
+				this.showModal = true; // 显示验证码输入模态框
 			} catch (error) {
-				console.error('注册错误:', error)
+				console.error('注册错误:', error);
 				uni.showToast({
 					title: '网络错误，请稍后重试',
 					icon: 'none'
-				})
+				});
 			} finally {
-				this.isLoading = false
+				this.isLoading = false;
 			}
 		},
 		
-		// 调用注册API
-		async register() {
+		// 发送验证码
+		async sendVerificationCode() {
+			if (!this.registerForm.phone_number) {
+				uni.showToast({
+					title: '请输入手机号',
+					icon: 'none',
+				});
+				return;
+			}
+
+			this.isLoading = true;
+
 			try {
-				// 准备请求数据，过滤空值
-				const requestData = {
-					phone_number: this.registerForm.phone_number,
-					name: this.registerForm.name,
-					password: this.registerForm.password
+				const response = await this.requestVerificationCode(this.registerForm.phone_number);
+				if (response.success) {
+					uni.showToast({
+						title: '验证码已发送',
+						icon: 'success',
+					});
+				} else {
+					uni.showToast({
+						title: response.message || '发送失败',
+						icon: 'none',
+					});
 				}
-				
-				// 只添加非空的可选字段
-				if (this.registerForm.student_id) {
-					requestData.student_id = this.registerForm.student_id
-				}
-				if (this.registerForm.email) {
-					requestData.email = this.registerForm.email
-				}
-				
-				// 调用后端API
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/users/register`,
-					method: 'POST',
-					data: requestData,
-					header: {
-						'Content-Type': 'application/json'
-					}
-				})
-				
-				return response.data
 			} catch (error) {
-				console.error('API调用失败:', error)
-				// 开发阶段的模拟数据
-				return new Promise((resolve) => {
-					setTimeout(() => {
-						// 模拟注册成功
-						resolve({
-							success: true,
-							message: '注册成功'
-						})
-					}, 1000)
-				})
+				console.error('发送验证码错误:', error);
+				uni.showToast({
+					title: '网络错误，请稍后重试',
+					icon: 'none',
+				});
+			} finally {
+				this.isLoading = false;
 			}
 		},
-		
+
+		async requestVerificationCode(phone_number) {
+			return await uni.request({
+				url: `${this.$config.apiBaseUrl}/users/send-verification-code`,
+				method: 'POST',
+				data: { phone_number },
+				header: {
+					'Content-Type': 'application/json',
+				},
+			}).then(response => response.data);
+		},
+
+		// 验证用户输入的验证码
+		async verifyCode() {
+			const response = await this.verifyUserCode(this.registerForm.phone_number, this.verificationCode);
+			if (!response.success) {
+				uni.showToast({
+					title: '验证码错误',
+					icon: 'none',
+				});
+				return;
+			}
+
+			// 继续注册
+			const result = await this.register();
+			if (result.success) {
+				uni.showModal({
+					title: '注册成功',
+					content: '欢迎加入日新智链学习社区！请使用手机号登录。',
+					showCancel: false,
+					success: () => {
+						uni.navigateBack();
+					},
+				});
+			} else {
+				uni.showToast({
+					title: result.message || '注册失败',
+					icon: 'none',
+				});
+			}
+
+			this.closeModal(); // 关闭模态框
+		},
+
+		async verifyUserCode(phone_number, verification_code) {
+			return await uni.request({
+				url: `${this.$config.apiBaseUrl}/users/verify-code`,
+				method: 'POST',
+				data: { phone_number, verification_code },
+				header: {
+					'Content-Type': 'application/json',
+				},
+			}).then(response => response.data);
+		},
+
+		// 关闭模态框
+		closeModal() {
+			this.showModal = false; // 关闭模态框
+			this.verificationCode = ''; // 重置验证码输入框
+		},
+
+		async register() {
+			const requestData = {
+				phone_number: this.registerForm.phone_number,
+				name: this.registerForm.name,
+				password: this.registerForm.password,
+				student_id: this.registerForm.student_id || null,
+				email: this.registerForm.email || null,
+			};
+
+			const response = await uni.request({
+				url: `${this.$config.apiBaseUrl}/users/register`,
+				method: 'POST',
+				data: requestData,
+				header: {
+					'Content-Type': 'application/json',
+				},
+			});
+
+			return response.data;
+		},
+
 		goToLogin() {
-			uni.navigateBack()
+			uni.navigateBack();
 		}
 	}
-}
+};
 </script>
 
 <style lang="scss" scoped>
+.modal {
+    position: fixed;  /* 固定在视口内 */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6); /* 半透明背景 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10; /* 调整z-index值 */
+}
+
+.modal-content {
+    background: #f9f9f9; /* 轻微的灰色背景 */
+    padding: 30rpx; /* 更大的内边距 */
+    border-radius: 12rpx; /* 更平滑的圆角 */
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); /* 更显著的阴影效果 */
+    width: 90%; /* 宽度稍微调整 */
+    max-width: 450px; /* 最大宽度 */
+    text-align: center; /* 文字居中对齐 */
+}
+
+.modal-title {
+    font-size: 32rpx; /* 调整标题字体大小 */
+    font-weight: bold; /* 加粗标题 */
+    color: #333; /* 深色文字 */
+    margin-bottom: 20rpx; /* 标题下方间距 */
+}
+
+.toasty {
+    position: fixed;
+    top: 20px; /* 距离顶部20px */
+    left: 50%;
+    transform: translateX(-50%); /* 居中显示 */
+    z-index: 1100; /* 确保较高的 z-index 值，在模态框的上面 */
+}
+
+.send-code-btn,
+.modal-submit-btn,
+.modal-close-btn {
+    background: #4ecdc4; /* 按钮背景色与注册按钮一致 */
+    border: none; /* 去除默认边框 */
+    border-radius: 50rpx; /* 圆角按钮 */
+    color: white; /* 白色字体 */
+    font-size: 30rpx; /* 字体大小 */
+    padding: 10rpx 20rpx; /* 按钮内边距 */
+    margin-top: 15rpx; /* 顶部间距 */
+    cursor: pointer; /* 鼠标指针样式 */
+    transition: background 0.3s; /* 动画效果 */
+}
+
+.send-code-btn:hover,
+.modal-submit-btn:hover,
+.modal-close-btn:hover {
+    background: #44a08d; /* 悬停时按钮颜色变化 */
+}
+
+
+
 .register-container {
 	min-height: 100vh;
 	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
