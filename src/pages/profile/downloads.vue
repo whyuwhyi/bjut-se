@@ -88,41 +88,36 @@ export default {
 	methods: {
 		async loadDownloadList() {
 			try {
-				// 模拟数据，实际应调用云函数
-				this.downloadList = [
-					{
-						id: 1,
-						fileName: '数据结构与算法课件.pdf',
-						fileType: 'pdf',
-						fileSize: '12.5MB',
-						uploaderName: '张教授',
-						downloadTime: new Date('2025-06-20 14:30:00')
-					},
-					{
-						id: 2,
-						fileName: '机器学习实验代码.zip',
-						fileType: 'zip',
-						fileSize: '45.2MB',
-						uploaderName: '李同学',
-						downloadTime: new Date('2025-06-19 09:15:00')
-					},
-					{
-						id: 3,
-						fileName: '软件工程复习资料.docx',
-						fileType: 'doc',
-						fileSize: '8.7MB',
-						uploaderName: '王老师',
-						downloadTime: new Date('2025-06-18 16:45:00')
-					},
-					{
-						id: 4,
-						fileName: 'Vue.js教学视频.mp4',
-						fileType: 'video',
-						fileSize: '156.8MB',
-						uploaderName: '前端课程组',
-						downloadTime: new Date('2025-06-17 11:20:00')
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.reLaunch({
+						url: '/pages/login/login'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/users/download-records',
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
 					}
-				]
+				})
+				
+				if (response.data.success) {
+					this.downloadList = response.data.data.records.map(record => ({
+						id: record.download_id,
+						fileName: record.file_name,
+						fileType: this.getFileExtension(record.file_name),
+						fileSize: this.formatFileSize(record.download_size),
+						uploaderName: record.uploader_name || '未知用户',
+						downloadTime: new Date(record.downloaded_at),
+						resourceId: record.resource_id,
+						fileId: record.file_id
+					}))
+				} else {
+					this.downloadList = []
+				}
 				this.filterDownloads()
 			} catch (error) {
 				console.error('加载下载记录失败:', error)
@@ -130,6 +125,8 @@ export default {
 					title: '加载失败',
 					icon: 'none'
 				})
+				this.downloadList = []
+				this.filterDownloads()
 			}
 		},
 		
@@ -234,6 +231,19 @@ export default {
 				'mp4': '🎬'
 			}
 			return iconMap[fileType] || '📁'
+		},
+		
+		getFileExtension(fileName) {
+			if (!fileName) return 'unknown'
+			return fileName.split('.').pop().toLowerCase()
+		},
+		
+		formatFileSize(bytes) {
+			if (!bytes) return '0 B'
+			const k = 1024
+			const sizes = ['B', 'KB', 'MB', 'GB']
+			const i = Math.floor(Math.log(bytes) / Math.log(k))
+			return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 		},
 		
 		formatTime(time) {

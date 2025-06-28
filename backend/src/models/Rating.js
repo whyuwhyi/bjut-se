@@ -30,10 +30,10 @@ const Rating = sequelize.define('Rating', {
     type: DataTypes.DECIMAL(3, 2),
     allowNull: false,
     validate: {
-      min: 0,
-      max: 10
+      min: 1,
+      max: 5
     },
-    comment: '评分（0-10分）'
+    comment: '评分（1-5分）'
   },
   review_text: {
     type: DataTypes.TEXT,

@@ -11,8 +11,8 @@
 				<text class="stat-label">获得评论</text>
 			</view>
 			<view class="stat-item">
-				<text class="stat-number">{{ totalLikes }}</text>
-				<text class="stat-label">获得点赞</text>
+				<text class="stat-number">{{ totalViews }}</text>
+				<text class="stat-label">获得浏览</text>
 			</view>
 		</view>
 		
@@ -115,7 +115,7 @@ export default {
 			posts: [],
 			totalPosts: 0,
 			totalComments: 0,
-			totalLikes: 0,
+			totalViews: 0,
 			loading: false,
 			page: 1,
 			hasMore: true
@@ -199,7 +199,7 @@ export default {
 				// 暂时使用模拟数据
 				this.totalPosts = this.posts.length
 				this.totalComments = this.posts.reduce((sum, post) => sum + post.comment_count, 0)
-				this.totalLikes = this.posts.reduce((sum, post) => sum + post.like_count, 0)
+				this.totalViews = this.posts.reduce((sum, post) => sum + post.view_count, 0)
 			} catch (error) {
 				console.error('加载统计数据失败:', error)
 			}
@@ -300,10 +300,9 @@ export default {
 		},
 		
 		getExcerpt(content) {
-			if (!content) return ''
-			// 移除markdown标记，获取纯文本摘要
-			const plainText = content.replace(/[#*`>-]/g, '').replace(/\n/g, ' ')
-			return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText
+			// 使用改进的摘要提取函数
+			const { getPlainTextExcerpt } = require('@/utils/markdown.js')
+			return getPlainTextExcerpt(content, 100)
 		},
 		
 		formatTime(time) {

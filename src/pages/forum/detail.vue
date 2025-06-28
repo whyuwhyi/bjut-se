@@ -11,9 +11,13 @@
 					</view>
 				</view>
 				<view class="post-actions">
-					<view class="action-btn" @click="toggleLike">
-						<text class="action-icon" :class="{ liked: isLiked }">{{ isLiked ? '❤️' : '🤍' }}</text>
-						<text class="action-text">{{ post.like_count }}</text>
+					<view class="action-btn" @click="toggleCollection">
+						<text class="action-icon" :class="{ collected: isCollected }">{{ isCollected ? '❤️' : '🤍' }}</text>
+						<text class="action-text">{{ isCollected ? '已收藏' : '收藏' }}</text>
+					</view>
+					<view class="action-btn" @click="sharePost">
+						<text class="action-icon">📤</text>
+						<text class="action-text">分享</text>
 					</view>
 				</view>
 			</view>
@@ -39,7 +43,6 @@
 			<view class="post-stats">
 				<text class="stat-item">👁️ {{ post.view_count }} 浏览</text>
 				<text class="stat-item">💬 {{ post.comment_count }} 评论</text>
-				<text class="stat-item">❤️ {{ post.like_count }} 点赞</text>
 			</view>
 		</view>
 		
@@ -47,18 +50,6 @@
 		<view class="comments-section">
 			<view class="comments-header">
 				<text class="comments-title">评论 ({{ totalComments }})</text>
-				<view class="sort-options">
-					<text 
-						class="sort-option" 
-						:class="{ active: sortBy === 'latest' }"
-						@click="changeSortBy('latest')"
-					>最新</text>
-					<text 
-						class="sort-option" 
-						:class="{ active: sortBy === 'hot' }"
-						@click="changeSortBy('hot')"
-					>热门</text>
-				</view>
 			</view>
 			
 			<view class="comments-list">
@@ -72,12 +63,6 @@
 						<view class="comment-info">
 							<text class="comment-author">{{ comment.author.nickname || comment.author.name }}</text>
 							<text class="comment-time">{{ formatTime(comment.created_at) }}</text>
-						</view>
-						<view class="comment-actions">
-							<view class="comment-like" @click="toggleCommentLike(comment)">
-								<text class="like-icon" :class="{ liked: comment.isLiked }">{{ comment.isLiked ? '❤️' : '🤍' }}</text>
-								<text class="like-count">{{ comment.like_count }}</text>
-							</view>
 						</view>
 					</view>
 					
@@ -159,28 +144,19 @@ export default {
 			comments: [],
 			commentContent: '',
 			replyTarget: null,
-			sortBy: 'latest',
 			page: 1,
 			totalComments: 0,
 			hasMoreComments: true,
 			loadingComments: false,
 			sending: false,
-			isLiked: false
+			isCollected: false
 		}
 	},
 	
 	computed: {
 		renderedContent() {
 			if (!this.post || !this.post.content) return ''
-			
-			// 简单的Markdown渲染
-			return this.post.content
-				.replace(/### (.*)/g, '<h3 style="font-size: 32rpx; font-weight: bold; margin: 20rpx 0;">$1</h3>')
-				.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-				.replace(/\*(.*?)\*/g, '<em>$1</em>')
-				.replace(/`(.*?)`/g, '<code style="background: #f5f5f5; padding: 4rpx 8rpx; border-radius: 4rpx;">$1</code>')
-				.replace(/^- (.*)/gm, '<li style="margin: 10rpx 0;">$1</li>')
-				.replace(/\n/g, '<br>')
+			return this.renderMarkdown(this.post.content)
 		}
 	},
 	
@@ -202,6 +178,8 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.post = response.data.data
+					// 检查是否已收藏
+					this.checkCollectionStatus()
 				} else {
 					uni.showToast({
 						title: '帖子不存在',
@@ -217,6 +195,27 @@ export default {
 					title: '网络错误',
 					icon: 'none'
 				})
+			}
+		},
+		
+		async checkCollectionStatus() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) return
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/posts/${this.postId}/favorite-status?type=post`,
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.isCollected = response.data.data.isCollected
+				}
+			} catch (error) {
+				console.error('检查收藏状态失败:', error)
 			}
 		},
 		
@@ -264,12 +263,6 @@ export default {
 			}
 		},
 		
-		changeSortBy(newSortBy) {
-			this.sortBy = newSortBy
-			this.page = 1
-			this.hasMoreComments = true
-			this.loadComments(true)
-		},
 		
 		async sendComment() {
 			if (!this.commentContent.trim() || this.sending) return
@@ -348,24 +341,96 @@ export default {
 			this.replyTarget = null
 		},
 		
-		async toggleLike() {
-			// 点赞功能实现
-			this.isLiked = !this.isLiked
-			if (this.isLiked) {
-				this.post.like_count++
-			} else {
-				this.post.like_count--
+		
+		async toggleCollection() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/posts/${this.postId}/favorite`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						type: 'post'
+					}
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.isCollected = response.data.data.isCollected
+					
+					uni.showToast({
+						title: response.data.message,
+						icon: 'success'
+					})
+					
+					// 收藏成功，不需要更新计数（帖子收藏通过collections表管理）
+				} else {
+					uni.showToast({
+						title: response.data.message || '操作失败',
+						icon: 'none'
+					})
+				}
+			} catch (error) {
+				console.error('收藏操作失败:', error)
+				uni.showToast({
+					title: '网络错误',
+					icon: 'none'
+				})
 			}
 		},
 		
-		async toggleCommentLike(comment) {
-			// 评论点赞功能实现
-			comment.isLiked = !comment.isLiked
-			if (comment.isLiked) {
-				comment.like_count++
-			} else {
-				comment.like_count--
-			}
+		sharePost() {
+			if (!this.post) return
+			
+			uni.share({
+				provider: 'weixin',
+				type: 0,
+				title: this.post.title,
+				summary: this.post.content.substring(0, 100) + '...',
+				href: `pages/forum/detail?id=${this.postId}`,
+				success: () => {
+					uni.showToast({
+						title: '分享成功',
+						icon: 'success'
+					})
+				},
+				fail: (error) => {
+					console.error('分享失败:', error)
+					// 如果微信分享失败，使用系统分享
+					uni.showActionSheet({
+						itemList: ['复制链接', '保存到相册'],
+						success: (res) => {
+							if (res.tapIndex === 0) {
+								uni.setClipboardData({
+									data: `${this.post.title} - 查看详情: pages/forum/detail?id=${this.postId}`,
+									success: () => {
+										uni.showToast({
+											title: '链接已复制',
+											icon: 'success'
+										})
+									}
+								})
+							}
+						}
+					})
+				}
+			})
+		},
+		
+		renderMarkdown(content) {
+			// 导入Markdown渲染工具函数
+			const { renderMarkdown } = require('@/utils/markdown.js')
+			return renderMarkdown(content)
 		},
 		
 		formatTime(time) {
@@ -441,6 +506,9 @@ export default {
 		}
 		
 		.post-actions {
+			display: flex;
+			gap: 30rpx;
+			
 			.action-btn {
 				display: flex;
 				flex-direction: column;
@@ -452,6 +520,10 @@ export default {
 					
 					&.liked {
 						color: #ff4757;
+					}
+					
+					&.collected {
+						color: #ffb700;
 					}
 				}
 				
@@ -531,22 +603,6 @@ export default {
 			color: #333;
 		}
 		
-		.sort-options {
-			display: flex;
-			gap: 20rpx;
-			
-			.sort-option {
-				font-size: 26rpx;
-				color: #666;
-				padding: 8rpx 16rpx;
-				border-radius: 20rpx;
-				
-				&.active {
-					background: #007aff;
-					color: white;
-				}
-			}
-		}
 	}
 	
 	.comments-list {
@@ -583,26 +639,6 @@ export default {
 					}
 				}
 				
-				.comment-actions {
-					.comment-like {
-						display: flex;
-						align-items: center;
-						gap: 5rpx;
-						
-						.like-icon {
-							font-size: 30rpx;
-							
-							&.liked {
-								color: #ff4757;
-							}
-						}
-						
-						.like-count {
-							font-size: 22rpx;
-							color: #666;
-						}
-					}
-				}
 			}
 			
 			.comment-content {

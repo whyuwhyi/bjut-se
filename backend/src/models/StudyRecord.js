@@ -44,8 +44,17 @@ const StudyRecord = sequelize.define('StudyRecord', {
     },
     comment: '关联资源（可选）'
   },
+  post_id: {
+    type: DataTypes.STRING(9),
+    allowNull: true,
+    references: {
+      model: 'posts',
+      key: 'post_id'
+    },
+    comment: '关联帖子（可选）'
+  },
   activity_type: {
-    type: DataTypes.ENUM('resource_view', 'resource_download', 'task_complete', 'plan_create', 'discussion_join'),
+    type: DataTypes.ENUM('resource_view', 'resource_download', 'task_complete', 'plan_create', 'post_view', 'post_create', 'comment_create'),
     allowNull: false,
     comment: '活动类型'
   },

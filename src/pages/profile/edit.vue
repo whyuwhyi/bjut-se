@@ -106,11 +106,11 @@
 					class="bio-textarea"
 					v-model="userInfo.bio"
 					placeholder="介绍一下自己吧..."
-					:maxlength="200"
+					:maxlength="500"
 					show-confirm-bar="false">
 				</textarea>
 				<view class="char-count">
-					<text class="count-text">{{ (userInfo.bio || '').length }}/200</text>
+					<text class="count-text">{{ (userInfo.bio || '').length }}/500</text>
 				</view>
 			</view>
 		</view>
@@ -291,10 +291,6 @@ export default {
 			} finally {
 				uni.hideLoading()
 			}
-						}
-					})
-				}
-			})
 		},
 		
 		removeAvatar() {
@@ -368,11 +364,23 @@ export default {
 				const token = uni.getStorageSync('token')
 				
 				// 构建保存数据
-				const profileData = {
-					name: this.userInfo.name,
-					nickname: this.userInfo.nickname,
-					email: this.userInfo.email,
-					student_id: this.userInfo.studentId
+				const profileData = {}
+				
+				// 只发送有值的字段
+				if (this.userInfo.name && this.userInfo.name.trim()) {
+					profileData.name = this.userInfo.name.trim()
+				}
+				if (this.userInfo.nickname && this.userInfo.nickname.trim()) {
+					profileData.nickname = this.userInfo.nickname.trim()
+				}
+				if (this.userInfo.email && this.userInfo.email.trim()) {
+					profileData.email = this.userInfo.email.trim()
+				}
+				if (this.userInfo.studentId && this.userInfo.studentId.trim()) {
+					profileData.student_id = this.userInfo.studentId.trim()
+				}
+				if (this.userInfo.bio !== undefined && this.userInfo.bio !== null) {
+					profileData.bio = this.userInfo.bio.trim()
 				}
 				
 				const response = await uni.request({

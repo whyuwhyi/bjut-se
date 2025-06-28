@@ -64,7 +64,7 @@
 					</view>
 					<view class="post-stats">
 						<text class="stat-item">👁️ {{ post.view_count }}</text>
-						<text class="stat-item">❤️ {{ post.like_count }}</text>
+						<text class="stat-item">💬 {{ post.comment_count || 0 }}</text>
 					</view>
 				</view>
 				
@@ -118,7 +118,7 @@ export default {
 			sortOptions: [
 				{ label: '最新发布', value: 'latest' },
 				{ label: '浏览最多', value: 'view' },
-				{ label: '点赞最多', value: 'like' },
+				{ label: '收藏最多', value: 'collection' },
 				{ label: '评论最多', value: 'comment' }
 			],
 			selectedSortIndex: 0,
@@ -261,10 +261,9 @@ export default {
 		},
 		
 		getExcerpt(content) {
-			if (!content) return ''
-			// 移除markdown标记，获取纯文本摘要
-			const plainText = content.replace(/[#*`>-]/g, '').replace(/\n/g, ' ')
-			return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText
+			// 使用改进的摘要提取函数
+			const { getPlainTextExcerpt } = require('@/utils/markdown.js')
+			return getPlainTextExcerpt(content, 100)
 		},
 		
 		formatTime(time) {

@@ -35,21 +35,25 @@ const validators = {
   // 更新用户信息验证
   validateUpdateProfile: [
     body('name')
-      .optional()
+      .optional({ nullable: true, checkFalsy: true })
       .isLength({ min: 1, max: 50 })
       .withMessage('姓名长度必须在1-50个字符之间'),
     body('nickname')
-      .optional()
+      .optional({ nullable: true, checkFalsy: true })
       .isLength({ min: 1, max: 50 })
       .withMessage('昵称长度必须在1-50个字符之间'),
     body('student_id')
-      .optional()
+      .optional({ nullable: true, checkFalsy: true })
       .matches(/^(\d{8}|S\d{9})$/)
       .withMessage('学号格式不正确'),
     body('email')
-      .optional()
+      .optional({ nullable: true, checkFalsy: true })
       .isEmail()
-      .withMessage('邮箱格式不正确')
+      .withMessage('邮箱格式不正确'),
+    body('bio')
+      .optional({ nullable: true, checkFalsy: true })
+      .isLength({ max: 500 })
+      .withMessage('个人简介不能超过500个字符')
   ],
 
   // 资源创建验证

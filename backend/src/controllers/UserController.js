@@ -179,7 +179,7 @@ class UserController {
         })
       }
 
-      const { name, nickname, email, student_id } = req.body
+      const { name, nickname, email, student_id, bio } = req.body
       const phone_number = req.user.phone_number
 
       const user = await User.findByPk(phone_number)
@@ -208,7 +208,8 @@ class UserController {
         name: name || user.name,
         nickname: nickname || user.nickname,
         email: email || user.email,
-        student_id: student_id || user.student_id
+        student_id: student_id || user.student_id,
+        bio: bio !== undefined ? bio : user.bio
       })
 
       res.json({

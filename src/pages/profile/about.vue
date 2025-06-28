@@ -13,10 +13,10 @@
 			<text class="section-title">关于应用</text>
 			<view class="description-content">
 				<text class="description-text">
-					日新智链是一款专为大学生打造的智能学习平台，致力于为学生提供优质的学习资源、便捷的学习工具和活跃的学习社区。
+					日新智链是专为北京工业大学师生设计的校园学习交流微信小程序，致力于打造"以学习者为中心"的智能化校园学习社区。
 				</text>
 				<text class="description-text">
-					我们相信，通过技术的力量，能够让学习变得更加高效、有趣和富有成效。让每一位学生都能在这里找到属于自己的学习方式。
+					平台通过整合分散的校园信息资源，提供一站式的学习、交流、成长服务，促进知识共享和协作学习，让学习更简单，让知识更流动。
 				</text>
 			</view>
 		</view>
@@ -39,8 +39,8 @@
 		<view class="team-info">
 			<text class="section-title">开发团队</text>
 			<view class="team-content">
-				<text class="team-name">北京工业大学软件学院</text>
-				<text class="team-desc">由一群热爱技术、关注教育的年轻开发者组成</text>
+				<text class="team-name">SE2025-Team-03</text>
+				<text class="team-desc">北京工业大学软件学院2025届学生团队</text>
 				<view class="team-members">
 					<view class="member-item" v-for="(member, index) in teamMembers" :key="index">
 						<text class="member-name">{{ member.name }}</text>
@@ -54,20 +54,11 @@
 		<view class="contact-info">
 			<text class="section-title">联系我们</text>
 			<view class="contact-list">
-				<view class="contact-item" @click="copyToClipboard('contact', 'support@bjut-software.edu.cn')">
+				<view class="contact-item" @click="copyToClipboard('contact', 'support@bjut.edu.cn')">
 					<text class="contact-icon">📧</text>
 					<view class="contact-info">
-						<text class="contact-label">邮箱</text>
-						<text class="contact-value">support@bjut-software.edu.cn</text>
-					</view>
-					<text class="contact-action">复制</text>
-				</view>
-				
-				<view class="contact-item" @click="copyToClipboard('qq', '123456789')">
-					<text class="contact-icon">💬</text>
-					<view class="contact-info">
-						<text class="contact-label">QQ群</text>
-						<text class="contact-value">123456789</text>
+						<text class="contact-label">技术支持</text>
+						<text class="contact-value">support@bjut.edu.cn</text>
 					</view>
 					<text class="contact-action">复制</text>
 				</view>
@@ -75,8 +66,8 @@
 				<view class="contact-item" @click="openWebsite()">
 					<text class="contact-icon">🌐</text>
 					<view class="contact-info">
-						<text class="contact-label">官网</text>
-						<text class="contact-value">www.bjut-software.edu.cn</text>
+						<text class="contact-label">项目仓库</text>
+						<text class="contact-value">github.com/SE2024-Team-01/wechat_software</text>
 					</view>
 					<text class="contact-action">访问</text>
 				</view>
@@ -125,40 +116,41 @@ export default {
 				{
 					icon: '📚',
 					name: '学习资源',
-					description: '海量优质学习资料，涵盖各个专业领域'
+					description: '支持多种格式的学习资料分享，带审核流程保证质量'
 				},
 				{
 					icon: '💬',
-					name: '学习社区',
-					description: '活跃的讨论氛围，与同学交流学习心得'
+					name: '论坛交流',
+					description: '多层级评论系统，师生互动讨论学习问题'
 				},
 				{
-					icon: '🎯',
-					name: '社团活动',
-					description: '丰富的校园活动，拓展课余生活'
-				},
-				{
-					icon: '📊',
-					name: '学习分析',
-					description: '个性化学习数据分析，助力学习提升'
-				},
-				{
-					icon: '🏆',
-					name: '成就系统',
-					description: '激励机制让学习更有动力和成就感'
+					icon: '📖',
+					name: '学习管理',
+					description: '制定学习计划、管理学习任务，跟踪学习进度'
 				},
 				{
 					icon: '🔔',
-					name: '智能提醒',
-					description: '重要信息及时通知，不错过任何学习机会'
+					name: '通知系统',
+					description: '及时接收系统通知和重要消息，不错过任何信息'
+				},
+				{
+					icon: '👤',
+					name: '个人中心',
+					description: '管理个人资料、收藏内容、查看学习数据统计'
+				},
+				{
+					icon: '🔍',
+					name: '智能搜索',
+					description: '强大的搜索功能，快速找到需要的学习资源'
 				}
 			],
 			teamMembers: [
-				{ name: '张三', role: '项目负责人' },
-				{ name: '李四', role: '前端开发' },
-				{ name: '王五', role: '后端开发' },
-				{ name: '赵六', role: 'UI设计师' },
-				{ name: '钱七', role: '测试工程师' }
+				{ name: '高家中', role: '项目负责人' },
+				{ name: '李星原', role: '前端开发' },
+				{ name: '余意', role: '后端开发' },
+				{ name: '李桉弛', role: '系统架构' },
+				{ name: '姚忠宝', role: '数据库设计' },
+				{ name: '江依山', role: '测试工程师' }
 			]
 		}
 	},

@@ -1,45 +1,45 @@
 <template>
 	<view class="resources-container">
-		<!-- 顶部筛选区域 -->
-		<view class="top-filter-section">
+		<!-- 顶部搜索和筛选区域 -->
+		<view class="top-section">
 			<!-- 搜索栏 -->
 			<view class="search-bar">
 				<text class="search-icon">🔍</text>
 				<input class="search-input" placeholder="搜索学习资源..." v-model="searchKeyword" @input="handleSearch"/>
 			</view>
 			
-			<!-- 筛选条件区域 -->
-			<view class="filter-section">
-				<view class="filter-row">
-					<view class="filter-item">
-						<text class="filter-label">分类</text>
-						<picker :value="selectedCategoryIndex" :range="categoryNames" @change="categoryChange">
-							<view class="picker-view">
-								{{ selectedCategoryIndex >= 0 ? categoryNames[selectedCategoryIndex] : '全部分类' }}
-							</view>
-						</picker>
+			<!-- 分类筛选 -->
+			<view class="category-filter" v-if="categories.length > 0">
+				<scroll-view class="category-scroll" scroll-x="true">
+					<view class="category-list">
+						<view 
+							class="category-item" 
+							:class="{ active: selectedCategoryIndex === -1 }"
+							@click="selectCategory(-1)"
+						>
+							<text class="category-text">全部</text>
+						</view>
+						<view 
+							class="category-item" 
+							:class="{ active: selectedCategoryIndex === index }"
+							v-for="(category, index) in categories" 
+							:key="category.category_id"
+							@click="selectCategory(index)"
+						>
+							<text class="category-text">{{ category.category_name }}</text>
+						</view>
 					</view>
-					
-					<view class="filter-item">
-						<text class="filter-label">排序</text>
-						<picker :value="selectedSortIndex" :range="sortNames" @change="sortChange">
-							<view class="picker-view">
-								{{ sortNames[selectedSortIndex] }}
-							</view>
-						</picker>
-					</view>
-				</view>
+				</scroll-view>
 			</view>
 			
-			<!-- 活动筛选标签显示 -->
-			<view class="active-filters" v-if="hasActiveFilters()">
-				<view class="filter-tag" v-for="tag in getActiveFilterTags()" :key="tag.key" @click="removeFilter(tag)">
-					<text class="tag-text">{{ tag.label }}</text>
-					<text class="tag-close">✕</text>
-				</view>
-				<view class="clear-all" @click="clearAllFilters">
-					<text>清空</text>
-				</view>
+			<!-- 排序选择 -->
+			<view class="sort-section">
+				<picker :value="selectedSortIndex" :range="sortNames" @change="sortChange">
+					<view class="sort-picker">
+						<text class="sort-text">{{ sortNames[selectedSortIndex] }}</text>
+						<text class="sort-icon">▼</text>
+					</view>
+				</picker>
 			</view>
 		</view>
 
@@ -47,7 +47,7 @@
 		<view class="resources-list">
 			<view 
 				class="resource-item" 
-				v-for="(item, index) in filteredResources" 
+				v-for="(item, index) in resources" 
 				:key="index"
 				@click="viewResource(item)"
 			>
@@ -111,15 +111,11 @@ export default {
 			selectedCategoryIndex: -1,
 			selectedSortIndex: 0,
 			resources: [],
-			loading: false,
-			filteredResources: []
+			loading: false
 		}
 	},
 	
 	computed: {
-		categoryNames() {
-			return this.categories.map(cat => cat.name)
-		},
 		sortNames() {
 			return this.sortOptions.map(sort => sort.label)
 		}
@@ -130,12 +126,17 @@ export default {
 		this.loadResources()
 	},
 	
+	onShow() {
+		// 页面显示时重新加载资源列表，确保收藏状态同步
+		this.loadResources()
+	},
+	
 	methods: {
 		// 加载分类列表
 		async loadCategories() {
 			try {
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/categories/options',
+					url: 'http://localhost:3000/api/v1/categories',
 					method: 'GET'
 				})
 				
@@ -160,7 +161,7 @@ export default {
 				
 				// 添加筛选条件
 				if (this.selectedCategoryIndex >= 0 && this.categories[this.selectedCategoryIndex]) {
-					params.categories = this.categories[this.selectedCategoryIndex].value
+					params.categories = this.categories[this.selectedCategoryIndex].category_id
 				}
 				
 				
@@ -168,15 +169,21 @@ export default {
 					params.search = this.searchKeyword
 				}
 				
+				const token = uni.getStorageSync('token')
+				const headers = {}
+				if (token) {
+					headers['Authorization'] = `Bearer ${token}`
+				}
+				
 				const response = await uni.request({
 					url: 'http://localhost:3000/api/v1/resources',
 					method: 'GET',
+					header: headers,
 					data: params
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.resources = response.data.data.resources || []
-					this.filteredResources = this.resources
 				} else {
 					uni.showToast({
 						title: '加载失败',
@@ -199,8 +206,8 @@ export default {
 		
 
 		// 分类选择
-		categoryChange(e) {
-			this.selectedCategoryIndex = e.detail.value
+		selectCategory(index) {
+			this.selectedCategoryIndex = index
 			this.loadResources()
 		},
 		
@@ -215,65 +222,6 @@ export default {
 		
 
 		
-		getSortText() {
-			const sort = this.sortOptions.find(s => s.value === this.currentSort)
-			return sort ? sort.label : '排序'
-		},
-		
-		hasActiveFilters() {
-			return this.selectedCategoryIndex >= 0
-		},
-		
-		getActiveFilterTags() {
-			const tags = []
-			
-			// 分类标签
-			if (this.selectedCategoryIndex >= 0 && this.categories[this.selectedCategoryIndex]) {
-				const category = this.categories[this.selectedCategoryIndex]
-				tags.push({
-					key: `category_${category.value}`,
-					label: category.name,
-					type: 'category',
-					value: this.selectedCategoryIndex
-				})
-			}
-			
-			return tags
-		},
-		
-		removeFilter(tag) {
-			if (tag.type === 'category') {
-				this.selectedCategoryIndex = -1
-			}
-			this.loadResources()
-		},
-		
-		clearAllFilters() {
-			this.selectedCategoryIndex = -1
-			this.loadResources()
-		},
-		
-		sortResources() {
-			let sorted = [...this.filteredResources]
-			
-			switch (this.currentSort) {
-				case 'download':
-					sorted.sort((a, b) => b.downloadCount - a.downloadCount)
-					break
-				case 'rating':
-					sorted.sort((a, b) => b.rating - a.rating)
-					break
-				case 'view':
-					sorted.sort((a, b) => b.viewCount - a.viewCount)
-					break
-				case 'latest':
-				default:
-					sorted.sort((a, b) => b.uploadTime - a.uploadTime)
-					break
-			}
-			
-			this.filteredResources = sorted
-		},
 		
 		
 		
@@ -288,27 +236,40 @@ export default {
 					return
 				}
 				
+				// 乐观更新：先改变UI状态
+				const originalState = item.isFavorited
+				item.isFavorited = !item.isFavorited
+				
 				const response = await uni.request({
 					url: `http://localhost:3000/api/v1/resources/${item.id}/favorite`,
 					method: 'POST',
 					header: {
-						'Authorization': `Bearer ${token}`
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						type: 'resource'
 					}
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
-					item.isFavorited = response.data.data.isFavorited
+					// 确保状态与服务器返回一致
+					item.isFavorited = response.data.data.isCollected
 					uni.showToast({
 						title: response.data.message,
-						icon: 'none'
+						icon: 'success'
 					})
 				} else {
+					// 操作失败，恢复原来的状态
+					item.isFavorited = originalState
 					uni.showToast({
 						title: '操作失败',
 						icon: 'none'
 					})
 				}
 			} catch (error) {
+				// 网络错误，恢复原来的状态
+				item.isFavorited = originalState
 				console.error('收藏操作错误:', error)
 				uni.showToast({
 					title: '网络错误',
@@ -373,7 +334,7 @@ export default {
 	padding-bottom: 160rpx;
 }
 
-.top-filter-section {
+.top-section {
 	background: white;
 	padding: 20rpx;
 	border-bottom: 1rpx solid #f0f0f0;
@@ -396,6 +357,62 @@ export default {
 			flex: 1;
 			height: 80rpx;
 			font-size: 28rpx;
+		}
+	}
+	
+	.category-filter {
+		margin-top: 20rpx;
+		
+		.category-scroll {
+			
+			.category-list {
+				display: flex;
+				gap: 12rpx;
+				
+				.category-item {
+					padding: 12rpx 24rpx;
+					background: #f8f8f8;
+					border-radius: 30rpx;
+					white-space: nowrap;
+					flex-shrink: 0;
+					
+					&.active {
+						background: #007aff;
+						
+						.category-text {
+							color: white;
+						}
+					}
+					
+					.category-text {
+						font-size: 26rpx;
+						color: #666;
+					}
+				}
+			}
+		}
+	}
+	
+	.sort-section {
+		margin-top: 20rpx;
+		
+		.sort-picker {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			background: #f8f8f8;
+			border-radius: 8rpx;
+			padding: 15rpx 20rpx;
+			
+			.sort-text {
+				font-size: 26rpx;
+				color: #333;
+			}
+			
+			.sort-icon {
+				font-size: 20rpx;
+				color: #999;
+			}
 		}
 	}
 	

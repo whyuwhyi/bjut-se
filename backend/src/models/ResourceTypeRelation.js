@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize')
 const { sequelize } = require('../config/database')
 
-const ResourceTag = sequelize.define('ResourceTag', {
+const ResourceTypeRelation = sequelize.define('ResourceTypeRelation', {
   relation_id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -17,32 +17,30 @@ const ResourceTag = sequelize.define('ResourceTag', {
     },
     comment: '关联资源表'
   },
-  tag_id: {
-    type: DataTypes.STRING(9),
+  type_id: {
+    type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'tags',
-      key: 'tag_id'
+      model: 'resource_types',
+      key: 'type_id'
     },
-    comment: '关联标签表'
+    comment: '关联资源类型表'
   }
 }, {
-  tableName: 'resource_tags',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: false,
+  tableName: 'resource_type_relations',
+  timestamps: false,
   indexes: [
     {
       fields: ['resource_id']
     },
     {
-      fields: ['tag_id']
+      fields: ['type_id']
     },
     {
       unique: true,
-      fields: ['resource_id', 'tag_id']
+      fields: ['resource_id', 'type_id']
     }
   ]
 })
 
-module.exports = ResourceTag
+module.exports = ResourceTypeRelation

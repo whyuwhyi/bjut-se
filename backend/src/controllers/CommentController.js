@@ -110,35 +110,6 @@ class CommentController {
     }
   }
 
-  // 点赞评论
-  async likeComment(req, res) {
-    try {
-      const { commentId } = req.params
-      
-      const comment = await Comment.findByPk(commentId)
-      if (!comment) {
-        return res.status(404).json({
-          success: false,
-          message: '评论不存在'
-        })
-      }
-
-      await comment.increment('like_count')
-
-      res.json({
-        success: true,
-        message: '点赞成功',
-        data: { like_count: comment.like_count + 1 }
-      })
-    } catch (error) {
-      console.error('点赞评论错误:', error)
-      res.status(500).json({
-        success: false,
-        message: '点赞失败',
-        error: error.message
-      })
-    }
-  }
 }
 
 module.exports = new CommentController()

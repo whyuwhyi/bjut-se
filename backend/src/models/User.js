@@ -58,6 +58,11 @@ const User = sequelize.define('User', {
     },
     comment: '邮箱地址'
   },
+  bio: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: '个人简介'
+  },
   gender: {
     type: DataTypes.ENUM('M', 'F', 'U'),
     defaultValue: 'U',

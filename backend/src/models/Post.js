@@ -28,10 +28,10 @@ const Post = sequelize.define('Post', {
     defaultValue: 0,
     comment: '浏览次数'
   },
-  like_count: {
+  collection_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
-    comment: '点赞次数'
+    comment: '收藏次数'
   },
   comment_count: {
     type: DataTypes.INTEGER,

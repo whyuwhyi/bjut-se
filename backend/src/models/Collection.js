@@ -27,7 +27,7 @@ const Collection = sequelize.define('Collection', {
     comment: '被收藏内容的唯一标识符'
   },
   collection_type: {
-    type: DataTypes.ENUM('discussion', 'resource', 'activity'),
+    type: DataTypes.ENUM('post', 'resource'),
     allowNull: false,
     comment: '收藏内容类型'
   },

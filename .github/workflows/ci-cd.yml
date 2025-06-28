@@ -46,39 +46,47 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
 
-    - name: 安装前端依赖
+    - name: 安装项目依赖
       run: |
-        if [ -f package-lock.json ]; then
-          npm ci
-        else
-          npm install
-        fi
+        # 使用我们的统一脚本来安装依赖
+        chmod +x scripts/dev.sh
+        scripts/dev.sh install-deps || {
+          # 如果脚本不支持install-deps命令，则使用传统方式
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+          cd backend
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+          cd ..
+        }
 
-    - name: 安装后端依赖
+    - name: 运行测试
       run: |
-        cd backend
-        if [ -f package-lock.json ]; then
-          npm ci
-        else
-          npm install
-        fi
-
-    - name: 运行前端测试
-      run: |
-        if npm run --silent test:h5 2>/dev/null; then
-          npm run test:h5
-        else
-          echo "前端测试脚本不存在，跳过"
-        fi
-
-    - name: 运行后端测试
-      run: |
-        cd backend
-        if npm run --silent test 2>/dev/null; then
-          npm test
-        else
-          echo "后端测试脚本不存在，跳过"
-        fi
+        # 使用我们的统一脚本运行测试
+        chmod +x scripts/dev.sh
+        scripts/dev.sh test || {
+          # 备用方案：直接运行测试
+          echo "使用传统方式运行测试"
+          if npm run --silent test:h5 2>/dev/null; then
+            npm run test:h5
+          else
+            echo "前端测试脚本不存在，跳过"
+          fi
+          
+          cd backend
+          if npm run --silent test 2>/dev/null; then
+            npm test
+          else
+            echo "后端测试脚本不存在，跳过"
+          fi
+          cd ..
+        }
       env:
         NODE_ENV: test
         DB_HOST: localhost
@@ -117,6 +125,7 @@ jobs:
 
     - name: 安装依赖
       run: |
+        chmod +x scripts/dev.sh
         if [ -f package-lock.json ]; then
           npm ci
         else
@@ -252,7 +261,7 @@ jobs:
           max_attempts=10
           attempt=1
           while [ $attempt -le $max_attempts ]; do
-            if curl -f http://localhost:3000/api/health 2>/dev/null; then
+            if curl -f http://localhost:3000/api/v1/health 2>/dev/null; then
               echo "✅ 后端API服务正常"
               if curl -f http://localhost/health 2>/dev/null; then
                 echo "✅ Nginx代理服务正常"

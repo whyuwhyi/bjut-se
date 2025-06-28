@@ -50,9 +50,6 @@ const Category = sequelize.define('Category', {
   indexes: [
     {
       fields: ['status', 'sort_order']
-    },
-    {
-      fields: ['category_value']
     }
   ],
   comment: '资源分类表'

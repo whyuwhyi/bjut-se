@@ -14,7 +14,6 @@
 				<text class="resource-title">{{ resource.title }}</text>
 				<view class="resource-tags">
 					<text class="tag category">{{ resource.category }}</text>
-					<text class="tag difficulty" :class="'level-' + resource.difficulty">{{ resource.difficultyText }}</text>
 				</view>
 				<view class="resource-meta">
 					<text class="meta-item">👤 {{ resource.uploaderName }}</text>
@@ -90,26 +89,15 @@
 			</view>
 		</view>
 
-		<!-- 相关资源推荐 -->
-		<view class="related-section">
+		<!-- 相关资源推荐 - 暂时移除，功能开发中 -->
+		<!-- <view class="related-section">
 			<view class="section-header">
 				<text class="section-title">相关资源</text>
 			</view>
 			<view class="related-list">
-				<view 
-					class="related-item" 
-					v-for="(item, index) in relatedResources" 
-					:key="index"
-					@click="viewRelatedResource(item)"
-				>
-					<image :src="getFileIcon(item.fileType)" class="related-icon"></image>
-					<view class="related-info">
-						<text class="related-title">{{ item.title }}</text>
-						<text class="related-meta">{{ item.uploaderName }} · {{ item.downloadCount }}次下载</text>
-					</view>
-				</view>
+				<text class="no-data">相关资源推荐功能开发中...</text>
 			</view>
-		</view>
+		</view> -->
 
 		<!-- 评论区域 -->
 		<view class="comment-section">
@@ -138,12 +126,6 @@
 							<text class="comment-time">{{ formatTime(comment.createTime) }}</text>
 						</view>
 						<text class="comment-text">{{ comment.content }}</text>
-						<view class="comment-actions">
-							<view class="comment-action" @click="likeComment(comment)">
-								<text class="action-icon" :class="{ liked: comment.isLiked }">👍</text>
-								<text class="action-count">{{ comment.likeCount || 0 }}</text>
-							</view>
-						</view>
 					</view>
 				</view>
 			</view>
@@ -157,76 +139,23 @@ export default {
 		return {
 			resourceId: '',
 			resource: {
-				id: 1,
-				title: '数据结构与算法 - 第一章课件',
-				description: '本课件详细介绍了数据结构的基本概念，包括线性表、栈、队列等基础数据结构的定义、性质和基本操作。内容涵盖：\n\n1. 数据结构的基本概念\n2. 算法的时间复杂度和空间复杂度分析\n3. 线性表的顺序存储和链式存储\n4. 栈和队列的应用实例\n5. 课后练习题及解答\n\n适合计算机科学与技术专业的学生学习使用。',
-				fileType: 'pdf',
-				fileSize: 2048576, // 2MB
-				category: '课件',
-				difficulty: 1,
-				difficultyText: '入门',
-				uploaderName: '张教授',
-				uploadTime: new Date('2025-06-15'),
-				viewCount: 256,
-				downloadCount: 128,
-				rating: 4.8,
-				favoriteCount: 45,
-				isFavorited: false
+				id: '',
+				title: '加载中...',
+				description: '',
+				category: '未分类',
+				uploaderName: '',
+				uploadTime: new Date(),
+				viewCount: 0,
+				downloadCount: 0,
+				rating: 0,
+				favoriteCount: 0,
+				isFavorited: false,
+				fileType: 'unknown',
+				fileSize: 0
 			},
 			userRating: 0,
 			commentText: '',
-			comments: [
-				{
-					id: 1,
-					userName: '李同学',
-					userAvatar: '',
-					content: '课件内容很详细，讲解清晰，对初学者很友好！',
-					createTime: new Date('2025-06-19'),
-					likeCount: 5,
-					isLiked: false
-				},
-				{
-					id: 2,
-					userName: '王同学',
-					userAvatar: '',
-					content: '例题很经典，帮助理解概念，推荐下载！',
-					createTime: new Date('2025-06-18'),
-					likeCount: 3,
-					isLiked: true
-				},
-				{
-					id: 3,
-					userName: '赵同学',
-					userAvatar: '',
-					content: '老师讲得很好，配合这个课件学习效果更佳',
-					createTime: new Date('2025-06-17'),
-					likeCount: 8,
-					isLiked: false
-				}
-			],
-			relatedResources: [
-				{
-					id: 2,
-					title: '数据结构练习题集',
-					fileType: 'doc',
-					uploaderName: '李老师',
-					downloadCount: 89
-				},
-				{
-					id: 3,
-					title: '算法复杂度分析实例',
-					fileType: 'pdf',
-					uploaderName: '王教授',
-					downloadCount: 156
-				},
-				{
-					id: 4,
-					title: '线性表实验代码',
-					fileType: 'zip',
-					uploaderName: '张同学',
-					downloadCount: 67
-				}
-			]
+			comments: []
 		}
 	},
 	
@@ -249,33 +178,46 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					const data = response.data.data
+					console.log('原始资源数据:', data)
+					
 					this.resource = {
 						id: data.resource_id,
 						title: data.resource_name,
 						description: data.description,
+						category: data.category?.category_name || '未分类',
 						uploaderName: data.publisher?.nickname || data.publisher?.name || '匿名用户',
 						uploadTime: new Date(data.created_at),
-						viewCount: data.view_count,
-						downloadCount: data.download_count,
-						rating: parseFloat(data.rating),
-						favoriteCount: data.collection_count,
+						viewCount: data.view_count || 0,
+						downloadCount: data.download_count || 0,
+						rating: parseFloat(data.rating) || 0,
+						favoriteCount: parseInt(data.collection_count) || 0,
 						isFavorited: false, // 后续根据用户状态查询
 						files: data.files || [],
-						comments: data.comments || [],
-						ratings: data.ratings || []
+						fileType: 'unknown',
+						fileSize: 0
 					}
 					
+					
+					// 处理文件信息
 					if (data.files && data.files.length > 0) {
 						const file = data.files[0]
-						this.resource.fileType = file.file_type
-						this.resource.fileSize = file.file_size
+						this.resource.fileType = file.file_type || this.getFileTypeFromName(file.file_name)
+						this.resource.fileSize = file.file_size || 0
 					}
+					
+					console.log('处理后的资源数据:', this.resource)
 				} else {
 					throw new Error('获取资源详情失败')
 				}
 				
 				// 加载评论
 				await this.loadComments()
+				
+				// 检查收藏状态
+				await this.checkCollectionStatus()
+				
+				// 获取用户评分
+				await this.getUserRating()
 				
 				uni.hideLoading()
 			} catch (error) {
@@ -356,18 +298,90 @@ export default {
 			}
 		},
 		
-		toggleFavorite() {
-			this.resource.isFavorited = !this.resource.isFavorited
-			if (this.resource.isFavorited) {
-				this.resource.favoriteCount++
-			} else {
-				this.resource.favoriteCount--
+		// 检查收藏状态
+		async checkCollectionStatus() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) return
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${this.resourceId}/favorite-status?type=resource`,
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.resource.isFavorited = response.data.data.isCollected
+				}
+			} catch (error) {
+				console.error('检查收藏状态失败:', error)
 			}
-			
-			uni.showToast({
-				title: this.resource.isFavorited ? '已收藏' : '已取消收藏',
-				icon: 'none'
-			})
+		},
+		
+		async toggleFavorite() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
+				}
+				
+				// 记录当前状态，用于计算变化
+				const wasAlreadyFavorited = this.resource.isFavorited
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${this.resourceId}/favorite`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						type: 'resource'
+					}
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					const newFavoritedState = response.data.data.isCollected
+					this.resource.isFavorited = newFavoritedState
+					
+					uni.showToast({
+						title: response.data.message,
+						icon: 'success'
+					})
+					
+					// 重新加载资源详情以获取最新的收藏计数
+					// 但不显示loading，避免闪烁
+					setTimeout(async () => {
+						try {
+							const response = await uni.request({
+								url: `http://localhost:3000/api/v1/resources/${this.resourceId}`,
+								method: 'GET'
+							})
+							
+							if (response.statusCode === 200 && response.data.success) {
+								const data = response.data.data
+								this.resource.favoriteCount = parseInt(data.collection_count) || 0
+							}
+						} catch (error) {
+							console.error('更新收藏计数失败:', error)
+						}
+					}, 100)
+				} else {
+					throw new Error(response.data.message || '操作失败')
+				}
+			} catch (error) {
+				console.error('收藏操作失败:', error)
+				uni.showToast({
+					title: error.message || '收藏操作失败',
+					icon: 'none'
+				})
+			}
 		},
 		
 		shareResource() {
@@ -383,6 +397,31 @@ export default {
 			})
 		},
 		
+		// 获取用户评分
+		async getUserRating() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) return
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/resources/${this.resourceId}/my-rating`,
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					const rating = response.data.data
+					if (rating) {
+						this.userRating = rating.rating
+					}
+				}
+			} catch (error) {
+				console.error('获取用户评分失败:', error)
+			}
+		},
+		
 		async rateResource(rating) {
 			try {
 				const token = uni.getStorageSync('token')
@@ -395,14 +434,14 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `http://localhost:3000/api/v1/resources/${this.resource.id}/rating`,
+					url: `http://localhost:3000/api/v1/resources/${this.resourceId}/rating`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
 						'Content-Type': 'application/json'
 					},
 					data: {
-						rating: rating * 2, // 转换为10分制
+						rating: rating, // 直接使用5分制
 						review_text: ''
 					}
 				})
@@ -452,7 +491,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `http://localhost:3000/api/v1/resources/${this.resource.id}/comments`,
+					url: `http://localhost:3000/api/v1/resources/${this.resourceId}/comments`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -484,59 +523,32 @@ export default {
 			}
 		},
 		
-		async likeComment(comment) {
-			try {
-				const response = await uni.request({
-					url: `http://localhost:3000/api/v1/comments/${comment.comment_id}/like`,
-					method: 'POST'
-				})
-				
-				if (response.statusCode === 200 && response.data.success) {
-					comment.like_count = response.data.data.like_count
-					comment.isLiked = true
-					uni.showToast({
-						title: '点赞成功',
-						icon: 'success'
-					})
-				}
-			} catch (error) {
-				console.error('点赞失败:', error)
-				uni.showToast({
-					title: '点赞失败',
-					icon: 'none'
-				})
-			}
-		},
 
 		// 加载评论列表
 		async loadComments() {
 			try {
 				const response = await uni.request({
-					url: `http://localhost:3000/api/v1/resources/${this.resource.id}/comments`,
+					url: `http://localhost:3000/api/v1/resources/${this.resourceId}/comments`,
 					method: 'GET'
 				})
 				
+				console.log('评论API响应:', response.data)
+				
 				if (response.statusCode === 200 && response.data.success) {
-					this.comments = response.data.data.comments.map(comment => ({
-						...comment,
-						userName: comment.user?.nickname || comment.user?.name || '匿名用户',
-						userAvatar: comment.user?.avatar_url || '',
-						content: comment.comment_content,
-						createTime: new Date(comment.created_at),
-						likeCount: comment.like_count,
-						isLiked: false
+					this.comments = (response.data.data.comments || []).map(comment => ({
+						comment_id: comment.comment_id,
+						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
+						userAvatar: comment.author?.avatar_url || '',
+						content: comment.content,
+						createTime: new Date(comment.created_at)
 					}))
+					console.log('处理后的评论数据:', this.comments)
 				}
 			} catch (error) {
 				console.error('加载评论失败:', error)
 			}
 		},
 		
-		viewRelatedResource(resource) {
-			uni.navigateTo({
-				url: `./detail?id=${resource.id}`
-			})
-		},
 		
 		getFileIcon(fileType) {
 			const iconMap = {
@@ -549,6 +561,11 @@ export default {
 				'rar': '/static/icons/zip.png'
 			}
 			return iconMap[fileType] || '/static/icons/file.png'
+		},
+		
+		getFileTypeFromName(fileName) {
+			if (!fileName) return 'unknown'
+			return fileName.split('.').pop().toLowerCase()
 		},
 		
 		formatFileSize(bytes) {
@@ -785,41 +802,6 @@ export default {
 	}
 }
 
-.related-list {
-	.related-item {
-		display: flex;
-		align-items: center;
-		padding: 20rpx 0;
-		border-bottom: 1rpx solid #f0f0f0;
-		
-		&:last-child {
-			border-bottom: none;
-		}
-		
-		.related-icon {
-			width: 50rpx;
-			height: 50rpx;
-			margin-right: 20rpx;
-			border-radius: 10rpx;
-		}
-		
-		.related-info {
-			flex: 1;
-			
-			.related-title {
-				display: block;
-				font-size: 28rpx;
-				color: #333;
-				margin-bottom: 8rpx;
-			}
-			
-			.related-meta {
-				font-size: 22rpx;
-				color: #666;
-			}
-		}
-	}
-}
 
 .comment-input-section {
 	display: flex;
@@ -890,26 +872,6 @@ export default {
 				margin-bottom: 15rpx;
 			}
 			
-			.comment-actions {
-				.comment-action {
-					display: inline-flex;
-					align-items: center;
-					
-					.action-icon {
-						font-size: 24rpx;
-						margin-right: 8rpx;
-						
-						&.liked {
-							color: #007aff;
-						}
-					}
-					
-					.action-count {
-						font-size: 22rpx;
-						color: #666;
-					}
-				}
-			}
 		}
 	}
 }

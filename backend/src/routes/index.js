@@ -4,9 +4,11 @@ const resourceRoutes = require('./resources')
 const postRoutes = require('./posts')
 const commentRoutes = require('./comments')
 const ratingRoutes = require('./ratings')
+const collectionRoutes = require('./collections')
 const tagRoutes = require('./tags')
 const categoryRoutes = require('./categories')
 const studyPlanRoutes = require('./studyPlans')
+const notificationRoutes = require('./notifications')
 
 const router = express.Router()
 
@@ -27,7 +29,9 @@ router.use('/posts', postRoutes)
 router.use('/tags', tagRoutes)
 router.use('/categories', categoryRoutes)
 router.use('/study-plans', studyPlanRoutes)
+router.use('/notifications', notificationRoutes)
 router.use('/', commentRoutes)
 router.use('/', ratingRoutes)
+router.use('/', collectionRoutes)
 
 module.exports = router

@@ -15,6 +15,7 @@ class ResourceController {
         status = 'published'
       } = req.query
 
+      const userPhone = req.user?.phone_number // 获取当前用户手机号（如果已登录）
       const offset = (page - 1) * limit
       const where = { status }
       const include = [
@@ -79,6 +80,20 @@ class ResourceController {
         offset: parseInt(offset)
       })
 
+      // 如果用户已登录，获取收藏状态
+      let userCollections = []
+      if (userPhone) {
+        const collections = await Collection.findAll({
+          where: {
+            user_phone: userPhone,
+            collection_type: 'resource',
+            status: 'active'
+          },
+          attributes: ['content_id']
+        })
+        userCollections = collections.map(c => c.content_id)
+      }
+
       // 格式化返回数据
       const resources = rows.map(resource => {
         const data = resource.toJSON()
@@ -91,7 +106,7 @@ class ResourceController {
           viewCount: data.view_count,
           downloadCount: data.download_count,
           rating: parseFloat(data.rating),
-          isFavorited: false, // 后续根据用户登录状态查询
+          isFavorited: userCollections.includes(data.resource_id),
           files: data.files || [],
           category: data.category?.category_name || '未分类'
         }
@@ -134,6 +149,11 @@ class ResourceController {
           {
             model: File,
             as: 'files'
+          },
+          {
+            model: Category,
+            as: 'category',
+            attributes: ['category_id', 'category_name', 'category_value', 'icon']
           },
           {
             model: Comment,
@@ -193,7 +213,7 @@ class ResourceController {
       } = req.body
 
       // 生成资源ID（如果没有提供）
-      const finalResourceId = resource_id || this.generateResourceId()
+      const finalResourceId = resource_id || Math.floor(100000000 + Math.random() * 900000000).toString()
 
       const resource = await Resource.create({
         resource_id: finalResourceId,
@@ -260,8 +280,9 @@ class ResourceController {
         }
       } else {
         // 新增收藏
+        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
         await Collection.create({
-          collection_id: this.generateCollectionId(),
+          collection_id: collectionId,
           user_phone: userPhone,
           content_id: resourceId,
           collection_type: 'resource',
@@ -439,7 +460,8 @@ class ResourceController {
       const userPhone = req.user?.phone_number
 
       // 查找资源和文件
-      const resource = await Resource.findByPk(resourceId, {
+      const resource = await Resource.findOne({
+        where: { resource_id: resourceId },
         include: [{
           model: File,
           as: 'files',

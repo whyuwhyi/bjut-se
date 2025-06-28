@@ -50,14 +50,6 @@ const Comment = sequelize.define('Comment', {
     allowNull: false,
     comment: '评论内容'
   },
-  like_count: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-    validate: {
-      min: 0
-    },
-    comment: '评论点赞数'
-  },
   status: {
     type: DataTypes.ENUM('active', 'hidden', 'deleted'),
     defaultValue: 'active',

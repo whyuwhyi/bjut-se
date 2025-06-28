@@ -33,8 +33,8 @@ class PostController {
         case 'view':
           orderClause = [['view_count', 'DESC']]
           break
-        case 'like':
-          orderClause = [['like_count', 'DESC']]
+        case 'collection':
+          orderClause = [['collection_count', 'DESC']]
           break
         case 'comment':
           orderClause = [['comment_count', 'DESC']]
@@ -247,6 +247,7 @@ class PostController {
           status: 'active',
           parent_comment_id: null
         },
+        attributes: ['comment_id', 'author_phone', 'post_id', 'resource_id', 'parent_comment_id', 'content', 'status', 'created_at', 'updated_at'],
         include: [
           {
             model: User,

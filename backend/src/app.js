@@ -26,10 +26,10 @@ app.use(cors({
 // 压缩中间件
 app.use(compression())
 
-// 限流配置
+// 限流配置 - 开发环境放宽限制
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 最多100个请求
+  max: process.env.NODE_ENV === 'production' ? 500 : 1000, // 生产环境500个请求，开发环境1000个请求
   message: {
     success: false,
     message: '请求过于频繁，请稍后再试'
@@ -72,8 +72,9 @@ const startServer = async () => {
 
     // 同步数据库模型（开发环境）
     if (config.server.env === 'development') {
-      await sequelize.sync({ alter: true })
-      console.log('数据库模型同步完成')
+      // 暂时禁用自动同步以避免索引数量超限错误
+      // await sequelize.sync({ alter: true })
+      console.log('数据库模型同步已禁用，请使用SQL脚本初始化数据库')
       console.log('测试数据请通过database/init/02-init-test-data.sql文件初始化')
     }
 

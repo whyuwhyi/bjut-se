@@ -10,10 +10,10 @@ class RatingController {
       const { rating, review_text } = req.body
 
       // 验证评分范围
-      if (rating < 0 || rating > 10) {
+      if (rating < 1 || rating > 5) {
         return res.status(400).json({
           success: false,
-          message: '评分必须在0-10之间'
+          message: '评分必须在1-5之间'
         })
       }
 
@@ -47,7 +47,21 @@ class RatingController {
       }
 
       // 重新计算资源平均评分
-      await this.updateResourceRating(resourceId)
+      const result = await Rating.findOne({
+        where: { resource_id: resourceId },
+        attributes: [
+          [Rating.sequelize.fn('AVG', Rating.sequelize.col('rating')), 'avgRating'],
+          [Rating.sequelize.fn('COUNT', Rating.sequelize.col('rating')), 'ratingCount']
+        ]
+      })
+
+      if (result) {
+        const avgRating = parseFloat(result.dataValues.avgRating || 0)
+        await Resource.update(
+          { rating: avgRating },
+          { where: { resource_id: resourceId } }
+        )
+      }
 
       // 返回完整的评分信息
       const fullRating = await Rating.findByPk(ratingRecord.rating_id, {

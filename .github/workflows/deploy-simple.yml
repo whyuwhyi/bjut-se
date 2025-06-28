@@ -40,7 +40,8 @@ jobs:
           git clone https://github.com/${{ github.repository }}.git current
           cd current
           
-          # 生成package-lock.json文件
+          # 使用统一脚本安装依赖
+          chmod +x scripts/dev.sh
           npm install
           cd backend && npm install && cd ..
           
@@ -67,11 +68,12 @@ jobs:
           EOF
           fi
           
-          # 停止旧服务
-          docker-compose down 2>/dev/null || true
+          # 使用统一脚本停止服务
+          chmod +x scripts/dev.sh
+          scripts/dev.sh stop 2>/dev/null || docker-compose down 2>/dev/null || true
           
-          # 构建并启动新服务
-          docker-compose up -d --build
+          # 使用统一脚本启动生产环境
+          scripts/dev.sh prod || docker-compose up -d --build
           
           # 等待数据库服务启动
           echo "等待数据库服务启动..."
@@ -94,11 +96,11 @@ jobs:
           
           # 初始化数据库数据（如果需要）
           echo "初始化数据库数据..."
-          if [ -f "database/init/02-init-test-data.sql" ]; then
-            docker-compose exec -T mysql mysql -u root -p$MYSQL_ROOT_PASSWORD $MYSQL_DATABASE < database/init/02-init-test-data.sql
-            echo "✅ 测试数据已初始化"
+          if [ -f "database/init/01-init-database.sql" ]; then
+            docker-compose exec -T mysql mysql -u root -p$MYSQL_ROOT_PASSWORD $MYSQL_DATABASE < database/init/01-init-database.sql
+            echo "✅ 数据库已初始化"
           else
-            echo "⚠️  未找到测试数据初始化脚本"
+            echo "⚠️  未找到数据库初始化脚本"
           fi
           
           # 等待后端服务启动
@@ -110,7 +112,7 @@ jobs:
           attempt=1
           while [ $attempt -le $max_attempts ]; do
             # 检查后端API健康状态
-            if curl -f http://localhost:$BACKEND_PORT/api/health 2>/dev/null; then
+            if curl -f http://localhost:$BACKEND_PORT/api/v1/health 2>/dev/null; then
               echo "✅ 后端API服务正常"
               # 检查Nginx代理（如果启用）
               if curl -f http://localhost/health 2>/dev/null; then
@@ -150,8 +152,8 @@ jobs:
         if [ "${{ needs.deploy.result }}" == "success" ]; then
           echo "✅ 部署成功！应用已更新到最新版本。"
           echo "🌐 前端访问地址: http://${{ secrets.SERVER_HOST }}"
-          echo "🔗 后端API地址: http://${{ secrets.SERVER_HOST }}:3000"
-          echo "📋 API健康检查: http://${{ secrets.SERVER_HOST }}:3000/api/health"
+          echo "🔗 后端API地址: http://${{ secrets.SERVER_HOST }}:3000"  
+          echo "📋 API健康检查: http://${{ secrets.SERVER_HOST }}:3000/api/v1/health"
           echo "📝 论坛功能: http://${{ secrets.SERVER_HOST }}/forum"
           echo "📚 资源中心: http://${{ secrets.SERVER_HOST }}/resources"
         else

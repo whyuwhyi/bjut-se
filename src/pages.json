@@ -49,6 +49,13 @@
             }
         },
         {
+            "path": "pages/learning/create-plan",
+            "style": {
+                "navigationBarTitleText": "新建学习计划",
+                "navigationStyle": "custom"
+            }
+        },
+        {
             "path": "pages/resources/detail",
             "style": {
                 "navigationBarTitleText": "资源详情"
@@ -80,6 +87,13 @@
             }
         },
         {
+            "path": "pages/notification/messages",
+            "style": {
+                "navigationBarTitleText": "消息通知",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
             "path": "pages/profile/favorites",
             "style": {
                 "navigationBarTitleText": "我的收藏",
@@ -101,12 +115,6 @@
             }
         },
         {
-            "path": "pages/profile/settings",
-            "style": {
-                "navigationBarTitleText": "账号设置"
-            }
-        },
-        {
             "path": "pages/profile/following",
             "style": {
                 "navigationBarTitleText": "我的关注",
@@ -125,25 +133,6 @@
             "style": {
                 "navigationBarTitleText": "下载记录",
                 "enablePullDownRefresh": true
-            }
-        },
-        {
-            "path": "pages/profile/messages",
-            "style": {
-                "navigationBarTitleText": "消息与通知",
-                "enablePullDownRefresh": true
-            }
-        },
-        {
-            "path": "pages/profile/privacy",
-            "style": {
-                "navigationBarTitleText": "隐私设置"
-            }
-        },
-        {
-            "path": "pages/profile/theme",
-            "style": {
-                "navigationBarTitleText": "主题设置"
             }
         },
         {

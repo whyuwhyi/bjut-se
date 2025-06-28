@@ -3,14 +3,10 @@
 		<!-- 个人信息卡片 -->
 		<view class="profile-card">
 			<view class="profile-header">
-				<image class="avatar" :src="require('@/static/logo.png')" @click="changeAvatar"></image>
+				<image class="avatar" :src="userProfile.avatar || require('@/static/logo.png')" @click="changeAvatar"></image>
 				<view class="user-info">
-					<text class="username">张同学</text>
-					<text class="user-title">计算机学院 · 软件工程专业</text>
-					<view class="user-level">
-						<text class="level-badge">LV.5</text>
-						<text class="level-exp">2580/3000 EXP</text>
-					</view>
+					<text class="username">{{ userProfile.nickname || userProfile.name || '用户' }}</text>
+					<text class="user-title">{{ userProfile.bio || '暂无简介' }}</text>
 				</view>
 				<view class="edit-btn" @click="editProfile">
 					<text class="edit-icon">✏️</text>
@@ -19,19 +15,19 @@
 			
 			<view class="profile-stats">
 				<view class="stat-item" @click="goToMyResources">
-					<text class="stat-number">24</text>
+					<text class="stat-number">{{ userStats.resourceCount || 0 }}</text>
 					<text class="stat-label">资源</text>
 				</view>
 				<view class="stat-item" @click="goToMyPosts">
-					<text class="stat-number">156</text>
+					<text class="stat-number">{{ userStats.postCount || 0 }}</text>
 					<text class="stat-label">帖子</text>
 				</view>
 				<view class="stat-item" @click="goToFollowing">
-					<text class="stat-number">89</text>
+					<text class="stat-number">{{ userStats.followingCount || 0 }}</text>
 					<text class="stat-label">关注</text>
 				</view>
 				<view class="stat-item" @click="goToFollowers">
-					<text class="stat-number">432</text>
+					<text class="stat-number">{{ userStats.followerCount || 0 }}</text>
 					<text class="stat-label">粉丝</text>
 				</view>
 			</view>
@@ -40,11 +36,11 @@
 		<!-- 功能菜单 -->
 		<view class="menu-section">
 			<view class="menu-group">
-				<text class="group-title">学习管理</text>
+				<text class="group-title">📚 学习数据</text>
 				<view class="menu-item" @click="goToFavorites">
 					<text class="menu-icon">⭐</text>
 					<text class="menu-text">我的收藏</text>
-					<text class="menu-badge">18</text>
+					<text class="menu-badge" v-if="userStats.collectionCount > 0">{{ userStats.collectionCount }}</text>
 					<text class="menu-arrow">></text>
 				</view>
 				<view class="menu-item" @click="goToDownloads">
@@ -55,30 +51,21 @@
 			</view>
 
 			<view class="menu-group">
-				<text class="group-title">消息与通知</text>
+				<text class="group-title">💬 互动交流</text>
 				<view class="menu-item" @click="goToMessages">
-					<text class="menu-icon">💬</text>
-					<text class="menu-text">消息与通知</text>
-					<text class="menu-badge">8</text>
+					<text class="menu-icon">🔔</text>
+					<text class="menu-text">消息通知</text>
+					<text class="menu-badge" v-if="unreadNotificationCount > 0">{{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}</text>
 					<text class="menu-arrow">></text>
 				</view>
 			</view>
 
 			<view class="menu-group">
-				<text class="group-title">设置与工具</text>
-				<view class="menu-item" @click="goToSettings">
-					<text class="menu-icon">⚙️</text>
-					<text class="menu-text">账号设置</text>
-					<text class="menu-arrow">></text>
-				</view>
-				<view class="menu-item" @click="goToPrivacy">
-					<text class="menu-icon">🔒</text>
-					<text class="menu-text">隐私设置</text>
-					<text class="menu-arrow">></text>
-				</view>
-				<view class="menu-item" @click="goToTheme">
-					<text class="menu-icon">🎨</text>
-					<text class="menu-text">主题设置</text>
+				<text class="group-title">⚙️ 应用管理</text>
+				<view class="menu-item" @click="checkUpdate">
+					<text class="menu-icon">🔄</text>
+					<text class="menu-text">检查更新</text>
+					<text class="menu-extra">v1.0.0</text>
 					<text class="menu-arrow">></text>
 				</view>
 				<view class="menu-item" @click="goToFeedback">
@@ -86,19 +73,9 @@
 					<text class="menu-text">意见反馈</text>
 					<text class="menu-arrow">></text>
 				</view>
-			</view>
-
-			<view class="menu-group">
-				<text class="group-title">其他</text>
 				<view class="menu-item" @click="goToAbout">
 					<text class="menu-icon">ℹ️</text>
-					<text class="menu-text">关于我们</text>
-					<text class="menu-arrow">></text>
-				</view>
-				<view class="menu-item" @click="checkUpdate">
-					<text class="menu-icon">🔄</text>
-					<text class="menu-text">检查更新</text>
-					<text class="menu-extra">v1.0.0</text>
+					<text class="menu-text">关于应用</text>
 					<text class="menu-arrow">></text>
 				</view>
 				<view class="menu-item" @click="logout">
@@ -109,22 +86,6 @@
 			</view>
 		</view>
 
-		<!-- 成就展示 -->
-		<view class="achievement-section">
-			<view class="section-header">
-				<text class="section-title">🏆 我的成就</text>
-				<text class="section-more" @click="goToAllAchievements">查看全部</text>
-			</view>
-			<scroll-view class="achievement-scroll" scroll-x="true">
-				<view class="achievement-list">
-					<view class="achievement-item" v-for="(achievement, index) in achievements" :key="index">
-						<text class="achievement-icon">{{ achievement.icon }}</text>
-						<text class="achievement-name">{{ achievement.name }}</text>
-						<text class="achievement-desc">{{ achievement.desc }}</text>
-					</view>
-				</view>
-			</scroll-view>
-		</view>
 	</view>
 </template>
 
@@ -132,44 +93,121 @@
 export default {
 	data() {
 		return {
-			achievements: [
-				{
-					icon: '🌟',
-					name: '初来乍到',
-					desc: '完成注册'
-				},
-				{
-					icon: '📚',
-					name: '学者',
-					desc: '上传10个资源'
-				},
-				{
-					icon: '💬',
-					name: '话痨',
-					desc: '发布50个帖子'
-				},
-				{
-					icon: '❤️',
-					name: '人气王',
-					desc: '获得100个赞'
-				}
-			]
+			userProfile: {
+				nickname: '',
+				name: '',
+				avatar: '',
+				bio: ''
+			},
+			userStats: {
+				resourceCount: 0,
+				postCount: 0,
+				followingCount: 0,
+				followerCount: 0,
+				collectionCount: 0
+			},
+			unreadNotificationCount: 0
 		}
 	},
 	
+	onLoad() {
+		this.loadUserProfile()
+		this.loadUserStats()
+		this.loadUnreadNotificationCount()
+	},
+	
+	onShow() {
+		// 页面显示时刷新数据
+		this.loadUserProfile()
+		this.loadUserStats()
+		this.loadUnreadNotificationCount()
+	},
+	
 	methods: {
-		changeAvatar() {
-			uni.chooseImage({
-				count: 1,
-				sizeType: ['compressed'],
-				sourceType: ['album', 'camera'],
-				success: (res) => {
-					uni.showToast({
-						title: '头像更新成功',
-						icon: 'success'
+		async loadUserProfile() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.redirectTo({
+						url: '/pages/login/login'
 					})
+					return
 				}
-			})
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/users/profile',
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.data.success) {
+					const user = response.data.data.user
+					this.userProfile = {
+						nickname: user.nickname || '',
+						name: user.name || '',
+						avatar: user.avatar_url || '',
+						bio: user.bio || ''
+					}
+				}
+			} catch (error) {
+				console.error('加载用户资料失败:', error)
+			}
+		},
+		
+		async loadUserStats() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) return
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/users/stats',
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.data.success) {
+					const stats = response.data.data
+					this.userStats = {
+						resourceCount: stats.resourceCount || 0,
+						postCount: stats.postCount || 0,
+						followingCount: stats.followingCount || 0,
+						followerCount: stats.followerCount || 0,
+						collectionCount: stats.collectionCount || 0
+					}
+				}
+			} catch (error) {
+				console.error('加载用户统计失败:', error)
+			}
+		},
+		
+		async loadUnreadNotificationCount() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) return
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/notifications/unread-count',
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.data.success) {
+					this.unreadNotificationCount = response.data.data.unread_count
+				}
+			} catch (error) {
+				console.error('获取未读通知数量失败:', error)
+			}
+		},
+		
+		changeAvatar() {
+			// 点击头像跳转到编辑页面
+			this.editProfile()
 		},
 		
 		editProfile() {
@@ -217,34 +255,11 @@ export default {
 		
 		goToMessages() {
 			uni.navigateTo({
-				url: './messages'
-			})
-		},
-		
-		goToNotifications() {
-			uni.navigateTo({
-				url: '/pages/notification/notification'
+				url: '/pages/notification/messages'
 			})
 		},
 		
 		
-		goToSettings() {
-			uni.navigateTo({
-				url: './settings'
-			})
-		},
-		
-		goToPrivacy() {
-			uni.navigateTo({
-				url: './privacy'
-			})
-		},
-		
-		goToTheme() {
-			uni.navigateTo({
-				url: './theme'
-			})
-		},
 		
 		goToFeedback() {
 			uni.navigateTo({
@@ -258,11 +273,6 @@ export default {
 			})
 		},
 		
-		goToAllAchievements() {
-			uni.navigateTo({
-				url: './achievements'
-			})
-		},
 		
 		checkUpdate() {
 			uni.showLoading({
@@ -284,6 +294,8 @@ export default {
 				content: '您确定要退出登录吗？',
 				success: (res) => {
 					if (res.confirm) {
+						// 清除本地存储的token
+						uni.removeStorageSync('token')
 						uni.reLaunch({
 							url: '../login/login'
 						})
@@ -337,23 +349,6 @@ export default {
 				margin-bottom: 15rpx;
 			}
 			
-			.user-level {
-				display: flex;
-				align-items: center;
-				
-				.level-badge {
-					background: rgba(255, 255, 255, 0.2);
-					padding: 8rpx 16rpx;
-					border-radius: 20rpx;
-					font-size: 22rpx;
-					margin-right: 15rpx;
-				}
-				
-				.level-exp {
-					font-size: 22rpx;
-					opacity: 0.8;
-				}
-			}
 		}
 		
 		.edit-btn {
@@ -452,65 +447,4 @@ export default {
 	}
 }
 
-.achievement-section {
-	margin: 20rpx;
-	background: white;
-	border-radius: 20rpx;
-	padding: 30rpx;
-	
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 30rpx;
-		
-		.section-title {
-			font-size: 32rpx;
-			font-weight: bold;
-			color: #333;
-		}
-		
-		.section-more {
-			font-size: 26rpx;
-			color: #007aff;
-		}
-	}
-	
-	.achievement-scroll {
-		white-space: nowrap;
-		
-		.achievement-list {
-			display: flex;
-			
-			.achievement-item {
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				min-width: 150rpx;
-				margin-right: 30rpx;
-				padding: 20rpx;
-				background: #f8f8f8;
-				border-radius: 15rpx;
-				
-				.achievement-icon {
-					font-size: 48rpx;
-					margin-bottom: 10rpx;
-				}
-				
-				.achievement-name {
-					font-size: 26rpx;
-					font-weight: bold;
-					color: #333;
-					margin-bottom: 5rpx;
-				}
-				
-				.achievement-desc {
-					font-size: 22rpx;
-					color: #666;
-					text-align: center;
-				}
-			}
-		}
-	}
-}
 </style>

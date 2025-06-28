@@ -55,9 +55,9 @@ const Resource = sequelize.define('Resource', {
     defaultValue: 0.00,
     validate: {
       min: 0,
-      max: 10
+      max: 5
     },
-    comment: '资源评分'
+    comment: '资源评分(1-5分)'
   },
   view_count: {
     type: DataTypes.INTEGER,

@@ -14,7 +14,7 @@
 		<view class="notice-section">
 			<view class="section-header">
 				<text class="section-title">最新公告</text>
-				<text class="section-more" @click="navigateTo('/pages/notification/notification')">更多</text>
+				<text class="section-more" @click="navigateTo('/pages/notification/messages')">更多</text>
 			</view>
 			<view class="notice-list">
 				<view class="notice-item" v-for="(item, index) in notices" :key="index" @click="viewNotice(item)">
@@ -45,29 +45,6 @@
 			</view>
 		</view>
 
-		<!-- 热门活动 -->
-		<view class="activity-section">
-			<view class="section-header">
-				<text class="section-title">热门活动</text>
-				<text class="section-more" @click="navigateTo('/pages/learning/learning')">更多</text>
-			</view>
-			<view class="activity-list">
-				<view class="activity-item" v-for="(item, index) in hotActivities" :key="index" @click="viewActivity(item)">
-					<image class="activity-image" :src="item.image || require('@/static/images/default-activity.jpg')" mode="aspectFill"></image>
-					<view class="activity-info">
-						<text class="activity-title">{{ item.title }}</text>
-						<view class="activity-meta">
-							<text class="activity-time">{{ formatActivityTime(item.startTime) }}</text>
-							<text class="activity-location">{{ item.location }}</text>
-						</view>
-						<view class="activity-stats">
-							<text class="activity-participants">{{ item.participantCount }}人参与</text>
-							<view class="activity-status" :class="'status-' + item.status">{{ getActivityStatusText(item.status) }}</view>
-						</view>
-					</view>
-				</view>
-			</view>
-		</view>
 
 		<!-- 热门帖子 -->
 		<view class="forum-section">
@@ -75,16 +52,16 @@
 				<text class="section-title">热门帖子</text>
 				<text class="section-more" @click="navigateTo('/pages/forum/forum')">更多</text>
 			</view>
-			<view class="posts-list">
-				<view class="post-item" v-for="(item, index) in hotPosts" :key="index" @click="viewPost(item)">
-					<view class="post-header">
-						<text class="post-title">{{ item.title }}</text>
-						<view class="post-tag" v-if="item.isHot">热门</view>
+			<view class="forum-list">
+				<view class="forum-item" v-for="(item, index) in hotPosts" :key="index" @click="viewPost(item)">
+					<view class="forum-header">
+						<text class="forum-title">{{ item.title }}</text>
+						<view class="forum-tag" v-if="item.isHot">热门</view>
 					</view>
-					<view class="post-meta">
-						<text class="post-author">{{ item.authorName }}</text>
-						<text class="post-comment">{{ item.commentCount }}评论</text>
-						<text class="post-time">{{ formatTime(item.createTime) }}</text>
+					<view class="forum-meta">
+						<text class="forum-author">{{ item.authorName }}</text>
+						<text class="forum-reply">{{ item.commentCount }}评论</text>
+						<text class="forum-time">{{ formatTime(item.createTime) }}</text>
 					</view>
 				</view>
 			</view>
@@ -99,17 +76,10 @@
 				banners: [
 					{
 						image: require('@/static/logo.png')
-					},
-					{
-						image: require('@/static/logo.png')
-					},
-					{
-						image: require('@/static/logo.png')
 					}
 				],
 				notices: [],
 				hotResources: [],
-				hotActivities: [],
 				hotPosts: []
 			}
 		},
@@ -148,12 +118,12 @@
 			// 加载页面数据
 			async loadData() {
 				try {
-					await Promise.all([
-						this.loadNotices(),
-						this.loadHotResources(),
-						this.loadHotActivities(),
-						this.loadHotPosts()
-					])
+					// 顺序加载以避免并发请求导致的429错误
+					await this.loadNotices()
+					await this.delay(200) // 200ms延迟
+					await this.loadHotResources()
+					await this.delay(200) // 200ms延迟
+					await this.loadHotPosts()
 				} catch (error) {
 					console.error('加载数据失败:', error)
 					uni.showToast({
@@ -162,126 +132,149 @@
 					})
 				}
 			},
+			
+			// 延迟函数
+			delay(ms) {
+				return new Promise(resolve => setTimeout(resolve, ms))
+			},
+			
+			// 带重试的请求函数
+			async requestWithRetry(url, data, maxRetries = 3) {
+				const token = uni.getStorageSync('token')
+				
+				for (let i = 0; i < maxRetries; i++) {
+					try {
+						const response = await uni.request({
+							url: url,
+							method: 'GET',
+							header: {
+								'Authorization': `Bearer ${token}`
+							},
+							data: data
+						})
+						
+						// 如果成功，直接返回
+						if (response.statusCode === 200) {
+							return response
+						}
+						
+						// 如果是429错误，直接停止重试
+						if (response.statusCode === 429) {
+							console.log('收到429错误，请求频率过高，停止重试')
+							throw new Error('请求频率过高，请稍后再试')
+						}
+						
+						// 其他错误，不重试
+						throw new Error(`HTTP ${response.statusCode}`)
+						
+					} catch (error) {
+						console.log(`请求失败，第${i + 1}次尝试:`, error)
+						
+						// 最后一次重试也失败了
+						if (i === maxRetries - 1) {
+							throw error
+						}
+						
+						// 等待后重试
+						await this.delay(500 * (i + 1))
+					}
+				}
+			},
 
 			// 加载最新公告
 			async loadNotices() {
-				// 模拟数据，实际应调用云函数
-				this.notices = [
-					{
-						id: 1,
-						title: '关于期末考试安排的通知',
-						type: 'important',
-						typeName: '重要',
-						createTime: new Date('2025-06-18')
-					},
-					{
-						id: 2,
-						title: '系统维护通知',
-						type: 'system',
-						typeName: '系统',
-						createTime: new Date('2025-06-17')
-					},
-					{
-						id: 3,
-						title: '学术讲座：人工智能前沿技术',
-						type: 'activity',
-						typeName: '活动',
-						createTime: new Date('2025-06-16')
+				try {
+					const response = await this.requestWithRetry('http://localhost:3000/api/v1/notifications', {
+						page: 1,
+						limit: 5,
+						type: 'announcement'
+					})
+					
+					if (response && response.data.success) {
+						this.notices = response.data.data.notifications.map(item => ({
+							id: item.notification_id,
+							title: item.title,
+							type: item.priority,
+							typeName: this.getPriorityName(item.priority),
+							createTime: new Date(item.created_at)
+						}))
 					}
-				]
+				} catch (error) {
+					console.error('加载公告失败:', error)
+					// 如果加载失败，显示默认数据
+					this.notices = []
+				}
+			},
+			
+			getPriorityName(priority) {
+				const map = {
+					'high': '重要',
+					'medium': '一般',
+					'low': '普通'
+				}
+				return map[priority] || '普通'
 			},
 
 			// 加载热门资源
 			async loadHotResources() {
-				// 模拟数据
-				this.hotResources = [
-					{
-						id: 1,
-						title: '数据结构与算法课件',
-						fileType: 'pdf',
-						uploaderName: '张教授',
-						downloadCount: 156
-					},
-					{
-						id: 2,
-						title: '机器学习实验代码',
-						fileType: 'zip',
-						uploaderName: '李同学',
-						downloadCount: 89
-					},
-					{
-						id: 3,
-						title: '软件工程复习资料',
-						fileType: 'doc',
-						uploaderName: '王老师',
-						downloadCount: 234
+				try {
+					const response = await this.requestWithRetry('http://localhost:3000/api/v1/resources', {
+						page: 1,
+						limit: 5,
+						sort: 'download_count'
+					})
+					
+					console.log('热门资源API响应:', response.data)
+					
+					if (response && response.data.success) {
+						console.log('原始资源数据:', response.data.data.resources)
+						this.hotResources = response.data.data.resources.map(item => {
+							console.log('处理资源项:', item)
+							return {
+								id: item.id,
+								title: item.title,
+								fileType: this.getFileExtension(item.files?.[0]?.file_name),
+								uploaderName: item.uploaderName || '匿名用户',
+								downloadCount: item.downloadCount || 0
+							}
+						})
+						console.log('处理后的热门资源:', this.hotResources)
 					}
-				]
+				} catch (error) {
+					console.error('加载热门资源失败:', error)
+					this.hotResources = []
+				}
+			},
+			
+			getFileExtension(fileName) {
+				if (!fileName) return 'unknown'
+				return fileName.split('.').pop().toLowerCase()
 			},
 
-			// 加载热门活动
-			async loadHotActivities() {
-				// 模拟数据
-				this.hotActivities = [
-					{
-						id: 1,
-						title: '人工智能前沿技术讲座',
-						image: require('@/static/logo.png'),
-						startTime: new Date('2025-06-25 14:00:00'),
-						location: '学术报告厅',
-						participantCount: 156,
-						status: 'upcoming'
-					},
-					{
-						id: 2,
-						title: '编程马拉松大赛',
-						image: require('@/static/logo.png'),
-						startTime: new Date('2025-06-28 09:00:00'),
-						location: '计算机学院',
-						participantCount: 89,
-						status: 'registration'
-					},
-					{
-						id: 3,
-						title: '软件工程经验分享会',
-						image: require('@/static/logo.png'),
-						startTime: new Date('2025-06-22 16:30:00'),
-						location: '多媒体教室',
-						participantCount: 67,
-						status: 'ongoing'
-					}
-				]
-			},
 
 			// 加载热门帖子
 			async loadHotPosts() {
-				// 模拟数据
-				this.hotPosts = [
-					{
-						id: 1,
-						title: '关于数据库设计的几个问题',
-						isQuestion: true,
-						authorName: '张三',
-						replyCount: 12,
-						createTime: new Date('2025-06-19')
-					},
-					{
-						id: 2,
-						title: '分享一个Vue.js学习心得',
-						isQuestion: false,
-						authorName: '李四',
-						replyCount: 8,
-						createTime: new Date('2025-06-18')
-					},
-					{
-						id: 3,
-						title: '求助：如何优化SQL查询性能？',
-						isQuestion: true,
-						authorName: '王五',
-						replyCount: 15,
-						createTime: new Date('2025-06-17')
+				try {
+					const response = await this.requestWithRetry('http://localhost:3000/api/v1/posts', {
+						page: 1,
+						limit: 5,
+						sort: 'comments'
+					})
+					
+					if (response && response.data.success) {
+						this.hotPosts = response.data.data.posts.map(item => ({
+							id: item.post_id,
+							title: item.title,
+							isHot: item.comment_count > 10,
+							authorName: item.author?.nickname || item.author?.name || '匿名用户',
+							commentCount: item.comment_count || 0,
+							createTime: new Date(item.created_at)
+						}))
 					}
-				]
+				} catch (error) {
+					console.error('加载热门帖子失败:', error)
+					this.hotPosts = []
+				}
 			},
 
 			// 页面导航
@@ -315,20 +308,28 @@
 
 			// 查看资源详情
 			viewResource(resource) {
+				if (!resource.id) {
+					uni.showToast({
+						title: '资源ID无效',
+						icon: 'none'
+					})
+					return
+				}
 				uni.navigateTo({
 					url: `/pages/resources/detail?id=${resource.id}`
 				})
 			},
 
-			// 查看活动详情
-			viewActivity(activity) {
-				uni.navigateTo({
-					url: `/pages/activity/detail?id=${activity.id}`
-				})
-			},
 
 			// 查看帖子详情
 			viewPost(post) {
+				if (!post.id) {
+					uni.showToast({
+						title: '帖子ID无效',
+						icon: 'none'
+					})
+					return
+				}
 				uni.navigateTo({
 					url: `/pages/forum/detail?id=${post.id}`
 				})
@@ -351,36 +352,6 @@
 				return iconMap[fileType] || '📁'
 			},
 
-			// 格式化活动时间
-			formatActivityTime(time) {
-				const now = new Date()
-				const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-				const activityDate = new Date(time.getFullYear(), time.getMonth(), time.getDate())
-				const diff = activityDate - today
-				const day = 24 * 60 * 60 * 1000
-
-				if (diff === 0) {
-					return `今天 ${time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
-				} else if (diff === day) {
-					return `明天 ${time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
-				} else if (diff > 0 && diff < 7 * day) {
-					const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-					return `${weekdays[time.getDay()]} ${time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
-				} else {
-					return time.toLocaleDateString('zh-CN') + ' ' + time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-				}
-			},
-
-			// 获取活动状态文本
-			getActivityStatusText(status) {
-				const statusMap = {
-					'upcoming': '即将开始',
-					'registration': '报名中',
-					'ongoing': '进行中',
-					'ended': '已结束'
-				}
-				return statusMap[status] || '未知状态'
-			},
 
 			// 格式化时间
 			formatTime(time) {
@@ -463,15 +434,15 @@
 					color: white;
 					margin-right: 20rpx;
 
-					&.tag-important {
+					&.tag-high {
 						background: #ff3b30;
 					}
 
-					&.tag-system {
+					&.tag-medium {
 						background: #007aff;
 					}
 
-					&.tag-activity {
+					&.tag-low {
 						background: #5ac725;
 					}
 				}
@@ -543,97 +514,6 @@
 		}
 	}
 
-	// 活动样式
-	.activity-section {
-		margin: 20rpx;
-		background: white;
-		border-radius: 16rpx;
-		padding: 30rpx;
-
-		.activity-list {
-			.activity-item {
-				display: flex;
-				padding: 20rpx 0;
-				border-bottom: 1rpx solid #f0f0f0;
-
-				&:last-child {
-					border-bottom: none;
-				}
-
-				.activity-image {
-					width: 120rpx;
-					height: 120rpx;
-					border-radius: 12rpx;
-					margin-right: 20rpx;
-				}
-
-				.activity-info {
-					flex: 1;
-
-					.activity-title {
-						display: block;
-						font-size: 28rpx;
-						font-weight: bold;
-						color: #333;
-						margin-bottom: 10rpx;
-					}
-
-					.activity-meta {
-						display: flex;
-						margin-bottom: 10rpx;
-
-						.activity-time {
-							font-size: 24rpx;
-							color: #007aff;
-							margin-right: 20rpx;
-						}
-
-						.activity-location {
-							font-size: 24rpx;
-							color: #666;
-						}
-					}
-
-					.activity-stats {
-						display: flex;
-						align-items: center;
-						justify-content: space-between;
-
-						.activity-participants {
-							font-size: 22rpx;
-							color: #999;
-						}
-
-						.activity-status {
-							padding: 4rpx 12rpx;
-							border-radius: 8rpx;
-							font-size: 20rpx;
-
-							&.status-upcoming {
-								background: #e6f3ff;
-								color: #007aff;
-							}
-
-							&.status-registration {
-								background: #e6ffe6;
-								color: #5ac725;
-							}
-
-							&.status-ongoing {
-								background: #fff3cd;
-								color: #ff9500;
-							}
-
-							&.status-ended {
-								background: #f0f0f0;
-								color: #999;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 
 	// 讨论样式
 	.forum-section {
@@ -683,6 +563,10 @@
 
 					.forum-reply {
 						margin-right: 20rpx;
+					}
+					
+					.forum-time {
+						margin-left: auto;
 					}
 				}
 			}

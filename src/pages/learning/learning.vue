@@ -10,10 +10,11 @@
 					</view>
 				</picker>
 			</view>
-			<button class="add-btn" @click="addNewPlan">
-				<text class="add-icon">+</text>
-				<text class="add-text">新建计划</text>
-			</button>
+			<view class="plan-actions">
+				<button class="edit-btn" @click="editCurrentPlan" v-if="currentPlan">
+					<text class="edit-icon">✏️</text>
+				</button>
+			</view>
 		</view>
 
 		<!-- 当前计划概览 -->
@@ -162,10 +163,12 @@
 			</view>
 		</view>
 
-		<!-- 新建计划/任务按钮 -->
-		<view class="create-btn" @click="showCreateOptions">
+		<!-- 新建计划按钮 -->
+		<view class="create-btn" @click="createNewPlan">
 			<text class="create-icon">➕</text>
 		</view>
+		
+		
 	</view>
 </template>
 
@@ -183,90 +186,8 @@ export default {
 				{ name: '已完成', value: 'completed' },
 				{ name: '已逾期', value: 'overdue' }
 			],
-			studyPlans: [
-				{
-					id: '1',
-					title: '前端开发学习计划',
-					description: '系统学习Vue.js、React等前端技术栈',
-					status: 'active',
-					progressPercent: 65,
-					startDate: new Date('2025-06-01'),
-					endDate: new Date('2025-08-31'),
-					tasks: [
-						{
-							id: '1',
-							title: '学习Vue.js基础',
-							description: '掌握Vue.js组件、指令、生命周期等基础概念',
-							completed: true,
-							priority: 'high',
-							deadline: new Date('2025-06-15'),
-							tags: ['Vue.js', '前端'],
-							subtasks: [
-								{ id: '1-1', title: 'Vue实例和模板语法', completed: true },
-								{ id: '1-2', title: '组件基础', completed: true },
-								{ id: '1-3', title: '组件通信', completed: false }
-							]
-						},
-						{
-							id: '2',
-							title: '实践Vue项目',
-							description: '开发一个完整的Vue.js单页应用',
-							completed: false,
-							priority: 'high',
-							deadline: new Date('2025-07-01'),
-							tags: ['Vue.js', '实践', '项目'],
-							subtasks: [
-								{ id: '2-1', title: '项目初始化', completed: true },
-								{ id: '2-2', title: '路由配置', completed: false },
-								{ id: '2-3', title: '状态管理', completed: false }
-							]
-						},
-						{
-							id: '3',
-							title: '学习React基础',
-							description: '掌握React组件、Hooks等核心概念',
-							completed: false,
-							priority: 'medium',
-							deadline: new Date('2025-07-15'),
-							tags: ['React', '前端'],
-							subtasks: []
-						}
-					]
-				},
-				{
-					id: '2',
-					title: '算法练习计划',
-					description: '通过LeetCode等平台提升算法能力',
-					status: 'active',
-					progressPercent: 40,
-					startDate: new Date('2025-06-15'),
-					endDate: new Date('2025-07-15'),
-					tasks: [
-						{
-							id: '4',
-							title: '数组和字符串算法',
-							description: '练习数组和字符串相关算法题',
-							completed: false,
-							priority: 'high',
-							deadline: new Date('2025-06-25'),
-							tags: ['算法', '数组'],
-							subtasks: [
-								{ id: '4-1', title: '双指针技巧', completed: true },
-								{ id: '4-2', title: '滑动窗口', completed: false }
-							]
-						}
-					]
-				}
-			],
-			weeklyData: [
-				{ day: '周一', minutes: 120 },
-				{ day: '周二', minutes: 90 },
-				{ day: '周三', minutes: 150 },
-				{ day: '周四', minutes: 80 },
-				{ day: '周五', minutes: 200 },
-				{ day: '周六', minutes: 45 },
-				{ day: '周日', minutes: 110 }
-			]
+			studyPlans: [],
+			weeklyData: []
 		}
 	},
 	
@@ -302,7 +223,13 @@ export default {
 	},
 	
 	onLoad() {
-		// 页面加载时初始化数据
+		this.loadStudyPlans()
+		this.loadProgressData()
+	},
+	
+	onShow() {
+		// 页面显示时刷新数据
+		this.loadStudyPlans()
 	},
 	
 	methods: {
@@ -310,10 +237,70 @@ export default {
 			this.selectedPlanIndex = e.detail.value;
 		},
 		
-		addNewPlan() {
+		editCurrentPlan() {
+			if (!this.currentPlan) return
+			uni.showActionSheet({
+				itemList: ['编辑计划', '删除计划'],
+				success: (res) => {
+					if (res.tapIndex === 0) {
+						this.editPlan()
+					} else if (res.tapIndex === 1) {
+						this.deletePlan()
+					}
+				}
+			})
+		},
+		
+		editPlan() {
+			// 跳转到编辑学习计划页面
 			uni.navigateTo({
-				url: '/pages/profile/study-plan'
-			});
+				url: `/pages/learning/create-plan?id=${this.currentPlan.id}`
+			})
+		},
+		
+		async deletePlan() {
+			uni.showModal({
+				title: '确认删除',
+				content: `确定要删除「${this.currentPlan.title}」吗？此操作不可恢复。`,
+				success: async (res) => {
+					if (res.confirm) {
+						try {
+							const token = uni.getStorageSync('token')
+							const response = await uni.request({
+								url: `http://localhost:3000/api/v1/study-plans/${this.currentPlan.id}`,
+								method: 'DELETE',
+								header: {
+									'Authorization': `Bearer ${token}`
+								}
+							})
+							
+							if (response.data.success) {
+								this.studyPlans.splice(this.selectedPlanIndex, 1)
+								if (this.studyPlans.length === 0) {
+									this.selectedPlanIndex = -1
+								} else {
+									this.selectedPlanIndex = Math.min(this.selectedPlanIndex, this.studyPlans.length - 1)
+								}
+								uni.showToast({
+									title: '删除成功',
+									icon: 'success'
+								})
+							} else {
+								uni.showToast({
+									title: response.data.message || '删除失败',
+									icon: 'none'
+								})
+							}
+						} catch (error) {
+							console.error('删除计划失败:', error)
+							uni.showToast({
+								title: '删除失败',
+								icon: 'none'
+							})
+						}
+					}
+				}
+			})
 		},
 		
 		selectFilter(index) {
@@ -326,9 +313,101 @@ export default {
 			this.loadProgressData();
 		},
 		
-		loadProgressData() {
-			// 根据时间段加载对应的学习进度数据
-			console.log('加载进度数据:', this.timePeriods[this.selectedPeriod]);
+		async loadStudyPlans() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.reLaunch({
+						url: '/pages/login/login'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/study-plans',
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.data.success) {
+					this.studyPlans = response.data.data.plans.map(plan => ({
+						id: plan.plan_id,
+						title: plan.title,
+						description: plan.description,
+						status: plan.status,
+						progressPercent: plan.progress_percent || 0,
+						startDate: new Date(plan.start_date),
+						endDate: new Date(plan.end_date),
+						tasks: plan.tasks ? plan.tasks.map(task => ({
+							id: task.task_id,
+							title: task.title,
+							description: task.description,
+							completed: task.status === 'completed',
+							priority: task.priority,
+							deadline: task.deadline ? new Date(task.deadline) : null,
+							tags: task.tags ? JSON.parse(task.tags) : [],
+							subtasks: task.subtasks || []
+						})) : []
+					}))
+					
+					// 如果有计划但没有选中任何计划，默认选中第一个
+					if (this.studyPlans.length > 0 && this.selectedPlanIndex === -1) {
+						this.selectedPlanIndex = 0
+					}
+				}
+			} catch (error) {
+				console.error('加载学习计划失败:', error)
+				uni.showToast({
+					title: '加载失败',
+					icon: 'none'
+				})
+			}
+		},
+		
+		async loadProgressData() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) return
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/study-plans/progress',
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					},
+					data: {
+						period: this.timePeriods[this.selectedPeriod]
+					}
+				})
+				
+				if (response.data.success) {
+					const progressData = response.data.data
+					// 转换为图表需要的格式
+					this.weeklyData = progressData.weeklyData || [
+						{ day: '周一', minutes: 0 },
+						{ day: '周二', minutes: 0 },
+						{ day: '周三', minutes: 0 },
+						{ day: '周四', minutes: 0 },
+						{ day: '周五', minutes: 0 },
+						{ day: '周六', minutes: 0 },
+						{ day: '周日', minutes: 0 }
+					]
+				}
+			} catch (error) {
+				console.error('加载进度数据失败:', error)
+				// 使用默认数据
+				this.weeklyData = [
+					{ day: '周一', minutes: 0 },
+					{ day: '周二', minutes: 0 },
+					{ day: '周三', minutes: 0 },
+					{ day: '周四', minutes: 0 },
+					{ day: '周五', minutes: 0 },
+					{ day: '周六', minutes: 0 },
+					{ day: '周日', minutes: 0 }
+				]
+			}
 		},
 		
 		toggleTask(task) {
@@ -354,31 +433,15 @@ export default {
 			this.currentPlan.progressPercent = Math.round((completed / total) * 100);
 		},
 		
-		showCreateOptions() {
-			uni.showActionSheet({
-				itemList: ['新建学习计划', '添加学习任务'],
-				success: (res) => {
-					if (res.tapIndex === 0) {
-						this.addNewPlan();
-					} else if (res.tapIndex === 1) {
-						this.addNewTask();
-					}
-				}
-			});
+		createNewPlan() {
+			// 跳转到新建学习计划页面
+			uni.navigateTo({
+				url: '/pages/learning/create-plan'
+			})
 		},
 		
-		addNewTask() {
-			if (!this.currentPlan) {
-				uni.showToast({
-					title: '请先选择学习计划',
-					icon: 'none'
-				});
-				return;
-			}
-			uni.navigateTo({
-				url: `/pages/profile/task-create?planId=${this.currentPlan.id}`
-			});
-		},
+		
+		
 		
 		getBarHeight(minutes) {
 			const maxMinutes = Math.max(...this.weeklyData.map(d => d.minutes));
@@ -444,7 +507,16 @@ export default {
 				month: '2-digit',
 				day: '2-digit'
 			});
-			return `${start} - ${end}`;
+			return `${start} - ${end}`
+		},
+		
+		formatDateForPicker(date) {
+			if (!date) return ''
+			const d = new Date(date)
+			const year = d.getFullYear()
+			const month = String(d.getMonth() + 1).padStart(2, '0')
+			const day = String(d.getDate()).padStart(2, '0')
+			return `${year}-${month}-${day}`
 		}
 	}
 }
@@ -484,16 +556,24 @@ export default {
 	color: #666666;
 }
 
-.add-btn {
+.plan-actions {
+	display: flex;
+	gap: 12rpx;
+}
+
+.edit-btn {
+	width: 60rpx;
+	height: 60rpx;
+	border-radius: 50%;
+	background-color: #f0f0f0;
 	display: flex;
 	align-items: center;
-	gap: 8rpx;
-	padding: 16rpx 24rpx;
-	background-color: #007aff;
-	color: #ffffff;
-	border-radius: 24rpx;
-	font-size: 26rpx;
+	justify-content: center;
 	border: none;
+	
+	.edit-icon {
+		font-size: 28rpx;
+	}
 }
 
 /* 当前计划概览 */
@@ -868,4 +948,5 @@ export default {
 		color: white;
 	}
 }
+
 </style>

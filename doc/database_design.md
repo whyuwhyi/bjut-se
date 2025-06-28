@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档详细描述了微信小程序教育资源平台的数据库设计，包含用户管理、资源共享、社团活动、讨论交流、通知系统等核心功能模块的完整数据库表结构设计。
+本文档详细描述了微信小程序教育资源平台的数据库设计，包含用户管理、资源共享、学习管理、讨论交流、通知系统等核心功能模块的完整数据库表结构设计。
 
 ---
 
@@ -53,7 +53,7 @@
 | description | TEXT | | 资源描述 |
 | collection_count | INT | DEFAULT 0 | 资源收藏次数，0-999999999 |
 | comment_count | INT | DEFAULT 0 | 资源评论数量，0-999999999 |
-| rating | DECIMAL(4,2) | DEFAULT 0.00 | 资源评分，0-10分 |
+| rating | DECIMAL(4,2) | DEFAULT 0.00 | 资源评分，1-5分 |
 | view_count | INT | DEFAULT 0 | 浏览次数 |
 | status | ENUM('draft','pending','published','rejected','archived') | DEFAULT 'draft' | 资源状态：draft-草稿，pending-待审核，published-已发布，rejected-已拒绝，archived-已归档 |
 | reviewer_phone | VARCHAR(11) | FOREIGN KEY | 审核者手机号（外键到用户表） |
@@ -177,7 +177,6 @@
 | resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源（可选） |
 | activity_type | ENUM('resource_view','resource_download','task_complete','plan_create','discussion_join') | NOT NULL | 活动类型 |
 | duration_minutes | INT | DEFAULT 0 | 学习时长（分钟） |
-| experience_gained | INT | DEFAULT 0 | 获得经验值 |
 | study_date | DATE | NOT NULL | 学习日期 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
@@ -215,7 +214,6 @@
 | title | VARCHAR(200) | NOT NULL | 帖子标题，最多200个字符 |
 | content | TEXT | NOT NULL | 帖子内容（支持Markdown格式） |
 | view_count | INT | DEFAULT 0 | 浏览次数 |
-| like_count | INT | DEFAULT 0 | 点赞次数 |
 | comment_count | INT | DEFAULT 0 | 评论数量 |
 | status | ENUM('active','hidden','deleted') | DEFAULT 'active' | 帖子状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
@@ -258,7 +256,6 @@
 | resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源ID（如果是资源评论） |
 | parent_comment_id | INT | FOREIGN KEY | 父评论ID（用于回复） |
 | content | TEXT | NOT NULL | 评论内容 |
-| like_count | INT | DEFAULT 0 | 点赞数 |
 | status | ENUM('active','hidden','deleted') | DEFAULT 'active' | 评论状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
@@ -272,7 +269,7 @@
 | rating_id | INT | PRIMARY KEY, AUTO_INCREMENT | 评分记录唯一标识符 |
 | user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 评分者手机号（外键） |
 | resource_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联资源表 |
-| rating | DECIMAL(3,2) | NOT NULL | 评分（0-10分） |
+| rating | DECIMAL(3,2) | NOT NULL | 评分（1-5分） |
 | review_text | TEXT | | 评价文字内容 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 评分时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
@@ -322,7 +319,7 @@
 | collection_id | VARCHAR(9) | PRIMARY KEY | 9位数字的收藏记录唯一标识符 |
 | user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 关联用户表（收藏者） |
 | content_id | VARCHAR(9) | NOT NULL | 被收藏内容的唯一标识符，9位数字 |
-| collection_type | ENUM('post', 'resource', 'activity') | NOT NULL | 收藏内容类型 |
+| collection_type | ENUM('post', 'resource') | NOT NULL | 收藏内容类型 |
 | status | ENUM('active','cancelled') | DEFAULT 'active' | 收藏状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 收藏时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
@@ -340,62 +337,24 @@
 | notification_id | VARCHAR(9) | PRIMARY KEY | 9位数字的通知唯一标识符 |
 | receiver_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 接收者手机号 |
 | sender_phone | VARCHAR(11) | FOREIGN KEY | 发送者手机号（系统通知可为空） |
-| type | ENUM('system','study','interaction','activity') | NOT NULL | 通知类型 |
+| type | ENUM('system','study','interaction','resource','announcement') | NOT NULL | 通知类型 |
 | priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
 | title | VARCHAR(200) | NOT NULL | 通知标题 |
 | content | TEXT | NOT NULL | 通知内容 |
+| action_type | ENUM('navigate','external_link','none') | DEFAULT 'none' | 操作类型 |
+| action_url | VARCHAR(500) | | 操作链接 |
 | is_read | BOOLEAN | DEFAULT FALSE | 是否已读 |
+| read_at | TIMESTAMP | | 已读时间 |
+| expires_at | TIMESTAMP | | 过期时间 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-
-### 6.2 用户消息表 (user_messages)
-
-用户间私信功能的实现。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| message_id | VARCHAR(9) | PRIMARY KEY | 消息ID |
-| sender_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 发送者手机号 |
-| receiver_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 接收者手机号 |
-| message_type | ENUM('text','image','file') | DEFAULT 'text' | 消息类型 |
-| content | TEXT | NOT NULL | 消息内容 |
-| is_read | BOOLEAN | DEFAULT FALSE | 是否已读 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 发送时间 |
-
----
-
-## 7. 用户激励模块
-
-### 7.1 用户成就表 (user_achievements)
-
-用户成就系统，提升用户参与度。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| achievement_id | INT | PRIMARY KEY, AUTO_INCREMENT | 成就ID |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
-| achievement_type | VARCHAR(50) | NOT NULL | 成就类型 |
-| achievement_name | VARCHAR(100) | NOT NULL | 成就名称 |
-| description | TEXT | | 成就描述 |
-| icon | VARCHAR(10) | | 成就图标 |
-| earned_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 获得时间 |
-
-### 7.2 用户等级表 (user_levels)
-
-用户等级经验系统。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| user_phone | VARCHAR(11) | PRIMARY KEY, FOREIGN KEY | 用户手机号 |
-| level | INT | DEFAULT 1 | 用户等级 |
-| experience | INT | DEFAULT 0 | 经验值 |
-| next_level_exp | INT | DEFAULT 100 | 下一级所需经验 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
+
 ---
 
-## 8. 系统管理模块
+## 7. 系统管理模块
 
-### 8.1 轮播图表 (banners)
+### 7.1 轮播图表 (banners)
 
 首页轮播图管理系统。
 
@@ -411,7 +370,7 @@
 | end_time | TIMESTAMP | | 结束时间 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 8.2 下载记录表 (download_records)
+### 7.2 下载记录表 (download_records)
 
 统计和审计用户下载行为，提供详细的下载追踪功能。
 
@@ -436,19 +395,6 @@
 - 支持用户代理和IP追踪，便于数据分析
 - 为用户提供个人下载记录查询功能
 
-### 8.3 用户设置表 (user_settings)
-
-个性化用户偏好设置。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| user_phone | VARCHAR(11) | PRIMARY KEY, FOREIGN KEY | 用户手机号 |
-| theme | ENUM('light','dark','auto') | DEFAULT 'light' | 主题设置 |
-| language | VARCHAR(10) | DEFAULT 'zh-CN' | 语言设置 |
-| notification_enabled | BOOLEAN | DEFAULT TRUE | 通知开关 |
-| privacy_level | ENUM('public','friends','private') | DEFAULT 'public' | 隐私级别 |
-| auto_download | BOOLEAN | DEFAULT FALSE | 自动下载 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 ---
 
@@ -460,10 +406,9 @@
 - **用户表**为整个系统的核心，以手机号作为主键
 - 用户与其他业务实体形成一对多关系：
   - 用户 ←→ 资源发布（1:N）
-  - 用户 ←→ 活动发布（1:N）
   - 用户 ←→ 讨论发起（1:N）
   - 用户 ←→ 评论发表（1:N）
-  - 用户 ←→ 活动报名（1:N）
+  - 用户 ←→ 学习计划（1:N）
 
 #### 2. 资源管理关系网络
 ```
@@ -478,7 +423,7 @@
      ↓                    ↓
    学习目标表            学习记录表
      ↓                    ↓
- 进度跟踪              经验积累
+ 进度跟踪              学习历史
 ```
 
 #### 4. 论坛交流关系层次
@@ -498,7 +443,7 @@
   ↓
 收藏表（支持多种内容类型收藏）
   ↓
-用户消息表（私信功能）
+通知表（系统消息和通知）
 ```
 
 ### 业务流程关系
@@ -515,7 +460,6 @@
 3. 分解子任务 → `sub_tasks` 表
 4. 记录学习进度 → `study_records` 表
 5. 设定学习目标 → `study_goals` 表
-6. 获得成就奖励 → `user_achievements` 表
 
 #### 论坛交流流程
 1. 用户发布帖子 → `posts` 表
@@ -594,4 +538,4 @@
 - 支持平滑的结构变更
 - 数据迁移工具和回滚机制
 
-本数据库设计充分考虑了教育资源平台的业务特点，在保证数据一致性和完整性的基础上，提供了良好的扩展性和性能优化空间。
+本数据库设计充分考虑了教育资源平台的业务特点，重点围绕学习资源共享、论坛交流、学习管理和通知系统等核心功能，在保证数据一致性和完整性的基础上，提供了良好的扩展性和性能优化空间。该设计支持用户的完整学习生态系统，从资源获取到学习计划管理，再到社区互动交流，为用户提供一站式的学习服务体验。

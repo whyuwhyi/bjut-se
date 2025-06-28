@@ -103,65 +103,21 @@
 				selectedType: 0,
 				selectedItems: [],
 				favoriteTypes: [
-					{ name: '全部', value: 'all', count: 25 },
-					{ name: '资源', value: 'resource', count: 12 },
-					{ name: '帖子', value: 'post', count: 8 },
-					{ name: '活动', value: 'activity', count: 5 }
+					{ name: '全部', value: 'all', count: 0 },
+					{ name: '资源', value: 'resource', count: 0 },
+					{ name: '帖子', value: 'post', count: 0 }
 				],
-				favorites: [
-					{
-						id: '1',
-						type: 'resource',
-						title: 'Vue.js 完整教程',
-						description: 'Vue.js从入门到精通的完整学习资料',
-						author: '李老师',
-						favoriteTime: new Date('2025-06-19 14:30:00'),
-						tags: ['Vue.js', '前端', '教程'],
-						url: '/pages/resources/detail?id=1'
-					},
-					{
-						id: '2',
-						type: 'post',
-						title: '关于React Hooks的深度解析',
-						description: '详细讲解React Hooks的使用方法和最佳实践',
-						author: '张同学',
-						favoriteTime: new Date('2025-06-18 16:45:00'),
-						tags: ['React', '前端', 'Hooks'],
-						url: '/pages/forum/detail?id=POST00002'
-					},
-					{
-						id: '3',
-						type: 'activity',
-						title: '编程马拉松大赛',
-						description: '24小时编程挑战，展示你的技术实力',
-						author: '计算机学院',
-						favoriteTime: new Date('2025-06-17 09:20:00'),
-						tags: ['编程', '竞赛', '活动'],
-						url: '/pages/activity/detail?id=3'
-					},
-					{
-						id: '4',
-						type: 'resource',
-						title: 'Python数据分析实战',
-						description: '使用Python进行数据分析的实战案例集合',
-						author: '王教授',
-						favoriteTime: new Date('2025-06-16 11:15:00'),
-						tags: ['Python', '数据分析', '实战'],
-						url: '/pages/resources/detail?id=4'
-					},
-					{
-						id: '5',
-						type: 'post',
-						title: '算法面试题解析',
-						description: '常见算法面试题的详细解答和思路分析',
-						author: '刘同学',
-						favoriteTime: new Date('2025-06-15 20:30:00'),
-						tags: ['算法', '面试', '编程'],
-						url: '/pages/forum/detail?id=POST00005'
-					}
-				],
+				favorites: [],
 				itemToDelete: null
 			}
+		},
+		
+		onLoad() {
+			this.loadFavorites()
+		},
+		
+		onShow() {
+			this.loadFavorites()
 		},
 		
 		computed: {
@@ -175,6 +131,53 @@
 		},
 		
 		methods: {
+			async loadFavorites() {
+				try {
+					const token = uni.getStorageSync('token')
+					if (!token) {
+						uni.reLaunch({
+							url: '/pages/login/login'
+						})
+						return
+					}
+					
+					const response = await uni.request({
+						url: 'http://localhost:3000/api/v1/users/my-collections',
+						method: 'GET',
+						header: {
+							'Authorization': `Bearer ${token}`
+						}
+					})
+					
+					if (response.data.success) {
+						this.favorites = response.data.data.collections.map(item => ({
+							id: item.collection_id,
+							type: item.collection_type,
+							title: item.title,
+							description: item.description,
+							author: item.author_name || '未知作者',
+							favoriteTime: new Date(item.created_at),
+							tags: item.tags ? JSON.parse(item.tags) : [],
+							url: item.collection_type === 'resource' 
+								? `/pages/resources/detail?id=${item.content_id}`
+								: `/pages/forum/detail?id=${item.content_id}`
+						}))
+						this.updateCounts()
+					} else {
+						this.favorites = []
+						this.updateCounts()
+					}
+				} catch (error) {
+					console.error('加载收藏失败:', error)
+					uni.showToast({
+						title: '加载失败',
+						icon: 'none'
+					})
+					this.favorites = []
+					this.updateCounts()
+				}
+			},
+			
 			selectType(index) {
 				this.selectedType = index;
 			},
@@ -276,7 +279,6 @@
 				this.favoriteTypes[0].count = this.favorites.length;
 				this.favoriteTypes[1].count = this.favorites.filter(f => f.type === 'resource').length;
 				this.favoriteTypes[2].count = this.favorites.filter(f => f.type === 'post').length;
-				this.favoriteTypes[3].count = this.favorites.filter(f => f.type === 'activity').length;
 			},
 			
 			goExplore() {
