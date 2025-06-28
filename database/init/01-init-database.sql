@@ -1,6 +1,6 @@
 -- ================================================================
 -- 日新智链平台数据库统一初始化脚本
--- 重新设计，确保数据一致性
+-- 确保数据完全一致性
 -- ================================================================
 
 -- 设置正确的字符集
@@ -346,7 +346,7 @@ CREATE TABLE IF NOT EXISTS VerificationCode (
 );
 
 -- ================================================================
--- 第三部分：测试数据插入
+-- 第三部分：测试数据插入 - 严格控制数量匹配
 -- ================================================================
 
 -- 插入测试用户（密码是123456的bcrypt哈希值）
@@ -360,50 +360,57 @@ INSERT IGNORE INTO categories (category_id, category_name, category_value, descr
 ('CAT001', '课件', 'courseware', '教学课件和演示文稿', '📚', 1, 'active', NOW(), NOW()),
 ('CAT002', '实验', 'experiment', '实验代码和实验报告', '🔬', 2, 'active', NOW(), NOW());
 
--- 插入测试资源（2条，评论数量与实际匹配）
+-- 插入帖子标签
+INSERT IGNORE INTO post_tags (tag_id, tag_name, tag_color, usage_count, status, created_at, updated_at) VALUES
+('TAG00001', 'JavaScript', '#F7DF1E', 1, 'active', NOW(), NOW()),
+('TAG00002', '算法', '#4ECDC4', 1, 'active', NOW(), NOW()),
+('TAG00003', '学习方法', '#FF6B6B', 1, 'active', NOW(), NOW());
+
+-- 插入测试资源（comment_count=0，稍后通过评论更新）
 INSERT IGNORE INTO resources (resource_id, publisher_phone, resource_name, description, collection_count, comment_count, rating, view_count, download_count, status, category_id, created_at, updated_at) VALUES
-('123456789', '13800138001', '数据结构与算法课件', '包含基础概念、时间复杂度分析等内容', 2, 2, 4.5, 150, 80, 'published', 'CAT001', NOW(), NOW()),
-('123456790', '13800138002', '机器学习实验代码', '包含常用算法的完整实现', 1, 1, 4.2, 100, 45, 'published', 'CAT002', NOW(), NOW());
+('123456789', '13800138001', '数据结构与算法课件', '包含基础概念、时间复杂度分析等内容', 0, 0, 4.5, 150, 80, 'published', 'CAT001', NOW(), NOW()),
+('123456790', '13800138002', '机器学习实验代码', '包含常用算法的完整实现', 0, 0, 4.2, 100, 45, 'published', 'CAT002', NOW(), NOW()),
+('123456791', '13800138003', 'Python基础教程', 'Python编程语言基础教程', 0, 0, 4.0, 80, 30, 'published', 'CAT001', NOW(), NOW());
 
 -- 插入文件
 INSERT IGNORE INTO files (file_id, resource_id, file_name, file_size, file_type, storage_path, storage_method, download_count, created_at) VALUES
 ('100000001', '123456789', '数据结构课件.pdf', 2048576, 'application/pdf', '/uploads/datastruct.pdf', 'local', 80, NOW()),
-('100000002', '123456790', '机器学习代码.zip', 5242880, 'application/zip', '/uploads/ml_code.zip', 'local', 45, NOW());
+('100000002', '123456790', '机器学习代码.zip', 5242880, 'application/zip', '/uploads/ml_code.zip', 'local', 45, NOW()),
+('100000003', '123456791', 'Python教程.pdf', 1536000, 'application/pdf', '/uploads/python.pdf', 'local', 30, NOW());
 
--- 插入帖子标签
-INSERT IGNORE INTO post_tags (tag_id, tag_name, tag_color, usage_count, status, created_at, updated_at) VALUES
-('100000001', 'JavaScript', '#F7DF1E', 1, 'active', NOW(), NOW()),
-('100000002', '算法', '#4ECDC4', 1, 'active', NOW(), NOW());
-
--- 插入测试帖子（2条，评论数量与实际匹配）
+-- 插入测试帖子（comment_count=0，稍后通过评论更新）
 INSERT IGNORE INTO posts (post_id, author_phone, title, content, view_count, comment_count, collection_count, status, created_at, updated_at) VALUES
-('100000001', '13800138001', '数据结构学习建议', '# 数据结构学习心得\n\n学习数据结构要理论与实践结合，多动手编程实现。\n\n建议先掌握基础的线性结构，再学习复杂的树形结构。', 120, 2, 1, 'active', NOW(), NOW()),
-('100000002', '13800138002', 'JavaScript异步编程问题', '最近在学习JavaScript异步编程，对Promise和async/await的使用有些困惑，求指教！', 80, 1, 1, 'active', NOW(), NOW());
+('100000001', '13800138001', '数据结构学习建议', '# 数据结构学习心得\n\n学习数据结构要理论与实践结合，多动手编程实现。', 120, 0, 0, 'active', NOW(), NOW()),
+('100000002', '13800138002', 'JavaScript异步编程问题', '最近在学习JavaScript异步编程，对Promise和async/await的使用有些困惑，求指教！', 80, 0, 0, 'active', NOW(), NOW()),
+('100000003', '13800138003', '算法复杂度分析技巧', '分享一些分析算法时间复杂度的技巧和方法。', 60, 0, 0, 'active', NOW(), NOW());
 
 -- 插入帖子标签关联
 INSERT IGNORE INTO post_tag_relations (post_id, tag_id, created_at) VALUES
-('100000001', '100000002', NOW()),
-('100000002', '100000001', NOW());
+('100000001', 'TAG00002', NOW()),  -- 数据结构学习建议 -> 算法
+('100000001', 'TAG00003', NOW()),  -- 数据结构学习建议 -> 学习方法
+('100000002', 'TAG00001', NOW()),  -- JavaScript异步编程 -> JavaScript
+('100000003', 'TAG00002', NOW());  -- 算法复杂度分析 -> 算法
 
--- 插入评论（确保数量与帖子/资源的comment_count匹配）
--- 资源评论：资源123456789有2条评论，123456790有1条评论
+-- 插入评论
+-- 资源评论：123456789(2条)，123456790(1条)，123456791(0条)
 INSERT IGNORE INTO comments (author_phone, resource_id, content, status, created_at, updated_at) VALUES
 ('13800138002', '123456789', '张教授的课件质量很高，内容详细，对学习很有帮助！', 'active', NOW(), NOW()),
 ('13800138003', '123456789', '课件讲解清晰，例子丰富，建议增加更多练习题。', 'active', NOW(), NOW()),
 ('13800138001', '123456790', '代码实现规范，注释详细，适合学习参考。', 'active', NOW(), NOW());
 
--- 帖子评论：帖子100000001有2条评论，100000002有1条评论  
+-- 帖子评论：100000001(2条)，100000002(1条)，100000003(0条)
 INSERT IGNORE INTO comments (author_phone, post_id, content, status, created_at, updated_at) VALUES
 ('13800138002', '100000001', '张教授的建议很实用，我按照这个方法学习效果不错！', 'active', NOW(), NOW()),
 ('13800138003', '100000001', '补充一点：可以尝试用不同语言实现，加深理解。', 'active', NOW(), NOW()),
-('13800138001', '100000002', '关于async/await：它是Promise的语法糖，让异步代码看起来像同步代码。建议先理解Promise，再学习async/await。', 'active', NOW(), NOW());
+('13800138001', '100000002', '关于async/await：它是Promise的语法糖，让异步代码看起来像同步代码。', 'active', NOW(), NOW());
 
 -- 插入评分数据
 INSERT IGNORE INTO ratings (user_phone, resource_id, rating, review_text, created_at, updated_at) VALUES
 ('13800138002', '123456789', 4.5, '课件内容详细，讲解清晰，对学习很有帮助。', NOW(), NOW()),
-('13800138003', '123456790', 4.2, '代码质量不错，注释详细，适合学习参考。', NOW(), NOW());
+('13800138003', '123456790', 4.2, '代码质量不错，注释详细，适合学习参考。', NOW(), NOW()),
+('13800138001', '123456791', 4.0, 'Python教程写得不错，适合初学者。', NOW(), NOW());
 
--- 插入收藏数据（确保数量与posts/resources的collection_count匹配）
+-- 插入收藏数据
 INSERT IGNORE INTO collections (collection_id, user_phone, content_id, collection_type, status, created_at, updated_at) VALUES
 ('200000001', '13800138002', '123456789', 'resource', 'active', NOW(), NOW()),
 ('200000002', '13800138003', '123456789', 'resource', 'active', NOW(), NOW()),
@@ -439,40 +446,61 @@ INSERT IGNORE INTO notifications (notification_id, receiver_phone, sender_phone,
 ('600000002', '13800138003', '13800138002', 'interaction', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', false, NOW(), NOW());
 
 -- ================================================================
--- 第四部分：数据一致性验证
+-- 第四部分：数据一致性更新 - 确保评论数和收藏数正确
 -- ================================================================
 
--- 验证帖子评论数量
-UPDATE posts p SET comment_count = (
-    SELECT COUNT(*) FROM comments c 
-    WHERE c.post_id = p.post_id AND c.status = 'active'
+-- 更新资源评论数量
+UPDATE resources SET comment_count = (
+    SELECT COUNT(*) FROM comments 
+    WHERE comments.resource_id = resources.resource_id AND comments.status = 'active'
 );
 
--- 验证资源评论数量
-UPDATE resources r SET comment_count = (
-    SELECT COUNT(*) FROM comments c 
-    WHERE c.resource_id = r.resource_id AND c.status = 'active'
+-- 更新帖子评论数量  
+UPDATE posts SET comment_count = (
+    SELECT COUNT(*) FROM comments 
+    WHERE comments.post_id = posts.post_id AND comments.status = 'active'
 );
 
--- 验证收藏数量
-UPDATE posts p SET collection_count = (
-    SELECT COUNT(*) FROM collections c 
-    WHERE c.content_id = p.post_id AND c.collection_type = 'post' AND c.status = 'active'
+-- 更新资源收藏数量
+UPDATE resources SET collection_count = (
+    SELECT COUNT(*) FROM collections 
+    WHERE collections.content_id = resources.resource_id 
+    AND collections.collection_type = 'resource' 
+    AND collections.status = 'active'
 );
 
-UPDATE resources r SET collection_count = (
-    SELECT COUNT(*) FROM collections c 
-    WHERE c.content_id = r.resource_id AND c.collection_type = 'resource' AND c.status = 'active'
+-- 更新帖子收藏数量
+UPDATE posts SET collection_count = (
+    SELECT COUNT(*) FROM collections 
+    WHERE collections.content_id = posts.post_id 
+    AND collections.collection_type = 'post' 
+    AND collections.status = 'active'
 );
 
 -- ================================================================
--- 初始化完成
+-- 第五部分：数据验证
 -- ================================================================
 
+-- 验证数据一致性
 SELECT 
-    '数据库初始化完成！数据已保持一致性' as message,
+    '数据库初始化完成！' as message,
     (SELECT COUNT(*) FROM users) as users_count,
     (SELECT COUNT(*) FROM resources) as resources_count,
     (SELECT COUNT(*) FROM posts) as posts_count,
     (SELECT COUNT(*) FROM comments) as comments_count,
     (SELECT COUNT(*) FROM collections) as collections_count;
+
+-- 验证具体的评论数匹配
+SELECT 
+    'resources' as table_name,
+    resource_id,
+    comment_count as declared_count,
+    (SELECT COUNT(*) FROM comments WHERE resource_id = resources.resource_id AND status = 'active') as actual_count
+FROM resources;
+
+SELECT 
+    'posts' as table_name,
+    post_id,
+    comment_count as declared_count,
+    (SELECT COUNT(*) FROM comments WHERE post_id = posts.post_id AND status = 'active') as actual_count
+FROM posts;
