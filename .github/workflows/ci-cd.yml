@@ -176,7 +176,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./backend
-        file: ./backend/Dockerfile
+        file: ./docker/backend/Dockerfile
         push: true
         tags: ${{ steps.meta-backend.outputs.tags }}
         labels: ${{ steps.meta-backend.outputs.labels }}
@@ -193,7 +193,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Dockerfile.frontend
+        file: ./docker/frontend/Dockerfile
         push: true
         tags: ${{ steps.meta-frontend.outputs.tags }}
         labels: ${{ steps.meta-frontend.outputs.labels }}
@@ -242,13 +242,13 @@ jobs:
           
           # 更新Docker镜像
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker-compose -f docker-compose.prod.yml pull
+          docker-compose -f docker/docker-compose.prod.yml pull
           
           # 停止旧服务
-          docker-compose -f docker-compose.prod.yml down
+          docker-compose -f docker/docker-compose.prod.yml down
           
           # 启动新服务
-          docker-compose -f docker-compose.prod.yml up -d
+          docker-compose -f docker/docker-compose.prod.yml up -d
           
           # 等待服务启动
           sleep 30
@@ -272,18 +272,18 @@ jobs:
               exit 0
             else
               echo "尝试 $attempt/$max_attempts: 服务尚未就绪，等待10秒..."
-              docker-compose -f docker-compose.prod.yml ps
+              docker-compose -f docker/docker-compose.prod.yml ps
               sleep 10
               attempt=$((attempt + 1))
             fi
           done
           
           echo "❌ 部署失败，服务健康检查未通过，开始回滚..."
-          docker-compose -f docker-compose.prod.yml logs --tail=50
-          docker-compose -f docker-compose.prod.yml down
+          docker-compose -f docker/docker-compose.prod.yml logs --tail=50
+          docker-compose -f docker/docker-compose.prod.yml down
           if [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
             cd ../backup-$(ls -t backup-* 2>/dev/null | head -n 1)
-            docker-compose -f docker-compose.prod.yml up -d
+            docker-compose -f docker/docker-compose.prod.yml up -d
             echo "🔄 已回滚到上一个版本"
           fi
           exit 1

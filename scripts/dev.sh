@@ -120,12 +120,12 @@ start_database() {
   # 检查端口占用
   check_ports
 
-  # 使用根目录的docker-compose.yml启动服务
-  if [ -f docker-compose.yml ]; then
+  # 使用docker目录的docker-compose.yml启动服务
+  if [ -f docker/docker-compose.yml ]; then
     if command -v docker-compose &>/dev/null; then
-      docker-compose up -d mysql redis
+      docker-compose -f docker/docker-compose.yml up -d mysql redis
     else
-      docker compose up -d mysql redis
+      docker compose -f docker/docker-compose.yml up -d mysql redis
     fi
 
     print_info "等待数据库启动..."
@@ -150,7 +150,7 @@ start_database() {
 
     print_info "数据库服务启动完成 ✓"
   else
-    print_error "docker-compose.yml 不存在"
+    print_error "docker/docker-compose.yml 不存在"
     exit 1
   fi
 }
@@ -189,11 +189,11 @@ reset_database() {
 
   # 停止数据库容器
   if command -v docker-compose &>/dev/null; then
-    docker-compose stop mysql
-    docker-compose rm -f mysql
+    docker-compose -f docker/docker-compose.yml stop mysql
+    docker-compose -f docker/docker-compose.yml rm -f mysql
   else
-    docker compose stop mysql
-    docker compose rm -f mysql
+    docker compose -f docker/docker-compose.yml stop mysql
+    docker compose -f docker/docker-compose.yml rm -f mysql
   fi
 
   # 删除数据卷
@@ -321,12 +321,12 @@ stop_servers() {
   fi
 
   # 停止Docker容器
-  if [ -f docker-compose.yml ]; then
+  if [ -f docker/docker-compose.yml ]; then
     print_step "停止数据库服务..."
     if command -v docker-compose &>/dev/null; then
-      docker-compose stop mysql redis
+      docker-compose -f docker/docker-compose.yml stop mysql redis
     else
-      docker compose stop mysql redis
+      docker compose -f docker/docker-compose.yml stop mysql redis
     fi
     print_info "数据库服务已停止 ✓"
   fi
@@ -371,11 +371,11 @@ show_logs() {
       tail -f backend/logs/*.log 2>/dev/null &
     fi
     # 显示Docker容器日志
-    if [ -f docker-compose.yml ]; then
+    if [ -f docker/docker-compose.yml ]; then
       if command -v docker-compose &>/dev/null; then
-        docker-compose logs -f mysql redis &
+        docker-compose -f docker/docker-compose.yml logs -f mysql redis &
       else
-        docker compose logs -f mysql redis &
+        docker compose -f docker/docker-compose.yml logs -f mysql redis &
       fi
     fi
     wait
@@ -463,9 +463,9 @@ start_prod_mode() {
 
   # 构建并启动所有服务
   if command -v docker-compose &>/dev/null; then
-    docker-compose up --build -d
+    docker-compose -f docker/docker-compose.yml up --build -d
   else
-    docker compose up --build -d
+    docker compose -f docker/docker-compose.yml up --build -d
   fi
 
   print_info "生产环境启动完成 ✓"
