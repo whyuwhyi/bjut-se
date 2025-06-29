@@ -220,7 +220,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/study-plans/${planId}`,
+					url: `${this.$config.apiBaseUrl}/study-plans/${planId}`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -400,7 +400,7 @@ export default {
 				if (this.planData.id) {
 					// 编辑模式 - 更新计划
 					const response = await uni.request({
-						url: `this.$config.apiBaseUrl + '/study-plans/${this.planData.id}`,
+						url: `${this.$config.apiBaseUrl}/study-plans/${this.planData.id}`,
 						method: 'PUT',
 						header: {
 							'Authorization': `Bearer ${token}`,
@@ -422,7 +422,7 @@ export default {
 				} else {
 					// 新建模式 - 创建计划
 					const response = await uni.request({
-						url: `this.$config.apiBaseUrl + '/study-plans`,
+						url: `${this.$config.apiBaseUrl}/study-plans`,
 						method: 'POST',
 						header: {
 							'Authorization': `Bearer ${token}`,
@@ -449,7 +449,7 @@ export default {
 				if (!this.planData.id && submitData.tasks.length > 0) {
 					for (const task of submitData.tasks) {
 						await uni.request({
-							url: `this.$config.apiBaseUrl + '/study-plans/tasks`,
+							url: `${this.$config.apiBaseUrl}/study-plans/tasks`,
 							method: 'POST',
 							header: {
 								'Authorization': `Bearer ${token}`,

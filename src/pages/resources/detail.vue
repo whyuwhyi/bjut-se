@@ -172,7 +172,7 @@ export default {
 				uni.showLoading({ title: '加载中...' })
 				
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/resources/${this.resourceId}`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}`,
 					method: 'GET'
 				})
 				
@@ -253,7 +253,7 @@ export default {
 				
 				const file = this.resource.files[0]
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/resources/${this.resource.id}/files/${file.file_id}/download`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -305,7 +305,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/resources/${this.resourceId}/favorite-status?type=resource`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/favorite-status?type=resource`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -335,7 +335,7 @@ export default {
 				const wasAlreadyFavorited = this.resource.isFavorited
 				
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/resources/${this.resourceId}/favorite`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/favorite`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -360,7 +360,7 @@ export default {
 					setTimeout(async () => {
 						try {
 							const response = await uni.request({
-								url: `this.$config.apiBaseUrl + '/resources/${this.resourceId}`,
+								url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}`,
 								method: 'GET'
 							})
 							
@@ -404,7 +404,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/resources/${this.resourceId}/my-rating`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/my-rating`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -434,7 +434,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/resources/${this.resourceId}/rating`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/rating`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -491,7 +491,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/resources/${this.resourceId}/comments`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -528,7 +528,7 @@ export default {
 		async loadComments() {
 			try {
 				const response = await uni.request({
-					url: `this.$config.apiBaseUrl + '/resources/${this.resourceId}/comments`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'GET'
 				})
 				

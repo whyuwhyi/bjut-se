@@ -184,7 +184,7 @@
 			// 加载最新公告
 			async loadNotices() {
 				try {
-					const response = await this.requestWithRetry(`this.$config.apiBaseUrl + '/notifications`, {
+					const response = await this.requestWithRetry(`${this.$config.apiBaseUrl}/notifications`, {
 						page: 1,
 						limit: 5,
 						type: 'announcement'
@@ -218,7 +218,7 @@
 			// 加载热门资源
 			async loadHotResources() {
 				try {
-					const response = await this.requestWithRetry(`this.$config.apiBaseUrl + '/resources`, {
+					const response = await this.requestWithRetry(`${this.$config.apiBaseUrl}/resources`, {
 						page: 1,
 						limit: 5,
 						sort: 'download_count'
@@ -255,7 +255,7 @@
 			// 加载热门帖子
 			async loadHotPosts() {
 				try {
-					const response = await this.requestWithRetry(`this.$config.apiBaseUrl + '/posts`, {
+					const response = await this.requestWithRetry(`${this.$config.apiBaseUrl}/posts`, {
 						page: 1,
 						limit: 5,
 						sort: 'comments'

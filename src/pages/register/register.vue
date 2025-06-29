@@ -303,7 +303,7 @@ export default {
 				
 				// 调用后端API
 				const response = await uni.request({
-					url: this.$config.apiBaseUrl + '/users/register',
+					url: `${this.$config.apiBaseUrl}/users/register`,
 					method: 'POST',
 					data: requestData,
 					header: {

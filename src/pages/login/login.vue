@@ -161,7 +161,7 @@ export default {
 			try {
 				// 调用后端API
 				const response = await uni.request({
-					url: this.$config.apiBaseUrl + '/users/login',
+					url: `${this.$config.apiBaseUrl}/users/login`,
 					method: 'POST',
 					data: {
 						phone_number: this.loginForm.phone_number,
