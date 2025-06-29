@@ -314,16 +314,7 @@ export default {
 				return response.data
 			} catch (error) {
 				console.error('API调用失败:', error)
-				// 开发阶段的模拟数据
-				return new Promise((resolve) => {
-					setTimeout(() => {
-						// 模拟注册成功
-						resolve({
-							success: true,
-							message: '注册成功'
-						})
-					}, 1000)
-				})
+				throw error
 			}
 		},
 		

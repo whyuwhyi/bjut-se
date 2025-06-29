@@ -150,36 +150,7 @@ export default {
 				}
 			} catch (error) {
 				console.error('登录错误:', error)
-				// 生产环境下，应直接抛出错误，让上层处理
-				// 这里为了开发演示，保留模拟数据，实际项目中应移除
-				if (process.env.NODE_ENV === 'development') {
-					return new Promise((resolve) => {
-						setTimeout(() => {
-							// 模拟登录成功
-							if (this.loginForm.phone_number === '13912345678' && this.loginForm.password === 'password123') {
-								resolve({
-									success: true,
-									data: {
-										user: {
-											phone_number: this.loginForm.phone_number,
-											name: '张同学',
-											nickname: '张三',
-											student_id: '12345678'
-										},
-										token: 'mock_token_123456'
-									}
-								})
-							} else {
-								resolve({
-									success: false,
-									message: '手机号或密码错误'
-								})
-							}
-						}, 1000)
-					})
-				} else {
-					throw error // 生产环境下直接抛出错误
-				}
+				throw error
 			} finally {
 				this.isLoading = false
 			}
@@ -204,36 +175,7 @@ export default {
 				return response.data
 			} catch (error) {
 				console.error('API调用失败:', error)
-				// 生产环境下，应直接抛出错误，让上层处理
-				// 这里为了开发演示，保留模拟数据，实际项目中应移除
-				if (process.env.NODE_ENV === 'development') {
-					return new Promise((resolve) => {
-						setTimeout(() => {
-							// 模拟登录成功
-							if (this.loginForm.phone_number === '13912345678' && this.loginForm.password === 'password123') {
-								resolve({
-									success: true,
-									data: {
-										user: {
-											phone_number: this.loginForm.phone_number,
-											name: '张同学',
-											nickname: '张三',
-											student_id: '12345678'
-										},
-										token: 'mock_token_123456'
-									}
-								})
-							} else {
-								resolve({
-									success: false,
-									message: '手机号或密码错误'
-								})
-							}
-						}, 1000)
-					})
-				} else {
-					throw error // 生产环境下直接抛出错误
-				}
+				throw error
 			}
 		},
 		

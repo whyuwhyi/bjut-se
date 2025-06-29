@@ -227,18 +227,12 @@ export default {
 				const resourceId = response.data.data.resource_id
 				this.uploadProgress = 30
 				
-				// 2. 上传文件（这里简化处理，实际需要文件上传接口）
-				// 模拟文件上传进度
-				const progressInterval = setInterval(() => {
-					this.uploadProgress += Math.random() * 10
-					if (this.uploadProgress >= 90) {
-						this.uploadProgress = 90
-						clearInterval(progressInterval)
-						
-						// 3. 提交审核
-						this.submitForReview(resourceId)
-					}
-				}, 200)
+				// 2. 上传文件
+				await this.uploadFiles(resourceId)
+				this.uploadProgress = 90
+				
+				// 3. 提交审核
+				this.submitForReview(resourceId)
 				
 			} catch (error) {
 				console.error('上传失败:', error)
@@ -307,6 +301,49 @@ export default {
 				return (size / 1024).toFixed(1) + 'KB'
 			} else {
 				return (size / (1024 * 1024)).toFixed(1) + 'MB'
+			}
+		},
+		
+		// 真实文件上传
+		async uploadFiles(resourceId) {
+			if (!this.uploadForm.files || this.uploadForm.files.length === 0) {
+				return
+			}
+			
+			for (let i = 0; i < this.uploadForm.files.length; i++) {
+				const file = this.uploadForm.files[i]
+				
+				const uploadTask = uni.uploadFile({
+					url: `${this.$config.apiBaseUrl}/files/upload`,
+					filePath: file.path,
+					name: 'file',
+					formData: {
+						resource_id: resourceId,
+						file_name: file.name,
+						file_type: file.type
+					}
+				})
+				
+				uploadTask.onProgressUpdate((progress) => {
+					const baseProgress = 30 + (i / this.uploadForm.files.length) * 60
+					const fileProgress = progress.progress / 100 * (60 / this.uploadForm.files.length)
+					this.uploadProgress = Math.min(90, baseProgress + fileProgress)
+				})
+				
+				await new Promise((resolve, reject) => {
+					uploadTask.onSuccess((res) => {
+						const data = JSON.parse(res.data)
+						if (data.success) {
+							resolve(data)
+						} else {
+							reject(new Error(data.message || '文件上传失败'))
+						}
+					})
+					
+					uploadTask.onFail((err) => {
+						reject(new Error('文件上传失败'))
+					})
+				})
 			}
 		}
 	}

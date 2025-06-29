@@ -106,68 +106,75 @@
 		},
 		
 		methods: {
-			loadNotificationDetail() {
-				// 模拟数据 - 实际应用中从API获取
-				const mockData = {
-					id: this.notificationId,
-					type: 'system',
-					priority: 'high',
-					title: '系统维护通知',
-					content: `
-						<p>尊敬的用户：</p>
-						<p>为了提供更好的服务体验，我们将对系统进行维护升级。</p>
-						<p><strong>维护时间：</strong>2025年6月20日 22:00 - 23:00</p>
-						<p><strong>影响范围：</strong></p>
-						<ul>
-							<li>资源上传下载功能暂停</li>
-							<li>讨论区发布回复功能暂停</li>
-							<li>用户登录可能受影响</li>
-						</ul>
-						<p><strong>注意事项：</strong></p>
-						<ul>
-							<li>请在维护前保存好未完成的工作</li>
-							<li>维护期间请不要进行重要操作</li>
-							<li>如有紧急问题请联系客服</li>
-						</ul>
-						<p>给您带来不便，敬请谅解！</p>
-						<p>日新智链团队<br/>2025年6月20日</p>
-					`,
-					senderName: '系统管理员',
-					isRead: true,
-					isStarred: false,
-					createTime: new Date('2025-06-20 15:30:00'),
-					linkUrl: 'https://help.example.com/maintenance',
-					attachments: [
-						{
-							name: '维护详情说明.pdf',
-							type: 'pdf',
-							size: 1024000,
-							url: '/files/maintenance-detail.pdf'
+			async loadNotificationDetail() {
+				try {
+					const response = await uni.request({
+						url: `${this.$config.apiBaseUrl}/notifications/${this.notificationId}`,
+						method: 'GET',
+						header: {
+							'Authorization': `Bearer ${uni.getStorageSync('token')}`
 						}
-					]
-				};
-				
-				this.notification = mockData;
-				
-				// 标记为已读
-				if (!this.notification.isRead) {
-					this.markAsRead();
+					})
+					
+					if (!response.data.success) {
+						throw new Error(response.data.message || '获取通知详情失败')
+					}
+					
+					this.notification = data
+					
+					// 标记为已读
+					if (!this.notification.isRead) {
+						this.markAsRead()
+					}
+				} catch (error) {
+					console.error('加载通知详情失败:', error)
+					uni.showToast({
+						title: '加载失败',
+						icon: 'none'
+					})
+					uni.navigateBack()
 				}
 			},
 			
-			markAsRead() {
-				// 调用API标记为已读
-				this.notification.isRead = true;
+			async markAsRead() {
+				try {
+					await uni.request({
+						url: `${this.$config.apiBaseUrl}/notifications/${this.notificationId}/read`,
+						method: 'PUT',
+						header: {
+							'Authorization': `Bearer ${uni.getStorageSync('token')}`
+						}
+					})
+					this.notification.isRead = true
+				} catch (error) {
+					console.error('标记已读失败:', error)
+				}
 			},
 			
-			toggleStar() {
-				this.notification.isStarred = !this.notification.isStarred;
-				// 调用API更新收藏状态
-				const message = this.notification.isStarred ? '已收藏' : '已取消收藏';
-				uni.showToast({
-					title: message,
-					icon: 'success'
-				});
+			async toggleStar() {
+				try {
+					const newStarred = !this.notification.isStarred
+					await uni.request({
+						url: `${this.$config.apiBaseUrl}/notifications/${this.notificationId}/star`,
+						method: newStarred ? 'PUT' : 'DELETE',
+						header: {
+							'Authorization': `Bearer ${uni.getStorageSync('token')}`
+						}
+					})
+					
+					this.notification.isStarred = newStarred
+					const message = newStarred ? '已收藏' : '已取消收藏'
+					uni.showToast({
+						title: message,
+						icon: 'success'
+					})
+				} catch (error) {
+					console.error('更新收藏状态失败:', error)
+					uni.showToast({
+						title: '操作失败',
+						icon: 'none'
+					})
+				}
 			},
 			
 			shareNotification() {

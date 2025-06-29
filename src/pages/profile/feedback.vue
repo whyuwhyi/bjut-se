@@ -126,25 +126,20 @@ export default {
 	methods: {
 		async loadRecentFeedback() {
 			try {
-				// 模拟加载最近的反馈记录
-				this.recentFeedback = [
-					{
-						id: 1,
-						type: 'bug',
-						content: '登录时偶尔会出现卡顿现象',
-						status: 'resolved',
-						createTime: new Date('2025-06-18 10:30:00')
-					},
-					{
-						id: 2,
-						type: 'feature',
-						content: '希望能增加夜间模式功能',
-						status: 'processing',
-						createTime: new Date('2025-06-15 14:20:00')
+				const response = await uni.request({
+					url: `${this.$config.apiBaseUrl}/feedback/my`,
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${uni.getStorageSync('token')}`
 					}
-				]
+				})
+				
+				if (response.data.success) {
+					this.recentFeedback = response.data.data || []
+				}
 			} catch (error) {
 				console.error('加载反馈历史失败:', error)
+				this.recentFeedback = []
 			}
 		},
 		
@@ -219,10 +214,20 @@ export default {
 					images: this.uploadedImages
 				}
 				
-				console.log('提交反馈:', feedbackData)
+				// 调用真实API
+				const response = await uni.request({
+					url: `${this.$config.apiBaseUrl}/feedback`,
+					method: 'POST',
+					data: feedbackData,
+					header: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${uni.getStorageSync('token')}`
+					}
+				})
 				
-				// 模拟API调用
-				await new Promise(resolve => setTimeout(resolve, 2000))
+				if (!response.data.success) {
+					throw new Error(response.data.message || '提交失败')
+				}
 				
 				uni.hideLoading()
 				uni.showModal({
