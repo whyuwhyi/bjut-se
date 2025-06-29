@@ -155,7 +155,7 @@
 					}
 					
 					const response = await uni.request({
-						url: 'http://localhost:3000/api/v1/users/my-collections',
+						url: `${this.$config.apiBaseUrl}/users/my-collections`,
 						method: 'GET',
 						header: {
 							'Authorization': `Bearer ${token}`
@@ -292,7 +292,7 @@
 					const token = uni.getStorageSync('token')
 					
 					const response = await uni.request({
-						url: `http://localhost:3000/api/v1/collections/${item.contentId}`,
+						url: `${this.$config.apiBaseUrl}/collections/${item.contentId}`,
 						method: 'DELETE',
 						header: {
 							'Authorization': `Bearer ${token}`
@@ -365,7 +365,7 @@
 								const token = uni.getStorageSync('token')
 								const deletePromises = this.selectedItems.map(item => 
 									uni.request({
-										url: `http://localhost:3000/api/v1/collections/${item.contentId}`,
+										url: `${this.$config.apiBaseUrl}/collections/${item.contentId}`,
 										method: 'DELETE',
 										header: {
 											'Authorization': `Bearer ${token}`

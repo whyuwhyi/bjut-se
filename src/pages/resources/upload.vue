@@ -93,7 +93,7 @@ export default {
 		async loadCategories() {
 			try {
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/categories/options',
+					url: `${this.$config.apiBaseUrl}/categories/options`,
 					method: 'GET'
 				})
 				
@@ -208,7 +208,7 @@ export default {
 				
 				// 1. 创建资源记录
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/resources',
+					url: `${this.$config.apiBaseUrl}/resources`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -248,7 +248,7 @@ export default {
 			try {
 				const token = uni.getStorageSync('token')
 				const response = await uni.request({
-					url: `http://localhost:3000/api/v1/resources/${resourceId}/submit-review`,
+					url: `${this.$config.apiBaseUrl}/resources/${resourceId}/submit-review`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`

@@ -136,7 +136,7 @@ export default {
 		async loadCategories() {
 			try {
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/categories',
+					url: `${this.$config.apiBaseUrl}/categories`,
 					method: 'GET'
 				})
 				
@@ -176,7 +176,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/resources',
+					url: `${this.$config.apiBaseUrl}/resources`,
 					method: 'GET',
 					header: headers,
 					data: params
@@ -241,7 +241,7 @@ export default {
 				item.isFavorited = !item.isFavorited
 				
 				const response = await uni.request({
-					url: `http://localhost:3000/api/v1/resources/${item.id}/favorite`,
+					url: `${this.$config.apiBaseUrl}/resources/${item.id}/favorite`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,

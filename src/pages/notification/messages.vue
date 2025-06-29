@@ -155,7 +155,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/notifications',
+					url: '${this.$config.apiBaseUrl}/notifications',
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -192,7 +192,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/notifications/unread-count',
+					url: '${this.$config.apiBaseUrl}/notifications/unread-count',
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -269,7 +269,7 @@ export default {
 			try {
 				const token = uni.getStorageSync('token')
 				await uni.request({
-					url: `http://localhost:3000/api/v1/notifications/${notificationId}/read`,
+					url: `${this.$config.apiBaseUrl}/notifications/${notificationId}/read`,
 					method: 'PATCH',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -288,7 +288,7 @@ export default {
 				})
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/notifications/mark-all-read',
+					url: '${this.$config.apiBaseUrl}/notifications/mark-all-read',
 					method: 'PATCH',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -328,7 +328,7 @@ export default {
 						try {
 							const token = uni.getStorageSync('token')
 							const response = await uni.request({
-								url: `http://localhost:3000/api/v1/notifications/${notification.notification_id}`,
+								url: `${this.$config.apiBaseUrl}/notifications/${notification.notification_id}`,
 								method: 'DELETE',
 								header: {
 									'Authorization': `Bearer ${token}`
@@ -373,7 +373,7 @@ export default {
 						try {
 							const token = uni.getStorageSync('token')
 							const response = await uni.request({
-								url: 'http://localhost:3000/api/v1/notifications/expired/clean',
+								url: '${this.$config.apiBaseUrl}/notifications/expired/clean',
 								method: 'DELETE',
 								header: {
 									'Authorization': `Bearer ${token}`

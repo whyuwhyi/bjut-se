@@ -297,7 +297,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `http://localhost:3000/api/v1/study-plans/${this.planId}`,
+					url: `${this.$config.apiBaseUrl}/study-plans/${this.planId}`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -345,7 +345,7 @@ export default {
 				const newStatus = task.completed ? 'in_progress' : 'completed';
 				
 				const response = await uni.request({
-					url: `http://localhost:3000/api/v1/study-plans/tasks/${task.id}/status`,
+					url: `${this.$config.apiBaseUrl}/study-plans/tasks/${task.id}/status`,
 					method: 'PATCH',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -429,7 +429,7 @@ export default {
 				if (this.editingTask.id) {
 					// 编辑任务
 					const response = await uni.request({
-						url: `http://localhost:3000/api/v1/study-plans/tasks/${this.editingTask.id}`,
+						url: `${this.$config.apiBaseUrl}/study-plans/tasks/${this.editingTask.id}`,
 						method: 'PUT',
 						header: {
 							'Authorization': `Bearer ${token}`,
@@ -448,7 +448,7 @@ export default {
 				} else {
 					// 新建任务
 					const response = await uni.request({
-						url: 'http://localhost:3000/api/v1/study-plans/tasks',
+						url: `${this.$config.apiBaseUrl}/study-plans/tasks`,
 						method: 'POST',
 						header: {
 							'Authorization': `Bearer ${token}`,
@@ -494,7 +494,7 @@ export default {
 						try {
 							const token = uni.getStorageSync('token');
 							const response = await uni.request({
-								url: `http://localhost:3000/api/v1/study-plans/tasks/${task.id}`,
+								url: `${this.$config.apiBaseUrl}/study-plans/tasks/${task.id}`,
 								method: 'DELETE',
 								header: {
 									'Authorization': `Bearer ${token}`
@@ -538,7 +538,7 @@ export default {
 			try {
 				const token = uni.getStorageSync('token');
 				await uni.request({
-					url: `http://localhost:3000/api/v1/study-plans/${this.planId}`,
+					url: `${this.$config.apiBaseUrl}/study-plans/${this.planId}`,
 					method: 'PUT',
 					header: {
 						'Authorization': `Bearer ${token}`,

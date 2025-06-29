@@ -124,7 +124,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/users/profile',
+					url: `${this.$config.apiBaseUrl}/users/profile`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -151,7 +151,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/users/stats',
+					url: `${this.$config.apiBaseUrl}/users/stats`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -179,7 +179,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/notifications/unread-count',
+					url: `${this.$config.apiBaseUrl}/notifications/unread-count`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`

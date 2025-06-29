@@ -157,7 +157,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/users/my-posts',
+					url: `${this.$config.apiBaseUrl}/users/my-posts`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -239,7 +239,7 @@ export default {
 						try {
 							const token = uni.getStorageSync('token')
 							const response = await uni.request({
-								url: `http://localhost:3000/api/v1/posts/${post.post_id}`,
+								url: `${this.$config.apiBaseUrl}/posts/${post.post_id}`,
 								method: 'DELETE',
 								header: {
 									'Authorization': `Bearer ${token}`

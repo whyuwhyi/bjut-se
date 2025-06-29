@@ -145,7 +145,7 @@ export default {
 		async loadTags() {
 			try {
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/posts/tags',
+					url: `${this.$config.apiBaseUrl}/posts/tags`,
 					method: 'GET'
 				})
 				
@@ -178,7 +178,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/posts',
+					url: `${this.$config.apiBaseUrl}/posts`,
 					method: 'GET',
 					data: params
 				})
