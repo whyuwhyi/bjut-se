@@ -16,11 +16,7 @@ RUN apk add --no-cache \
 COPY package*.json ./
 
 # 安装依赖
-RUN if [ -f package-lock.json ]; then \
-        npm ci --only=production; \
-    else \
-        npm install --only=production; \
-    fi && \
+RUN npm install --only=production && \
     npm cache clean --force
 
 # 创建非root用户
