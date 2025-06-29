@@ -6,7 +6,7 @@ const config = {
     username: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'wechat_education',
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST || 'mysql',
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     dialectOptions: {
@@ -32,7 +32,7 @@ const config = {
     username: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME + '_test' || 'wechat_education_test',
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST || 'mysql',
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     logging: false, // 测试环境不显示SQL日志
