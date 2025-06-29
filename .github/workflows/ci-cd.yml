@@ -244,8 +244,15 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker-compose -f docker/docker-compose.prod.yml pull
           
+          # 强制清理所有同名容器（包括已停止的）
+          echo "清理旧容器..."
+          docker rm -f $(docker ps -aq --filter "name=wechat-education") 2>/dev/null || true
+          
+          # 清理无用资源
+          docker system prune -f 2>/dev/null || true
+          
           # 停止旧服务
-          docker-compose -f docker/docker-compose.prod.yml down
+          docker-compose -f docker/docker-compose.prod.yml down 2>/dev/null || true
           
           # 启动新服务
           docker-compose -f docker/docker-compose.prod.yml up -d
