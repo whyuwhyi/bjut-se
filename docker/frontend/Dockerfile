@@ -8,9 +8,10 @@ WORKDIR /app
 # 复制package.json和package-lock.json
 COPY package*.json ./
 
-# 安装依赖（优化构建速度）
+# 安装依赖（跳过puppeteer下载）
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN npm config set registry https://registry.npmmirror.com && \
-    npm install --production=false --prefer-offline --no-audit
+    npm install --production=false --prefer-offline --no-audit --ignore-scripts
 
 # 复制源代码
 COPY . .
