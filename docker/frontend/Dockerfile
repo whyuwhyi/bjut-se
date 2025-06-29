@@ -28,7 +28,7 @@ FROM nginx:alpine
 COPY --from=builder /app/dist/build/h5 /var/www/html
 
 # 复制nginx配置
-COPY nginx/frontend.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx/frontend.conf /etc/nginx/conf.d/default.conf
 
 # 暴露端口
 EXPOSE 80
