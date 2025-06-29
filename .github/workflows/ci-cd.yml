@@ -227,9 +227,10 @@ jobs:
             mv current backup-$(date +%Y%m%d-%H%M%S)
           fi
           
-          # 下载最新代码压缩包
+          # 下载最新代码压缩包（添加时间戳避免缓存）
           echo "下载最新代码..."
-          if wget -O repo.zip https://github.com/${{ github.repository }}/archive/refs/heads/main.zip 2>/dev/null; then
+          TIMESTAMP=$(date +%s)
+          if wget -O repo.zip "https://github.com/${{ github.repository }}/archive/refs/heads/main.zip?t=${TIMESTAMP}" 2>/dev/null; then
             echo "✅ 代码下载成功"
             unzip -q repo.zip
             mv *-main current
@@ -253,19 +254,20 @@ jobs:
             echo "警告: 没有找到环境配置模板"
           fi
           
-          # 更新Docker镜像
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker-compose -f docker/docker-compose.prod.yml pull
-          
-          # 强制清理所有同名容器（包括已停止的）
-          echo "清理旧容器..."
+          # 强制清理所有同名容器和镜像
+          echo "清理旧容器和镜像..."
           docker rm -f $(docker ps -aq --filter "name=wechat-education") 2>/dev/null || true
+          docker rmi $(docker images | grep "wechat.*backend" | awk '{print $3}') 2>/dev/null || true
+          docker rmi $(docker images | grep "wechat.*frontend" | awk '{print $3}') 2>/dev/null || true
           
-          # 清理无用资源
-          docker system prune -f 2>/dev/null || true
+          # 清理无用资源和构建缓存
+          docker system prune -af 2>/dev/null || true
           
           # 停止旧服务
           docker-compose -f docker/docker-compose.prod.yml down 2>/dev/null || true
+          
+          # 强制重新构建镜像（无缓存）
+          docker-compose -f docker/docker-compose.prod.yml build --no-cache
           
           # 启动新服务
           docker-compose -f docker/docker-compose.prod.yml up -d
