@@ -227,16 +227,16 @@ jobs:
             mv current backup-$(date +%Y%m%d-%H%M%S)
           fi
           
-          # 使用GitHub镜像获取最新代码
-          echo "从镜像获取最新代码..."
-          if git clone https://mirror.ghproxy.com/https://github.com/${{ github.repository }}.git current; then
+          # 使用git获取最新代码
+          echo "获取最新代码..."
+          if git clone https://github.com/${{ github.repository }}.git current; then
             echo "✅ 代码获取成功"
           else
             if [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
               cp -r backup-$(ls -t backup-* | head -n 1) current
-              echo "⚠️ 镜像失败，使用最新备份"
+              echo "⚠️ Git克隆失败，使用最新备份"
             else
-              echo "❌ 镜像失败且无备份可用"
+              echo "❌ Git克隆失败且无备份可用"
               exit 1
             fi
           fi
