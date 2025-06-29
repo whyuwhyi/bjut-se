@@ -263,8 +263,10 @@ jobs:
           # 停止旧服务
           docker-compose -f docker/docker-compose.prod.yml down 2>/dev/null || true
           
-          # 强制重新构建镜像（无缓存）
-          docker-compose -f docker/docker-compose.prod.yml build --no-cache
+          # 设置构建超时并重新构建镜像
+          export COMPOSE_HTTP_TIMEOUT=1200
+          export DOCKER_CLIENT_TIMEOUT=1200
+          docker-compose -f docker/docker-compose.prod.yml build --no-cache --parallel
           
           # 启动新服务
           docker-compose -f docker/docker-compose.prod.yml up -d

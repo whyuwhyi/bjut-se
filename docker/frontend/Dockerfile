@@ -8,8 +8,9 @@ WORKDIR /app
 # 复制package.json和package-lock.json
 COPY package*.json ./
 
-# 安装依赖
-RUN npm install
+# 安装依赖（优化构建速度）
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install --production=false --prefer-offline --no-audit
 
 # 复制源代码
 COPY . .
