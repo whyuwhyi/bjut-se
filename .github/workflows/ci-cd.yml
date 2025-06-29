@@ -251,22 +251,21 @@ jobs:
             echo "警告: 没有找到环境配置模板"
           fi
           
-          # 强制清理所有同名容器和镜像
-          echo "清理旧容器和镜像..."
+          # 清理旧容器（保留基础镜像）
+          echo "清理旧容器..."
           docker rm -f $(docker ps -aq --filter "name=wechat-education") 2>/dev/null || true
-          docker rmi $(docker images | grep "wechat.*backend" | awk '{print $3}') 2>/dev/null || true
-          docker rmi $(docker images | grep "wechat.*frontend" | awk '{print $3}') 2>/dev/null || true
           
-          # 清理无用资源和构建缓存
-          docker system prune -af 2>/dev/null || true
+          # 只删除应用镜像，保留MySQL、Redis、Nginx等基础镜像
+          docker rmi $(docker images | grep "docker.*backend" | awk '{print $3}') 2>/dev/null || true
+          docker rmi $(docker images | grep "docker.*frontend" | awk '{print $3}') 2>/dev/null || true
           
           # 停止旧服务
           docker-compose -f docker/docker-compose.prod.yml down 2>/dev/null || true
           
-          # 设置构建超时并重新构建镜像
+          # 设置构建超时并重新构建应用镜像（使用缓存）
           export COMPOSE_HTTP_TIMEOUT=1200
           export DOCKER_CLIENT_TIMEOUT=1200
-          docker-compose -f docker/docker-compose.prod.yml build --no-cache --parallel
+          docker-compose -f docker/docker-compose.prod.yml build --parallel
           
           # 启动新服务
           docker-compose -f docker/docker-compose.prod.yml up -d
