@@ -5,8 +5,8 @@ const config = require('../config/app')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs').promises
-// const twilio = require('twilio'); // 短信功能暂未启用
-// const { VerificationCode } = require('../models'); // 验证码功能暂未启用
+const twilio = require('twilio');
+const { VerificationCode } = require('../models');
 
 
 class UserController {
