@@ -293,7 +293,9 @@ jobs:
               
               echo "✅ 部署成功！"
               # 清理旧备份（保留最近3个）
+              cd ..
               ls -t backup-* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+              cd current
               exit 0
             else
               echo "尝试 $attempt/$max_attempts: 容器尚未完全就绪，等待15秒..."
@@ -306,10 +308,19 @@ jobs:
           echo "❌ 部署失败，服务健康检查未通过，开始回滚..."
           docker-compose -f docker/docker-compose.prod.yml logs --tail=50
           docker-compose -f docker/docker-compose.prod.yml down
-          if [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
-            cd ../backup-$(ls -t backup-* 2>/dev/null | head -n 1)
+          
+          # 回滚到最新的备份版本
+          LATEST_BACKUP=$(ls -t ../backup-* 2>/dev/null | head -n 1)
+          if [ -n "$LATEST_BACKUP" ] && [ -d "$LATEST_BACKUP" ]; then
+            echo "回滚到备份版本: $(basename $LATEST_BACKUP)"
+            cd ..
+            rm -rf current
+            cp -r "$(basename $LATEST_BACKUP)" current
+            cd current
             docker-compose -f docker/docker-compose.prod.yml up -d
-            echo "🔄 已回滚到上一个版本"
+            echo "🔄 已回滚到备份版本: $(basename $LATEST_BACKUP)"
+          else
+            echo "❌ 没有可用的备份版本进行回滚"
           fi
           exit 1
 

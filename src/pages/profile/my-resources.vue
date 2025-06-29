@@ -254,7 +254,7 @@
 					}
 					
 					const response = await uni.request({
-						url: `${this.$config.apiBaseUrl}/users/my-resources`,
+						url: `this.$config.apiBaseUrl + '/users/my-resources`,
 						method: 'GET',
 						header: {
 							'Authorization': `Bearer ${token}`

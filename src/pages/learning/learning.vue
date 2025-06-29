@@ -260,7 +260,7 @@ export default {
 						try {
 							const token = uni.getStorageSync('token')
 							const response = await uni.request({
-								url: `${this.$config.apiBaseUrl}/study-plans/${this.currentPlan.id}`,
+								url: `this.$config.apiBaseUrl + '/study-plans/${this.currentPlan.id}`,
 								method: 'DELETE',
 								header: {
 									'Authorization': `Bearer ${token}`
@@ -312,7 +312,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/study-plans`,
+					url: `this.$config.apiBaseUrl + '/study-plans`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -361,7 +361,7 @@ export default {
 				const newStatus = task.completed ? 'in_progress' : 'completed';
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/study-plans/tasks/${task.id}/status`,
+					url: `this.$config.apiBaseUrl + '/study-plans/tasks/${task.id}/status`,
 					method: 'PATCH',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -420,7 +420,7 @@ export default {
 			try {
 				const token = uni.getStorageSync('token');
 				await uni.request({
-					url: `${this.$config.apiBaseUrl}/study-plans/${this.currentPlan.id}`,
+					url: `this.$config.apiBaseUrl + '/study-plans/${this.currentPlan.id}`,
 					method: 'PUT',
 					header: {
 						'Authorization': `Bearer ${token}`,

@@ -127,7 +127,7 @@ export default {
 		async loadRecentFeedback() {
 			try {
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/feedback/my`,
+					url: `this.$config.apiBaseUrl + '/feedback/my`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${uni.getStorageSync('token')}`
@@ -216,7 +216,7 @@ export default {
 				
 				// 调用真实API
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/feedback`,
+					url: `this.$config.apiBaseUrl + '/feedback`,
 					method: 'POST',
 					data: feedbackData,
 					header: {

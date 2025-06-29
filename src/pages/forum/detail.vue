@@ -172,7 +172,7 @@ export default {
 		async loadPostDetail() {
 			try {
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}`,
+					url: `this.$config.apiBaseUrl + '/'posts/${this.postId}`,
 					method: 'GET'
 				})
 				
@@ -204,7 +204,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/favorite-status?type=post`,
+					url: `this.$config.apiBaseUrl + '/'posts/${this.postId}/favorite-status?type=post`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -231,7 +231,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/comments`,
+					url: `this.$config.apiBaseUrl + '/'posts/${this.postId}/comments`,
 					method: 'GET',
 					data: params
 				})
@@ -288,7 +288,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/comments`,
+					url: `this.$config.apiBaseUrl + '/'posts/${this.postId}/comments`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -354,7 +354,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/favorite`,
+					url: `this.$config.apiBaseUrl + '/'posts/${this.postId}/favorite`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,

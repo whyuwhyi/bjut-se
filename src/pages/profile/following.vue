@@ -95,7 +95,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/users/following`,
+					url: `this.$config.apiBaseUrl + '/users/following`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -147,7 +147,7 @@ export default {
 			try {
 				const token = uni.getStorageSync('token')
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/users/follow/${item.followingUser.phone_number}`,
+					url: `this.$config.apiBaseUrl + '/users/follow/${item.followingUser.phone_number}`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`

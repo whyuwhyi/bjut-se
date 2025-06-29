@@ -200,7 +200,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: '${this.$config.apiBaseUrl}/users/profile',
+					url: 'this.$config.apiBaseUrl + '/users/profile',
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -264,7 +264,7 @@ export default {
 				})
 				
 				const response = await uni.uploadFile({
-					url: '${this.$config.apiBaseUrl}/users/avatar',
+					url: 'this.$config.apiBaseUrl + '/users/avatar',
 					filePath: filePath,
 					name: 'avatar',
 					header: {
@@ -384,7 +384,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: '${this.$config.apiBaseUrl}/users/profile',
+					url: 'this.$config.apiBaseUrl + '/users/profile',
 					method: 'PUT',
 					header: {
 						'Authorization': `Bearer ${token}`,
