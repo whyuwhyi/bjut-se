@@ -99,13 +99,13 @@ install_backend() {
 # 检查端口占用
 check_ports() {
   print_step "检查端口占用..."
-  
+
   # 检查3306端口
   if lsof -Pi :3306 -sTCP:LISTEN -t >/dev/null 2>&1; then
     print_warning "端口3306已被占用，将尝试停止现有MySQL容器..."
     docker stop $(docker ps -q --filter "expose=3306") 2>/dev/null || true
   fi
-  
+
   # 检查6379端口
   if lsof -Pi :6379 -sTCP:LISTEN -t >/dev/null 2>&1; then
     print_warning "端口6379已被占用，将尝试停止现有Redis容器..."
@@ -127,9 +127,9 @@ start_database() {
     else
       docker compose up -d mysql redis
     fi
-    
+
     print_info "等待数据库启动..."
-    
+
     # 等待MySQL完全启动
     local max_attempts=30
     local attempt=0
@@ -142,12 +142,12 @@ start_database() {
       attempt=$((attempt + 1))
     done
     echo ""
-    
+
     if [ $attempt -eq $max_attempts ]; then
       print_error "数据库启动超时"
       exit 1
     fi
-    
+
     print_info "数据库服务启动完成 ✓"
   else
     print_error "docker-compose.yml 不存在"
@@ -158,24 +158,35 @@ start_database() {
 # 检查数据库状态
 check_database() {
   print_step "检查数据库状态..."
-  
+
   # 检查数据库是否已初始化
   local table_count
   table_count=$(docker exec wechat-education-mysql mysql -uappuser -papppassword wechat_education -e "SHOW TABLES;" 2>/dev/null | wc -l || echo "0")
-  
+
   if [ "$table_count" -gt 1 ]; then
     print_info "数据库已初始化，包含 $table_count 个表 ✓"
-    print_info "测试账号: 13800138001, 13800138002, 13800138003 (密码: 123456)"
+    
+    # 检查是否有测试数据
+    local user_count
+    user_count=$(docker exec wechat-education-mysql mysql -uappuser -papppassword wechat_education -e "SELECT COUNT(*) FROM users;" 2>/dev/null | tail -1 || echo "0")
+    
+    if [ "$user_count" -gt 0 ]; then
+      print_info "测试数据完整，用户数: $user_count"
+      print_info "测试账号: 13800138001, 13800138002, 13800138003 (密码: 123456)"
+    else
+      print_warning "数据库表已创建但缺少测试数据"
+      print_info "可以运行 './scripts/dev.sh reset-db' 重新初始化完整测试数据"
+    fi
   else
-    print_warning "数据库未初始化或表数据不完整"
-    print_info "可以运行 './scripts/dev.sh reset-db' 重新初始化数据库"
+    print_warning "数据库未初始化或表结构不完整"
+    print_info "可以运行 './scripts/dev.sh reset-db' 重新初始化数据库和测试数据"
   fi
 }
 
 # 重置数据库
 reset_database() {
   print_step "重置数据库..."
-  
+
   # 停止数据库容器
   if command -v docker-compose &>/dev/null; then
     docker-compose stop mysql
@@ -184,13 +195,40 @@ reset_database() {
     docker compose stop mysql
     docker compose rm -f mysql
   fi
-  
+
   # 删除数据卷
   docker volume rm wechat_software_mysql_data 2>/dev/null || true
-  
+
   # 重新启动数据库
   start_database
-  
+
+  # 等待数据库完全就绪后执行初始化脚本
+  print_step "执行数据库初始化脚本..."
+  local max_attempts=5
+  local attempt=0
+  while [ $attempt -lt $max_attempts ]; do
+    if docker exec wechat-education-mysql mysql -u root -prootpassword wechat_education -e "SELECT 1;" >/dev/null 2>&1; then
+      # 执行初始化脚本
+      docker exec -i wechat-education-mysql mysql -u root -prootpassword wechat_education < database/init/01-init-database.sql
+      if [ $? -eq 0 ]; then
+        print_info "数据库初始化脚本执行成功 ✓"
+        break
+      else
+        print_error "数据库初始化脚本执行失败"
+        exit 1
+      fi
+    fi
+    echo -n "."
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+  echo ""
+
+  if [ $attempt -eq $max_attempts ]; then
+    print_error "数据库初始化超时"
+    exit 1
+  fi
+
   print_info "数据库重置完成 ✓"
 }
 
@@ -211,7 +249,7 @@ start_backend() {
   # 设置开发环境变量
   export NODE_ENV=development
   export DB_HOST=localhost
-  export DB_PORT=3307
+  export DB_PORT=3306
   export DB_NAME=wechat_education
   export DB_USER=appuser
   export DB_PASSWORD=apppassword
@@ -221,17 +259,17 @@ start_backend() {
   # 后台启动后端服务器
   npm run dev &
   BACKEND_PID=$!
-  echo $BACKEND_PID > ../backend.pid
+  echo $BACKEND_PID >../backend.pid
   cd ..
 
   print_info "后端服务器已启动 (PID: $BACKEND_PID) ✓"
   print_info "等待后端服务器准备就绪..."
-  
+
   # 等待后端服务器启动
   local max_attempts=15
   local attempt=0
   while [ $attempt -lt $max_attempts ]; do
-    if curl -s http://localhost:3000/api/v1/health > /dev/null 2>&1; then
+    if curl -s http://localhost:3000/api/v1/health >/dev/null 2>&1; then
       print_info "后端服务器已就绪 ✓"
       break
     fi
@@ -240,7 +278,7 @@ start_backend() {
     attempt=$((attempt + 1))
   done
   echo ""
-  
+
   if [ $attempt -eq $max_attempts ]; then
     print_warning "后端服务器启动可能有问题，请检查日志"
   fi
@@ -249,13 +287,13 @@ start_backend() {
 # 启动前端开发服务器
 start_frontend() {
   print_step "启动前端H5开发服务器..."
-  
+
   # 设置开发环境变量
   export NODE_ENV=development
-  
+
   npm run dev:h5 &
   FRONTEND_PID=$!
-  echo $FRONTEND_PID > frontend.pid
+  echo $FRONTEND_PID >frontend.pid
 
   print_info "前端开发服务器已启动 (PID: $FRONTEND_PID) ✓"
 }
@@ -305,7 +343,7 @@ show_dev_info() {
   echo "   - 健康检查: http://localhost:3000/api/v1/health"
   echo ""
   echo "📚 数据库信息："
-  echo "   - MySQL: localhost:3307"
+  echo "   - MySQL: localhost:3306"
   echo "   - Redis: localhost:6379"
   echo "   - 数据库: wechat_education"
   echo "   - 用户: appuser"
@@ -371,7 +409,7 @@ run_tests() {
 # 显示服务状态
 show_status() {
   print_step "检查服务状态..."
-  
+
   # 检查前端进程
   if [ -f frontend.pid ]; then
     FRONTEND_PID=$(cat frontend.pid)
@@ -383,7 +421,7 @@ show_status() {
   else
     print_warning "前端服务器未启动"
   fi
-  
+
   # 检查后端进程
   if [ -f backend.pid ]; then
     BACKEND_PID=$(cat backend.pid)
@@ -395,7 +433,7 @@ show_status() {
   else
     print_warning "后端服务器未启动"
   fi
-  
+
   # 检查Docker容器
   if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "(mysql|redis)"; then
     print_info "数据库服务运行正常 ✓"
@@ -407,10 +445,10 @@ show_status() {
 # 启动生产环境
 start_prod_mode() {
   print_step "启动生产环境..."
-  
+
   # 设置生产环境变量
   export NODE_ENV=production
-  
+
   # 检查环境配置
   if [ ! -f ".env" ]; then
     print_warning ".env文件不存在，从示例文件复制..."
@@ -422,19 +460,18 @@ start_prod_mode() {
       exit 1
     fi
   fi
-  
+
   # 构建并启动所有服务
   if command -v docker-compose &>/dev/null; then
     docker-compose up --build -d
   else
     docker compose up --build -d
   fi
-  
+
   print_info "生产环境启动完成 ✓"
   print_info "服务地址: http://localhost"
   print_info "后端API: http://localhost:3000"
 }
-
 
 # 主函数
 main() {
@@ -515,3 +552,4 @@ main() {
 
 # 执行主函数
 main "$@"
+

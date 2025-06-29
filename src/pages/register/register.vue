@@ -194,7 +194,7 @@ export default {
 			}
 			
 			// 格式验证
-			const phonePattern = /^1[3-9]\\d{9}$/
+			const phonePattern = /^1[3-9]\d{9}$/
 			if (!phonePattern.test(this.registerForm.phone_number)) {
 				uni.showToast({
 					title: '手机号格式不正确',
