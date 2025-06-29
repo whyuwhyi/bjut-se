@@ -282,8 +282,8 @@ jobs:
           attempt=1
           while [ $attempt -le $max_attempts ]; do
             # 检查所有服务是否健康
-            if docker-compose -f docker/docker-compose.prod.yml ps | grep -q "Up (healthy).*backend" && \
-               docker-compose -f docker/docker-compose.prod.yml ps | grep -q "Up.*nginx"; then
+            if docker-compose -f docker/docker-compose.prod.yml ps | grep -q "backend.*Up (healthy)" && \
+               docker-compose -f docker/docker-compose.prod.yml ps | grep -q "nginx.*Up (healthy)"; then
               echo "✅ 所有容器服务正常"
               
               # 尝试访问Nginx（对外服务）

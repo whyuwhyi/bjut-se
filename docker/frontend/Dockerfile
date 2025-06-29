@@ -25,6 +25,10 @@ FROM nginx:alpine
 # 复制构建产物
 COPY --from=builder /app/dist/build/h5 /var/www/html
 
+# 确保文件权限正确
+RUN chmod -R 755 /var/www/html && \
+    chown -R nginx:nginx /var/www/html
+
 # 复制nginx配置
 COPY docker/nginx/frontend.conf /etc/nginx/conf.d/default.conf
 
