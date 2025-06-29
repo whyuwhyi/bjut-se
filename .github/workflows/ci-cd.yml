@@ -227,21 +227,18 @@ jobs:
             mv current backup-$(date +%Y%m%d-%H%M%S)
           fi
           
-          # 下载最新代码压缩包（添加时间戳避免缓存）
-          echo "下载最新代码..."
-          TIMESTAMP=$(date +%s)
-          if wget -O repo.zip "https://github.com/${{ github.repository }}/archive/refs/heads/main.zip?t=${TIMESTAMP}" 2>/dev/null; then
-            echo "✅ 代码下载成功"
-            unzip -q repo.zip
-            mv *-main current
-            rm -f repo.zip
-            echo "✅ 代码解压完成"
-          elif [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
-            cp -r backup-$(ls -t backup-* | head -n 1) current
-            echo "⚠️ 下载失败，使用备份: backup-$(ls -t backup-* | head -n 1)"
+          # 使用GitHub镜像获取最新代码
+          echo "从镜像获取最新代码..."
+          if git clone https://mirror.ghproxy.com/https://github.com/${{ github.repository }}.git current; then
+            echo "✅ 代码获取成功"
           else
-            echo "❌ 下载失败且无备份可用"
-            exit 1
+            if [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
+              cp -r backup-$(ls -t backup-* | head -n 1) current
+              echo "⚠️ 镜像失败，使用最新备份"
+            else
+              echo "❌ 镜像失败且无备份可用"
+              exit 1
+            fi
           fi
           cd current
           
