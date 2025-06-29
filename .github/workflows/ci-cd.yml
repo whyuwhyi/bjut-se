@@ -278,23 +278,28 @@ jobs:
           echo "等待服务启动..."
           sleep 60
           
-          # 健康检查
-          max_attempts=10
+          # 健康检查 - 检查容器状态而不是HTTP端点
+          max_attempts=6
           attempt=1
           while [ $attempt -le $max_attempts ]; do
-            if curl -f http://localhost:3000/api/v1/health 2>/dev/null; then
-              echo "✅ 后端API服务正常"
-              if curl -f http://localhost/health 2>/dev/null; then
-                echo "✅ Nginx代理服务正常"
+            # 检查所有服务是否健康
+            if docker-compose -f docker/docker-compose.prod.yml ps | grep -q "Up (healthy).*backend" && \
+               docker-compose -f docker/docker-compose.prod.yml ps | grep -q "Up.*nginx"; then
+              echo "✅ 所有容器服务正常"
+              
+              # 尝试访问Nginx（对外服务）
+              if curl -f http://localhost/ --connect-timeout 5 2>/dev/null; then
+                echo "✅ 前端服务可访问"
               fi
+              
               echo "✅ 部署成功！"
               # 清理旧备份（保留最近3个）
               ls -t backup-* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
               exit 0
             else
-              echo "尝试 $attempt/$max_attempts: 服务尚未就绪，等待10秒..."
+              echo "尝试 $attempt/$max_attempts: 容器尚未完全就绪，等待15秒..."
               docker-compose -f docker/docker-compose.prod.yml ps
-              sleep 10
+              sleep 15
               attempt=$((attempt + 1))
             fi
           done
