@@ -95,11 +95,9 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/proxy.conf:/etc/nginx/conf.d/default.conf:ro
-      - ../ssl:/etc/nginx/ssl:ro
       - backend_uploads:/var/www/uploads:ro
     networks:
       - app-network
