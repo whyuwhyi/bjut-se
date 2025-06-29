@@ -109,7 +109,7 @@
 			async loadNotificationDetail() {
 				try {
 					const response = await uni.request({
-						url: `this.$config.apiBaseUrl + '/notifications/${this.notificationId}`,
+						url: this.$config.apiBaseUrl + '/notifications/' + this.notificationId,
 						method: 'GET',
 						header: {
 							'Authorization': `Bearer ${uni.getStorageSync('token')}`
@@ -120,7 +120,7 @@
 						throw new Error(response.data.message || '获取通知详情失败')
 					}
 					
-					this.notification = data
+					this.notification = response.data.data
 					
 					// 标记为已读
 					if (!this.notification.isRead) {
@@ -139,7 +139,7 @@
 			async markAsRead() {
 				try {
 					await uni.request({
-						url: `this.$config.apiBaseUrl + '/notifications/${this.notificationId}/read`,
+						url: this.$config.apiBaseUrl + '/notifications/' + this.notificationId + '/read',
 						method: 'PUT',
 						header: {
 							'Authorization': `Bearer ${uni.getStorageSync('token')}`
@@ -155,7 +155,7 @@
 				try {
 					const newStarred = !this.notification.isStarred
 					await uni.request({
-						url: `this.$config.apiBaseUrl + '/notifications/${this.notificationId}/star`,
+						url: this.$config.apiBaseUrl + '/notifications/' + this.notificationId + '/star',
 						method: newStarred ? 'PUT' : 'DELETE',
 						header: {
 							'Authorization': `Bearer ${uni.getStorageSync('token')}`
