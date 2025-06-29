@@ -167,64 +167,7 @@
 					{ name: '浏览量', value: 'view_count_desc' },
 					{ name: '评分', value: 'rating_desc' }
 				],
-				myResources: [
-					{
-						id: '1',
-						title: 'Vue.js 完整开发指南',
-						fileName: 'vue-guide.pdf',
-						description: 'Vue.js从基础到高级的完整学习指南，包含实战项目案例',
-						fileType: 'pdf',
-						fileSize: 15728640, // 15MB
-						status: 'approved',
-						uploadTime: new Date('2025-06-18 14:30:00'),
-						downloadCount: 156,
-						viewCount: 423,
-						rating: 4.8,
-						tags: ['Vue.js', '前端', '教程']
-					},
-					{
-						id: '2',
-						title: 'Python数据分析项目源码',
-						fileName: 'python-data-analysis.zip',
-						description: '包含多个Python数据分析项目的完整源码和数据集',
-						fileType: 'zip',
-						fileSize: 52428800, // 50MB
-						status: 'approved',
-						uploadTime: new Date('2025-06-15 09:45:00'),
-						downloadCount: 89,
-						viewCount: 234,
-						rating: 4.6,
-						tags: ['Python', '数据分析', '源码']
-					},
-					{
-						id: '3',
-						title: 'React Hook 使用技巧',
-						fileName: 'react-hooks-tips.md',
-						description: 'React Hook的实用技巧和最佳实践分享',
-						fileType: 'md',
-						fileSize: 1048576, // 1MB
-						status: 'pending',
-						uploadTime: new Date('2025-06-19 16:20:00'),
-						downloadCount: 0,
-						viewCount: 12,
-						rating: 0,
-						tags: ['React', 'Hook', '技巧']
-					},
-					{
-						id: '4',
-						title: '算法设计课件',
-						fileName: 'algorithm-design.pptx',
-						description: '算法设计与分析课程的完整课件，包含动态规划、贪心算法等',
-						fileType: 'pptx',
-						fileSize: 25165824, // 24MB
-						status: 'rejected',
-						uploadTime: new Date('2025-06-10 11:30:00'),
-						downloadCount: 0,
-						viewCount: 8,
-						rating: 0,
-						tags: ['算法', '课件', '计算机']
-					}
-				],
+				myResources: [],
 				resourceToDelete: null
 			}
 		},
@@ -293,13 +236,21 @@
 						return
 					}
 					
+					// 映射前端状态到后端状态
+					const statusMap = {
+						'all': '',
+						'approved': 'published',
+						'pending': 'pending',
+						'rejected': 'rejected'
+					}
+					
 					const status = this.statusFilters[this.selectedStatus].value
 					const params = {
 						page: 1,
 						limit: 50
 					}
 					if (status !== 'all') {
-						params.status = status
+						params.status = statusMap[status]
 					}
 					
 					const response = await uni.request({
@@ -312,26 +263,53 @@
 					})
 					
 					if (response.data.success) {
-						this.myResources = response.data.data.resources
-						this.calculateStats()
+						// 转换后端数据格式为前端格式
+						this.myResources = response.data.data.resources.map(resource => ({
+							id: resource.resource_id,
+							title: resource.resource_name,
+							description: resource.description,
+							status: this.mapBackendStatus(resource.status),
+							uploadTime: resource.created_at,
+							downloadCount: resource.download_count || 0,
+							viewCount: resource.view_count || 0,
+							rating: resource.rating || 0,
+							files: resource.files || [],
+							fileName: resource.files && resource.files.length > 0 ? resource.files[0].file_name : '',
+							fileType: resource.files && resource.files.length > 0 ? this.getFileTypeFromName(resource.files[0].file_name) : '',
+							fileSize: resource.files && resource.files.length > 0 ? resource.files[0].file_size : 0,
+							tags: []
+						}))
+					} else {
+						uni.showToast({
+							title: response.data.message || '加载失败',
+							icon: 'none'
+						})
 					}
 				} catch (error) {
 					console.error('加载资源失败:', error)
 					uni.showToast({
-						title: '加载失败',
+						title: '网络错误',
 						icon: 'none'
 					})
 				}
 			},
 			
-			calculateStats() {
-				this.totalUploads = this.myResources.length
-				this.totalDownloads = this.myResources.reduce((sum, r) => sum + (r.download_count || 0), 0)
-				this.totalViews = this.myResources.reduce((sum, r) => sum + (r.view_count || 0), 0)
-				this.avgRating = this.myResources.length > 0 
-					? this.myResources.reduce((sum, r) => sum + (r.rating || 0), 0) / this.myResources.length 
-					: 0
+			mapBackendStatus(status) {
+				const statusMap = {
+					'published': 'approved',
+					'pending': 'pending',
+					'rejected': 'rejected',
+					'draft': 'pending'
+				}
+				return statusMap[status] || 'pending'
 			},
+			
+			getFileTypeFromName(fileName) {
+				if (!fileName) return ''
+				const ext = fileName.split('.').pop()
+				return ext ? ext.toLowerCase() : ''
+			},
+			
 			
 			selectStatus(index) {
 				this.selectedStatus = index;

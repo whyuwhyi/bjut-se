@@ -10,6 +10,7 @@ router.get('/resources/:resourceId/favorite-status', auth, CollectionController.
 router.post('/posts/:resourceId/favorite', auth, CollectionController.toggleCollection)
 router.get('/posts/:resourceId/favorite-status', auth, CollectionController.checkCollectionStatus)
 router.get('/collections', auth, CollectionController.getUserCollections)
+router.delete('/:contentId', auth, CollectionController.removeCollection)
 
 
 module.exports = router

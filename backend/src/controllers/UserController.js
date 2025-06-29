@@ -1,4 +1,4 @@
-const { User, Resource, Post, Collection, UserFollow, DownloadRecord, File } = require('../models')
+const { User, Resource, Post, Collection, UserFollow, File } = require('../models')
 const jwt = require('jsonwebtoken')
 const { validationResult } = require('express-validator')
 const config = require('../config/app')
@@ -446,14 +446,20 @@ class UserController {
         where.collection_type = collection_type
       }
 
-      const collections = await Collection.findAndCountAll({
+      // Get collections without complex joins first
+      const { count, rows: rawCollections } = await Collection.findAndCountAll({
         where,
-        include: [
-          {
-            model: Resource,
-            as: 'resource',
-            required: false,
-            where: { status: 'published' },
+        order: [['created_at', 'DESC']],
+        offset,
+        limit: parseInt(limit)
+      })
+
+      // Manually fetch related data for each collection
+      const collections = await Promise.all(rawCollections.map(async (collection) => {
+        const collectionData = collection.toJSON()
+        if (collection.collection_type === 'resource') {
+          const resource = await Resource.findOne({
+            where: { resource_id: collection.content_id, status: 'published' },
             include: [
               {
                 model: User,
@@ -461,18 +467,31 @@ class UserController {
                 attributes: ['name', 'nickname']
               }
             ]
-          }
-        ],
-        order: [['created_at', 'DESC']],
-        offset,
-        limit: parseInt(limit)
-      })
+          })
+          collectionData.resource = resource
+          collectionData.post = null
+        } else if (collection.collection_type === 'post') {
+          const post = await Post.findOne({
+            where: { post_id: collection.content_id, status: 'active' },
+            include: [
+              {
+                model: User,
+                as: 'author',
+                attributes: ['name', 'nickname']
+              }
+            ]
+          })
+          collectionData.post = post
+          collectionData.resource = null
+        }
+        return collectionData
+      }))
 
       res.json({
         success: true,
         data: {
-          collections: collections.rows,
-          total: collections.count,
+          collections: collections,
+          total: count,
           page: parseInt(page),
           limit: parseInt(limit)
         }
@@ -642,58 +661,6 @@ class UserController {
   }
 
   // 获取用户下载记录
-  async getUserDownloads(req, res) {
-    try {
-      const { page = 1, limit = 10, status = 'completed' } = req.query
-      const phone_number = req.user.phone_number
-      const offset = (page - 1) * limit
-
-      const downloads = await DownloadRecord.findAndCountAll({
-        where: {
-          user_phone: phone_number,
-          status
-        },
-        include: [
-          {
-            model: Resource,
-            as: 'resource',
-            attributes: ['resource_id', 'resource_name', 'description'],
-            include: [
-              {
-                model: User,
-                as: 'publisher',
-                attributes: ['name', 'nickname']
-              }
-            ]
-          },
-          {
-            model: File,
-            as: 'file',
-            attributes: ['file_id', 'file_name', 'file_type', 'file_size']
-          }
-        ],
-        order: [['downloaded_at', 'DESC']],
-        offset,
-        limit: parseInt(limit)
-      })
-
-      res.json({
-        success: true,
-        data: {
-          downloads: downloads.rows,
-          total: downloads.count,
-          page: parseInt(page),
-          limit: parseInt(limit)
-        }
-      })
-    } catch (error) {
-      console.error('Get user downloads error:', error)
-      res.status(500).json({
-        success: false,
-        message: '获取下载记录失败'
-      })
-    }
-  }
 
   // 获取用户统计信息
   async getUserStats(req, res) {
@@ -706,26 +673,23 @@ class UserController {
         postCount,
         collectionCount,
         followingCount,
-        followerCount,
-        downloadCount
+        followerCount
       ] = await Promise.all([
         Resource.count({ where: { publisher_phone: phone_number, status: 'published' } }),
         Post.count({ where: { author_phone: phone_number, status: 'active' } }),
         Collection.count({ where: { user_phone: phone_number, status: 'active' } }),
         UserFollow.count({ where: { follower_phone: phone_number, status: 'active' } }),
-        UserFollow.count({ where: { following_phone: phone_number, status: 'active' } }),
-        DownloadRecord.count({ where: { user_phone: phone_number, status: 'completed' } })
+        UserFollow.count({ where: { following_phone: phone_number, status: 'active' } })
       ])
 
       res.json({
         success: true,
         data: {
-          resources: resourceCount,
-          posts: postCount,
-          collections: collectionCount,
-          following: followingCount,
-          followers: followerCount,
-          downloads: downloadCount
+          resourceCount: resourceCount,
+          postCount: postCount,
+          collectionCount: collectionCount,
+          followingCount: followingCount,
+          followerCount: followerCount
         }
       })
     } catch (error) {

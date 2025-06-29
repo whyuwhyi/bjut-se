@@ -43,11 +43,6 @@
 					<text class="menu-badge" v-if="userStats.collectionCount > 0">{{ userStats.collectionCount }}</text>
 					<text class="menu-arrow">></text>
 				</view>
-				<view class="menu-item" @click="goToDownloads">
-					<text class="menu-icon">📥</text>
-					<text class="menu-text">下载记录</text>
-					<text class="menu-arrow">></text>
-				</view>
 			</view>
 
 			<view class="menu-group">
@@ -62,12 +57,6 @@
 
 			<view class="menu-group">
 				<text class="group-title">⚙️ 应用管理</text>
-				<view class="menu-item" @click="checkUpdate">
-					<text class="menu-icon">🔄</text>
-					<text class="menu-text">检查更新</text>
-					<text class="menu-extra">v1.0.0</text>
-					<text class="menu-arrow">></text>
-				</view>
 				<view class="menu-item" @click="goToFeedback">
 					<text class="menu-icon">📮</text>
 					<text class="menu-text">意见反馈</text>
@@ -246,11 +235,6 @@ export default {
 			})
 		},
 		
-		goToDownloads() {
-			uni.navigateTo({
-				url: './downloads'
-			})
-		},
 		
 		
 		goToMessages() {
@@ -274,19 +258,6 @@ export default {
 		},
 		
 		
-		checkUpdate() {
-			uni.showLoading({
-				title: '检查更新中...'
-			})
-			
-			setTimeout(() => {
-				uni.hideLoading()
-				uni.showToast({
-					title: '当前已是最新版本',
-					icon: 'success'
-				})
-			}, 2000)
-		},
 		
 		logout() {
 			uni.showModal({

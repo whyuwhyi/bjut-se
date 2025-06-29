@@ -189,6 +189,62 @@ class CollectionController {
     }
   }
 
+  // 删除收藏
+  async removeCollection(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { contentId } = req.params
+      const { collection_type } = req.body
+
+      // 验证收藏类型
+      if (!collection_type || !['post', 'resource'].includes(collection_type)) {
+        return res.status(400).json({
+          success: false,
+          message: '收藏类型无效'
+        })
+      }
+
+      // 查找收藏记录
+      const collection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: contentId,
+          collection_type: collection_type,
+          status: 'active'
+        }
+      })
+
+      if (!collection) {
+        return res.status(404).json({
+          success: false,
+          message: '收藏记录不存在'
+        })
+      }
+
+      // 更新收藏状态为cancelled
+      await collection.update({ status: 'cancelled' })
+
+      // 更新收藏计数
+      if (collection_type === 'resource') {
+        await Resource.decrement('collection_count', { where: { resource_id: contentId } })
+      } else if (collection_type === 'post') {
+        await Post.decrement('collection_count', { where: { post_id: contentId } })
+      }
+
+      res.json({
+        success: true,
+        message: '取消收藏成功'
+      })
+    } catch (error) {
+      console.error('删除收藏错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '删除收藏失败',
+        error: error.message
+      })
+    }
+  }
+
   // 生成收藏ID
   generateCollectionId() {
     return String(Math.floor(100000000 + Math.random() * 900000000))

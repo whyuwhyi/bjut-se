@@ -149,6 +149,19 @@ const updateTaskStatus = async (req, res) => {
         experience_gained: 20,
         study_date: new Date()
       })
+    } else if (status === 'in_progress') {
+      // 如果任务从完成状态切换回未完成状态，可以选择删除相关的完成记录
+      // 这里我们保留记录，只是不创建新的记录
+      // 如果需要删除，可以取消注释下面的代码：
+      /*
+      await StudyRecord.destroy({
+        where: {
+          user_phone: phone_number,
+          task_id: id,
+          activity_type: 'task_complete'
+        }
+      })
+      */
     }
 
     res.json({

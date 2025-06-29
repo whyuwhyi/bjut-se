@@ -4,7 +4,6 @@ const { sequelize } = require('../config/database')
 const User = require('./User')
 const Resource = require('./Resource')
 const ResourceType = require('./ResourceType')
-const ResourceTypeRelation = require('./ResourceTypeRelation')
 const Category = require('./Category')
 const File = require('./File')
 const Collection = require('./Collection')
@@ -18,11 +17,8 @@ const StudyPlan = require('./StudyPlan')
 const StudyTask = require('./StudyTask')
 const SubTask = require('./SubTask')
 const StudyRecord = require('./StudyRecord')
-const StudyGoal = require('./StudyGoal')
-const UserLevel = require('./UserLevel')
 // 用户管理模块
 const UserFollow = require('./UserFollow')
-const DownloadRecord = require('./DownloadRecord')
 // 通知模块
 const Notification = require('./Notification')
 
@@ -123,30 +119,6 @@ StudyRecord.belongsTo(Post, {
   as: 'post'
 })
 
-// 用户 - 学习目标关系
-User.hasMany(StudyGoal, {
-  foreignKey: 'user_phone',
-  sourceKey: 'phone_number',
-  as: 'studyGoals'
-})
-StudyGoal.belongsTo(User, {
-  foreignKey: 'user_phone',
-  targetKey: 'phone_number',
-  as: 'user'
-})
-
-
-// 用户 - 等级关系
-User.hasOne(UserLevel, {
-  foreignKey: 'user_phone',
-  sourceKey: 'phone_number',
-  as: 'level'
-})
-UserLevel.belongsTo(User, {
-  foreignKey: 'user_phone',
-  targetKey: 'phone_number',
-  as: 'user'
-})
 
 // 资源 - 文件关系
 Resource.hasMany(File, {
@@ -241,19 +213,6 @@ Category.hasMany(Resource, {
   as: 'resources'
 })
 
-// 资源 - 资源类型关系（多对多）
-Resource.belongsToMany(ResourceType, {
-  through: ResourceTypeRelation,
-  foreignKey: 'resource_id',
-  otherKey: 'type_id',
-  as: 'types'
-})
-ResourceType.belongsToMany(Resource, {
-  through: ResourceTypeRelation,
-  foreignKey: 'type_id',
-  otherKey: 'resource_id',
-  as: 'resources'
-})
 
 // 用户 - 帖子关系
 User.hasMany(Post, {
@@ -313,37 +272,6 @@ UserFollow.belongsTo(User, {
   as: 'followingUser'
 })
 
-// 用户下载记录关系
-User.hasMany(DownloadRecord, {
-  foreignKey: 'user_phone',
-  sourceKey: 'phone_number',
-  as: 'downloads'
-})
-DownloadRecord.belongsTo(User, {
-  foreignKey: 'user_phone',
-  targetKey: 'phone_number',
-  as: 'user'
-})
-
-// 资源下载记录关系
-Resource.hasMany(DownloadRecord, {
-  foreignKey: 'resource_id',
-  as: 'downloadRecords'
-})
-DownloadRecord.belongsTo(Resource, {
-  foreignKey: 'resource_id',
-  as: 'resource'
-})
-
-// 文件下载记录关系
-File.hasMany(DownloadRecord, {
-  foreignKey: 'file_id',
-  as: 'downloadRecords'
-})
-DownloadRecord.belongsTo(File, {
-  foreignKey: 'file_id',
-  as: 'file'
-})
 
 // 用户通知关系
 User.hasMany(Notification, {
@@ -393,7 +321,6 @@ const models = {
   User,
   Resource,
   ResourceType,
-  ResourceTypeRelation,
   Category,
   File,
   Collection,
@@ -407,11 +334,8 @@ const models = {
   StudyTask,
   SubTask,
   StudyRecord,
-  StudyGoal,
-  UserLevel,
   // 用户管理模块
   UserFollow,
-  DownloadRecord,
   // 通知模块
   Notification,
   sequelize

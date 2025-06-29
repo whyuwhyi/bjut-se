@@ -157,7 +157,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/posts',
+					url: 'http://localhost:3000/api/v1/users/my-posts',
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -166,7 +166,7 @@ export default {
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
-					const { posts, pagination } = response.data.data
+					const { posts, total, page, limit } = response.data.data
 					
 					if (refresh) {
 						this.posts = posts
@@ -176,8 +176,10 @@ export default {
 						this.posts = [...this.posts, ...posts]
 					}
 					
-					this.hasMore = pagination.currentPage < pagination.totalPages
-					this.page = pagination.currentPage + 1
+					this.hasMore = posts.length === limit
+					this.page = page + 1
+					this.totalPosts = total
+					this.loadStats()
 				}
 			} catch (error) {
 				console.error('加载帖子列表失败:', error)
@@ -195,11 +197,9 @@ export default {
 				const token = uni.getStorageSync('token')
 				if (!token) return
 				
-				// 这里需要后端提供统计接口
-				// 暂时使用模拟数据
-				this.totalPosts = this.posts.length
-				this.totalComments = this.posts.reduce((sum, post) => sum + post.comment_count, 0)
-				this.totalViews = this.posts.reduce((sum, post) => sum + post.view_count, 0)
+				// 从posts数据中计算统计
+				this.totalComments = this.posts.reduce((sum, post) => sum + (post.comment_count || 0), 0)
+				this.totalViews = this.posts.reduce((sum, post) => sum + (post.view_count || 0), 0)
 			} catch (error) {
 				console.error('加载统计数据失败:', error)
 			}

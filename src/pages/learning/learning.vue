@@ -20,7 +20,7 @@
 		<!-- 当前计划概览 -->
 		<view class="current-plan-overview" v-if="currentPlan">
 			<view class="plan-header">
-				<text class="plan-title">{{ currentPlan.title }}</text>
+				<text class="plan-title" @click="viewPlanDetail">{{ currentPlan.title }}</text>
 				<view class="plan-status" :class="'status-' + currentPlan.status">
 					{{ getPlanStatusText(currentPlan.status) }}
 				</view>
@@ -124,41 +124,36 @@
 			</view>
 		</view>
 
-		<!-- 学习进度统计 -->
-		<view class="progress-section">
+		<!-- 学习统计 -->
+		<view class="stats-section">
 			<view class="section-header">
-				<text class="section-title">学习进度</text>
-				<view class="time-filter">
-					<text 
-						class="filter-option" 
-						:class="{ active: selectedPeriod === index }"
-						v-for="(period, index) in timePeriods" 
-						:key="index"
-						@click="selectPeriod(index)"
-					>
-						{{ period }}
-					</text>
-				</view>
+				<text class="section-title">学习统计</text>
 			</view>
 			
-			<!-- 学习时长图表 -->
-			<view class="chart-container">
-				<view class="chart-title">📊 每日学习时长</view>
-				<view class="chart-content">
-					<view class="chart-bars">
-						<view 
-							class="bar-item" 
-							v-for="(day, index) in weeklyData" 
-							:key="index"
-						>
-							<view 
-								class="bar-fill" 
-								:style="{ height: getBarHeight(day.minutes) + '%' }"
-							></view>
-							<text class="bar-value">{{ formatMinutes(day.minutes) }}</text>
-							<text class="bar-label">{{ day.day }}</text>
-						</view>
-					</view>
+			<view class="stats-grid">
+				<view class="stat-item">
+					<text class="stat-number">{{ getTotalPlansCount() }}</text>
+					<text class="stat-label">总计划数</text>
+				</view>
+				<view class="stat-item">
+					<text class="stat-number">{{ getActivePlansCount() }}</text>
+					<text class="stat-label">进行中</text>
+				</view>
+				<view class="stat-item">
+					<text class="stat-number">{{ getCompletedPlansCount() }}</text>
+					<text class="stat-label">已完成</text>
+				</view>
+				<view class="stat-item">
+					<text class="stat-number">{{ getTotalTasksCount() }}</text>
+					<text class="stat-label">总任务数</text>
+				</view>
+				<view class="stat-item">
+					<text class="stat-number">{{ getCompletedTasksCount() }}</text>
+					<text class="stat-label">已完成任务</text>
+				</view>
+				<view class="stat-item">
+					<text class="stat-number">{{ getTaskCompletionRate() }}%</text>
+					<text class="stat-label">任务完成率</text>
 				</view>
 			</view>
 		</view>
@@ -178,16 +173,13 @@ export default {
 		return {
 			selectedPlanIndex: 0,
 			selectedFilter: 0,
-			selectedPeriod: 0,
-			timePeriods: ['本周', '本月', '本年'],
 			taskFilters: [
 				{ name: '全部', value: 'all' },
 				{ name: '进行中', value: 'active' },
 				{ name: '已完成', value: 'completed' },
 				{ name: '已逾期', value: 'overdue' }
 			],
-			studyPlans: [],
-			weeklyData: []
+			studyPlans: []
 		}
 	},
 	
@@ -213,9 +205,11 @@ export default {
 			} else if (filter.value === 'completed') {
 				return this.currentPlan.tasks.filter(task => task.completed);
 			} else if (filter.value === 'active') {
-				return this.currentPlan.tasks.filter(task => !task.completed && new Date() <= task.deadline);
+				const today = new Date().toISOString().split('T')[0];
+				return this.currentPlan.tasks.filter(task => !task.completed && (!task.deadline || today <= task.deadline));
 			} else if (filter.value === 'overdue') {
-				return this.currentPlan.tasks.filter(task => !task.completed && new Date() > task.deadline);
+				const today = new Date().toISOString().split('T')[0];
+				return this.currentPlan.tasks.filter(task => !task.completed && task.deadline && today > task.deadline);
 			}
 			
 			return this.currentPlan.tasks;
@@ -224,7 +218,6 @@ export default {
 	
 	onLoad() {
 		this.loadStudyPlans()
-		this.loadProgressData()
 	},
 	
 	onShow() {
@@ -307,11 +300,6 @@ export default {
 			this.selectedFilter = index;
 		},
 		
-		selectPeriod(index) {
-			this.selectedPeriod = index;
-			// 根据选择的时间段加载数据
-			this.loadProgressData();
-		},
 		
 		async loadStudyPlans() {
 			try {
@@ -346,7 +334,7 @@ export default {
 							description: task.description,
 							completed: task.status === 'completed',
 							priority: task.priority,
-							deadline: task.deadline ? new Date(task.deadline) : null,
+							deadline: task.deadline ? task.deadline.split('T')[0] : null,
 							tags: task.tags ? JSON.parse(task.tags) : [],
 							subtasks: task.subtasks || []
 						})) : []
@@ -366,71 +354,85 @@ export default {
 			}
 		},
 		
-		async loadProgressData() {
+		
+		async toggleTask(task) {
 			try {
-				const token = uni.getStorageSync('token')
-				if (!token) return
+				const token = uni.getStorageSync('token');
+				const newStatus = task.completed ? 'in_progress' : 'completed';
 				
 				const response = await uni.request({
-					url: 'http://localhost:3000/api/v1/study-plans/progress',
-					method: 'GET',
+					url: `http://localhost:3000/api/v1/study-plans/tasks/${task.id}/status`,
+					method: 'PATCH',
 					header: {
-						'Authorization': `Bearer ${token}`
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
 					},
 					data: {
-						period: this.timePeriods[this.selectedPeriod]
+						status: newStatus
 					}
-				})
+				});
 				
 				if (response.data.success) {
-					const progressData = response.data.data
-					// 转换为图表需要的格式
-					this.weeklyData = progressData.weeklyData || [
-						{ day: '周一', minutes: 0 },
-						{ day: '周二', minutes: 0 },
-						{ day: '周三', minutes: 0 },
-						{ day: '周四', minutes: 0 },
-						{ day: '周五', minutes: 0 },
-						{ day: '周六', minutes: 0 },
-						{ day: '周日', minutes: 0 }
-					]
+					task.completed = !task.completed;
+					this.updatePlanProgress();
+					uni.showToast({
+						title: task.completed ? '任务已完成' : '任务已重新激活',
+						icon: 'success'
+					});
+				} else {
+					uni.showToast({
+						title: '操作失败',
+						icon: 'none'
+					});
 				}
 			} catch (error) {
-				console.error('加载进度数据失败:', error)
-				// 使用默认数据
-				this.weeklyData = [
-					{ day: '周一', minutes: 0 },
-					{ day: '周二', minutes: 0 },
-					{ day: '周三', minutes: 0 },
-					{ day: '周四', minutes: 0 },
-					{ day: '周五', minutes: 0 },
-					{ day: '周六', minutes: 0 },
-					{ day: '周日', minutes: 0 }
-				]
+				console.error('更新任务状态失败:', error);
+				uni.showToast({
+					title: '操作失败',
+					icon: 'none'
+				});
 			}
-		},
-		
-		toggleTask(task) {
-			task.completed = !task.completed;
-			// 更新计划进度
-			this.updatePlanProgress();
-			uni.showToast({
-				title: task.completed ? '任务已完成' : '任务已重新激活',
-				icon: 'success'
-			});
 		},
 		
 		viewTask(task) {
 			uni.navigateTo({
-				url: `/pages/profile/task-detail?id=${task.id}`
+				url: `/pages/learning/plan-detail?id=${this.currentPlan.id}`
 			});
 		},
 		
-		updatePlanProgress() {
+		viewPlanDetail() {
+			if (!this.currentPlan) return;
+			uni.navigateTo({
+				url: `/pages/learning/plan-detail?id=${this.currentPlan.id}`
+			});
+		},
+		
+		async updatePlanProgress() {
 			if (!this.currentPlan) return;
 			const completed = this.currentPlan.tasks.filter(task => task.completed).length;
 			const total = this.currentPlan.tasks.length;
-			this.currentPlan.progressPercent = Math.round((completed / total) * 100);
+			const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+			
+			// 更新本地状态
+			this.currentPlan.progressPercent = progressPercent;
+			
+			// 同步到服务器
+			try {
+				const token = uni.getStorageSync('token');
+				await uni.request({
+					url: `http://localhost:3000/api/v1/study-plans/${this.currentPlan.id}`,
+					method: 'PUT',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						progress_percent: progressPercent
+					}
+				});
+			} catch (error) {
+				console.error('同步计划进度失败:', error);
+			}
 		},
 		
 		createNewPlan() {
@@ -443,19 +445,32 @@ export default {
 		
 		
 		
-		getBarHeight(minutes) {
-			const maxMinutes = Math.max(...this.weeklyData.map(d => d.minutes));
-			return maxMinutes > 0 ? (minutes / maxMinutes) * 100 : 0;
+		getTotalPlansCount() {
+			return this.studyPlans.length;
 		},
 		
-		formatMinutes(minutes) {
-			if (minutes < 60) {
-				return minutes + '分';
-			} else {
-				const hours = Math.floor(minutes / 60);
-				const mins = minutes % 60;
-				return hours + 'h' + (mins > 0 ? mins + 'm' : '');
-			}
+		getActivePlansCount() {
+			return this.studyPlans.filter(plan => plan.status === 'active').length;
+		},
+		
+		getCompletedPlansCount() {
+			return this.studyPlans.filter(plan => plan.status === 'completed').length;
+		},
+		
+		getTotalTasksCount() {
+			return this.studyPlans.reduce((total, plan) => total + plan.tasks.length, 0);
+		},
+		
+		getCompletedTasksCount() {
+			return this.studyPlans.reduce((total, plan) => 
+				total + plan.tasks.filter(task => task.completed).length, 0
+			);
+		},
+		
+		getTaskCompletionRate() {
+			const total = this.getTotalTasksCount();
+			const completed = this.getCompletedTasksCount();
+			return total > 0 ? Math.round((completed / total) * 100) : 0;
 		},
 		
 		getPlanStatusText(status) {
@@ -595,7 +610,9 @@ export default {
 .plan-title {
 	font-size: 36rpx;
 	font-weight: 600;
-	color: #333333;
+	color: #007aff;
+	text-decoration: underline;
+	text-decoration-color: rgba(0, 122, 255, 0.3);
 }
 
 .plan-status {
@@ -857,75 +874,39 @@ export default {
 	align-self: center;
 }
 
-/* 学习进度部分 */
-.progress-section {
+/* 学习统计部分 */
+.stats-section {
 	margin: 16rpx 32rpx;
 	background-color: #ffffff;
 	border-radius: 16rpx;
 	padding: 32rpx;
 }
 
-.time-filter {
-	display: flex;
-	gap: 16rpx;
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 20rpx;
+	margin-top: 20rpx;
 }
 
-.filter-option {
-	padding: 8rpx 16rpx;
-	font-size: 26rpx;
-	color: #666666;
-	border-radius: 20rpx;
-	background-color: #f0f0f0;
+.stat-item {
+	text-align: center;
+	padding: 20rpx;
+	background: #f8f9fa;
+	border-radius: 12rpx;
 }
 
-.filter-option.active {
+.stat-number {
+	display: block;
+	font-size: 48rpx;
+	font-weight: bold;
 	color: #007aff;
-	background-color: #e8f4fd;
-}
-
-.chart-container {
-	margin-top: 24rpx;
-}
-
-.chart-title {
-	font-size: 28rpx;
-	color: #333333;
-	margin-bottom: 24rpx;
-}
-
-.chart-bars {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-end;
-	height: 200rpx;
-	padding: 0 16rpx;
-}
-
-.bar-item {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	flex: 1;
-	position: relative;
-}
-
-.bar-fill {
-	width: 24rpx;
-	background: linear-gradient(to top, #007aff, #5ac8fa);
-	border-radius: 12rpx 12rpx 0 0;
-	margin-bottom: 8rpx;
-	min-height: 8rpx;
-}
-
-.bar-value {
-	font-size: 20rpx;
-	color: #666666;
 	margin-bottom: 8rpx;
 }
 
-.bar-label {
-	font-size: 22rpx;
-	color: #999999;
+.stat-label {
+	font-size: 24rpx;
+	color: #666;
 }
 
 /* 创建按钮 */

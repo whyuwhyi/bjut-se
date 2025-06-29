@@ -25,7 +25,6 @@ router.post('/avatar', auth, uploadAvatar, handleUploadError, UserController.upl
 router.get('/my-resources', auth, UserController.getUserResources)
 router.get('/my-posts', auth, UserController.getUserPosts)
 router.get('/my-collections', auth, UserController.getUserCollections)
-router.get('/my-downloads', auth, UserController.getUserDownloads)
 
 // 社交功能
 router.get('/following', auth, UserController.getUserFollowing)

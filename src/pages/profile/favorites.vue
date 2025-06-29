@@ -18,14 +18,31 @@
 			</scroll-view>
 		</view>
 
+		<!-- 操作栏 -->
+		<view class="action-bar" v-if="filteredFavorites.length > 0">
+			<view class="select-controls">
+				<button class="select-btn" @click="toggleSelectMode">
+					{{ isSelectMode ? '取消' : '选择' }}
+				</button>
+				<text class="select-text" v-if="isSelectMode">长按选择多个项目</text>
+			</view>
+		</view>
+
 		<!-- 收藏列表 -->
 		<view class="favorites-list" v-if="filteredFavorites.length > 0">
 			<view 
 				class="favorite-item" 
+				:class="{ 'select-mode': isSelectMode, 'selected': isSelected(item) }"
 				v-for="(item, index) in filteredFavorites" 
 				:key="index"
-				@click="viewItem(item)"
+				@click="handleItemClick(item)"
+				@longpress="handleLongPress(item)"
 			>
+				<!-- 选择框 -->
+				<view class="select-checkbox" v-if="isSelectMode" @click.stop="toggleSelection(item)">
+					<text class="checkbox-icon">{{ isSelected(item) ? '☑️' : '⬜' }}</text>
+				</view>
+				
 				<!-- 左侧图标 -->
 				<view class="item-icon" :class="'icon-' + item.type">
 					<text class="icon-emoji">{{ getTypeIcon(item.type) }}</text>
@@ -82,17 +99,6 @@
 			</view>
 		</view>
 
-		<!-- 确认删除弹窗 -->
-		<uni-popup ref="deletePopup" type="dialog">
-			<uni-popup-dialog 
-				type="warn" 
-				title="确认删除" 
-				content="确定要删除这些收藏吗？删除后无法恢复。"
-				:before-close="true"
-				@confirm="confirmDelete"
-				@close="closeDeleteDialog"
-			></uni-popup-dialog>
-		</uni-popup>
 	</view>
 </template>
 
@@ -102,6 +108,7 @@
 			return {
 				selectedType: 0,
 				selectedItems: [],
+				isSelectMode: false,
 				favoriteTypes: [
 					{ name: '全部', value: 'all', count: 0 },
 					{ name: '资源', value: 'resource', count: 0 },
@@ -118,6 +125,12 @@
 		
 		onShow() {
 			this.loadFavorites()
+		},
+		
+		onPullDownRefresh() {
+			this.loadFavorites().finally(() => {
+				uni.stopPullDownRefresh()
+			})
 		},
 		
 		computed: {
@@ -146,6 +159,10 @@
 						method: 'GET',
 						header: {
 							'Authorization': `Bearer ${token}`
+						},
+						data: {
+							page: 1,
+							limit: 100
 						}
 					})
 					
@@ -153,11 +170,12 @@
 						this.favorites = response.data.data.collections.map(item => ({
 							id: item.collection_id,
 							type: item.collection_type,
-							title: item.title,
-							description: item.description,
-							author: item.author_name || '未知作者',
+							title: this.getItemTitle(item),
+							description: this.getItemDescription(item),
+							author: this.getItemAuthor(item),
 							favoriteTime: new Date(item.created_at),
-							tags: item.tags ? JSON.parse(item.tags) : [],
+							tags: [],
+							contentId: item.content_id,
 							url: item.collection_type === 'resource' 
 								? `/pages/resources/detail?id=${item.content_id}`
 								: `/pages/forum/detail?id=${item.content_id}`
@@ -178,6 +196,34 @@
 				}
 			},
 			
+			getItemTitle(item) {
+				if (item.resource) {
+					return item.resource.resource_name
+				} else if (item.post) {
+					return item.post.title
+				}
+				return '未知标题'
+			},
+			
+			getItemDescription(item) {
+				if (item.resource) {
+					return item.resource.description || '暂无描述'
+				} else if (item.post) {
+					// 简化的内容提取，实际可能需要更复杂的处理
+					return item.post.content ? item.post.content.substring(0, 100) + '...' : '暂无内容'
+				}
+				return '暂无描述'
+			},
+			
+			getItemAuthor(item) {
+				if (item.resource && item.resource.publisher) {
+					return item.resource.publisher.nickname || item.resource.publisher.name
+				} else if (item.post && item.post.author) {
+					return item.post.author.nickname || item.post.author.name
+				}
+				return '未知作者'
+			},
+			
 			selectType(index) {
 				this.selectedType = index;
 			},
@@ -186,6 +232,32 @@
 				uni.navigateTo({
 					url: item.url
 				});
+			},
+			
+			toggleSelectMode() {
+				this.isSelectMode = !this.isSelectMode
+				if (!this.isSelectMode) {
+					this.selectedItems = []
+				}
+			},
+			
+			handleItemClick(item) {
+				if (this.isSelectMode) {
+					this.toggleSelection(item)
+				} else {
+					this.viewItem(item)
+				}
+			},
+			
+			handleLongPress(item) {
+				if (!this.isSelectMode) {
+					this.isSelectMode = true
+				}
+				this.toggleSelection(item)
+			},
+			
+			isSelected(item) {
+				return this.selectedItems.some(selected => selected.id === item.id)
 			},
 			
 			shareItem(item) {
@@ -204,29 +276,59 @@
 			},
 			
 			removeFavorite(item) {
-				this.itemToDelete = item;
-				this.$refs.deletePopup.open();
+				uni.showModal({
+					title: '取消收藏',
+					content: '确定要取消收藏这个内容吗？',
+					success: (res) => {
+						if (res.confirm) {
+							this.doRemoveFavorite(item)
+						}
+					}
+				})
 			},
 			
-			confirmDelete() {
-				if (this.itemToDelete) {
-					const index = this.favorites.findIndex(f => f.id === this.itemToDelete.id);
-					if (index > -1) {
-						this.favorites.splice(index, 1);
-						this.updateCounts();
+			async doRemoveFavorite(item) {
+				try {
+					const token = uni.getStorageSync('token')
+					
+					const response = await uni.request({
+						url: `http://localhost:3000/api/v1/collections/${item.contentId}`,
+						method: 'DELETE',
+						header: {
+							'Authorization': `Bearer ${token}`
+						},
+						data: {
+							collection_type: item.type
+						}
+					})
+					
+					if (response.data.success) {
+						// 从本地列表中移除
+						const index = this.favorites.findIndex(f => f.id === item.id)
+						if (index > -1) {
+							this.favorites.splice(index, 1)
+							this.updateCounts()
+						}
+						
 						uni.showToast({
 							title: '取消收藏成功',
 							icon: 'success'
-						});
+						})
+					} else {
+						uni.showToast({
+							title: response.data.message || '操作失败',
+							icon: 'none'
+						})
 					}
+				} catch (error) {
+					console.error('取消收藏失败:', error)
+					uni.showToast({
+						title: '网络错误',
+						icon: 'none'
+					})
 				}
-				this.closeDeleteDialog();
 			},
 			
-			closeDeleteDialog() {
-				this.$refs.deletePopup.close();
-				this.itemToDelete = null;
-			},
 			
 			toggleSelection(item) {
 				const index = this.selectedItems.findIndex(s => s.id === item.id);
@@ -238,7 +340,8 @@
 			},
 			
 			cancelSelection() {
-				this.selectedItems = [];
+				this.selectedItems = []
+				this.isSelectMode = false
 			},
 			
 			batchShare() {
@@ -250,28 +353,55 @@
 				this.cancelSelection();
 			},
 			
-			batchDelete() {
+			async batchDelete() {
+				if (this.selectedItems.length === 0) return
+				
 				uni.showModal({
 					title: '确认删除',
 					content: `确定要删除选中的${this.selectedItems.length}个收藏吗？`,
-					success: (res) => {
+					success: async (res) => {
 						if (res.confirm) {
-							// 删除选中的收藏
-							this.selectedItems.forEach(item => {
-								const index = this.favorites.findIndex(f => f.id === item.id);
-								if (index > -1) {
-									this.favorites.splice(index, 1);
-								}
-							});
-							this.updateCounts();
-							uni.showToast({
-								title: '删除成功',
-								icon: 'success'
-							});
-							this.cancelSelection();
+							try {
+								const token = uni.getStorageSync('token')
+								const deletePromises = this.selectedItems.map(item => 
+									uni.request({
+										url: `http://localhost:3000/api/v1/collections/${item.contentId}`,
+										method: 'DELETE',
+										header: {
+											'Authorization': `Bearer ${token}`
+										},
+										data: {
+											collection_type: item.type
+										}
+									})
+								)
+								
+								await Promise.all(deletePromises)
+								
+								// 从本地列表中移除
+								this.selectedItems.forEach(item => {
+									const index = this.favorites.findIndex(f => f.id === item.id)
+									if (index > -1) {
+										this.favorites.splice(index, 1)
+									}
+								})
+								
+								this.updateCounts()
+								uni.showToast({
+									title: '批量删除成功',
+									icon: 'success'
+								})
+								this.cancelSelection()
+							} catch (error) {
+								console.error('批量删除收藏失败:', error)
+								uni.showToast({
+									title: '删除失败',
+									icon: 'none'
+								})
+							}
 						}
 					}
-				});
+				})
 			},
 			
 			updateCounts() {
@@ -314,17 +444,6 @@
 					});
 				}
 			}
-		},
-		
-		onLoad() {
-			this.updateCounts();
-		},
-		
-		onPullDownRefresh() {
-			// 下拉刷新
-			setTimeout(() => {
-				uni.stopPullDownRefresh();
-			}, 1000);
 		}
 	}
 </script>
@@ -334,6 +453,55 @@
 		background-color: #f8f8f8;
 		min-height: 100vh;
 		padding-bottom: 160rpx;
+	}
+
+	/* 操作栏 */
+	.action-bar {
+		background: white;
+		padding: 20rpx 30rpx;
+		border-bottom: 1rpx solid #f0f0f0;
+	}
+	
+	.select-controls {
+		display: flex;
+		align-items: center;
+		gap: 20rpx;
+	}
+	
+	.select-btn {
+		background: #007aff;
+		color: white;
+		border: none;
+		border-radius: 20rpx;
+		padding: 12rpx 24rpx;
+		font-size: 26rpx;
+	}
+	
+	.select-text {
+		font-size: 24rpx;
+		color: #666;
+	}
+
+	/* 收藏项选择模式 */
+	.favorite-item.select-mode {
+		padding-left: 60rpx;
+	}
+	
+	.favorite-item.selected {
+		background-color: #f0f8ff;
+		border-left: 4rpx solid #007aff;
+	}
+	
+	.select-checkbox {
+		position: absolute;
+		left: 20rpx;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 10;
+	}
+	
+	.checkbox-icon {
+		font-size: 32rpx;
 	}
 
 	/* 筛选栏 */
@@ -392,6 +560,7 @@
 		margin-bottom: 16rpx;
 		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 		transition: all 0.3s ease;
+		position: relative;
 	}
 
 	.favorite-item:active {

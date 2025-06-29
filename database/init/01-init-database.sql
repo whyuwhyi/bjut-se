@@ -215,25 +215,8 @@ CREATE TABLE IF NOT EXISTS user_follows (
     UNIQUE KEY unique_follow (follower_phone, following_phone)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户关注表';
 
--- 15. 下载记录表
-CREATE TABLE IF NOT EXISTS download_records (
-    download_id VARCHAR(9) PRIMARY KEY COMMENT '下载记录ID',
-    user_phone VARCHAR(11) NOT NULL COMMENT '下载者手机号',
-    resource_id VARCHAR(9) NOT NULL COMMENT '资源ID',
-    file_id VARCHAR(9) NOT NULL COMMENT '文件ID',
-    download_size INT COMMENT '下载文件大小(字节)',
-    download_time INT COMMENT '下载耗时(毫秒)',
-    ip_address VARCHAR(45) COMMENT '下载IP地址',
-    user_agent TEXT COMMENT '用户代理字符串',
-    status ENUM('completed', 'failed', 'cancelled') DEFAULT 'completed' COMMENT '下载状态',
-    downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '下载时间',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
-    FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE,
-    FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='下载记录表';
 
--- 16. 学习计划表
+-- 15. 学习计划表
 CREATE TABLE IF NOT EXISTS study_plans (
     plan_id VARCHAR(9) PRIMARY KEY COMMENT '学习计划ID',
     user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
@@ -250,7 +233,7 @@ CREATE TABLE IF NOT EXISTS study_plans (
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学习计划表';
 
--- 17. 学习任务表
+-- 16. 学习任务表
 CREATE TABLE IF NOT EXISTS study_tasks (
     task_id VARCHAR(9) PRIMARY KEY COMMENT '学习任务ID',
     plan_id VARCHAR(9) NOT NULL COMMENT '关联学习计划ID',
@@ -267,7 +250,7 @@ CREATE TABLE IF NOT EXISTS study_tasks (
     FOREIGN KEY (plan_id) REFERENCES study_plans(plan_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学习任务表';
 
--- 18. 子任务表
+-- 17. 子任务表
 CREATE TABLE IF NOT EXISTS sub_tasks (
     subtask_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '子任务ID',
     task_id VARCHAR(9) NOT NULL COMMENT '关联学习任务ID',
@@ -279,13 +262,14 @@ CREATE TABLE IF NOT EXISTS sub_tasks (
     FOREIGN KEY (task_id) REFERENCES study_tasks(task_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='子任务表';
 
--- 19. 学习记录表
+-- 18. 学习记录表
 CREATE TABLE IF NOT EXISTS study_records (
     record_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
     user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
     plan_id VARCHAR(9) COMMENT '关联学习计划ID',
     task_id VARCHAR(9) COMMENT '关联学习任务ID',
     resource_id VARCHAR(9) COMMENT '关联资源ID',
+    post_id VARCHAR(9) COMMENT '关联帖子ID',
     activity_type ENUM('resource_view', 'resource_download', 'task_complete', 'plan_create', 'post_view', 'post_create', 'comment_create') NOT NULL COMMENT '活动类型',
     duration_minutes INT DEFAULT 0 COMMENT '学习时长(分钟)',
     experience_gained INT DEFAULT 0 COMMENT '获得经验值',
@@ -294,10 +278,11 @@ CREATE TABLE IF NOT EXISTS study_records (
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
     FOREIGN KEY (plan_id) REFERENCES study_plans(plan_id) ON DELETE SET NULL,
     FOREIGN KEY (task_id) REFERENCES study_tasks(task_id) ON DELETE SET NULL,
-    FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE SET NULL
+    FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE SET NULL,
+    FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学习记录表';
 
--- 20. 学习目标表
+-- 19. 学习目标表
 CREATE TABLE IF NOT EXISTS study_goals (
     goal_id VARCHAR(9) PRIMARY KEY COMMENT '学习目标ID',
     user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
@@ -314,7 +299,7 @@ CREATE TABLE IF NOT EXISTS study_goals (
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学习目标表';
 
--- 21. 通知表
+-- 20. 通知表
 CREATE TABLE IF NOT EXISTS notifications (
     notification_id VARCHAR(9) PRIMARY KEY COMMENT '通知ID',
     receiver_phone VARCHAR(11) NOT NULL COMMENT '接收者手机号',
@@ -335,15 +320,15 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (sender_phone) REFERENCES users(phone_number) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知表';
 
--- 22. 验证码表
-CREATE TABLE IF NOT EXISTS VerificationCode (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    phone_number STRING NOT NULL,
-    code STRING NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    expires_at DATETIME NOT NULL,
-    status ENUM('valid', 'used', 'expired') DEFAULT 'valid'
-);
+-- 21. 验证码表
+CREATE TABLE IF NOT EXISTS verification_codes (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '验证码ID',
+    phone_number VARCHAR(11) NOT NULL COMMENT '手机号',
+    code VARCHAR(6) NOT NULL COMMENT '验证码',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    expires_at TIMESTAMP NOT NULL COMMENT '过期时间',
+    status ENUM('valid', 'used', 'expired') DEFAULT 'valid' COMMENT '状态'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='验证码表';
 
 -- ================================================================
 -- 第三部分：测试数据插入 - 严格控制数量匹配

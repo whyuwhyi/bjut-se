@@ -15,7 +15,7 @@
 - **社交功能**: 关注/粉丝系统，用户互动
 - **内容管理**: 个人发布的资源、帖子管理
 - **收藏功能**: 资源和帖子收藏管理
-- **下载记录**: 用户下载历史跟踪
+- **社交系统**: 关注/粉丝管理和用户互动
 - **多角色支持**: 学生、教师、管理员权限体系
 
 ### 📚 学习资源模块
@@ -77,11 +77,12 @@
 
 ### 前端技术栈
 
-- **框架**: uni-app (Vue.js 2.x)
-- **UI 组件**: uni-ui
-- **样式**: SCSS
-- **状态管理**: Vuex
-- **路由**: uni-app 内置路由
+- **框架**: uni-app (Vue.js 2.x) + TypeScript
+- **UI 组件**: uni-ui + 自定义组件
+- **样式**: SCSS + 响应式设计
+- **状态管理**: Vue 响应式数据
+- **路由**: uni-app 内置路由 + TabBar导航
+- **目标平台**: H5、微信小程序、App
 
 ### 后端技术栈
 
@@ -103,16 +104,37 @@
 
 ```
 wechat_software/
-├── src/                      # 微信小程序前端
+├── src/                      # uni-app前端
 │   ├── pages/               # 页面文件
-│   │   ├── index/          # 首页
+│   │   ├── index/          # 首页（TabBar）
 │   │   ├── login/          # 登录页
 │   │   ├── register/       # 注册页
-│   │   ├── resources/      # 资源模块
-│   │   ├── forum/         # 论坛模块
-│   │   ├── notification/   # 通知模块
-│   │   ├── learning/       # 学习管理模块
-│   │   └── profile/        # 个人中心
+│   │   ├── resources/      # 学习资源模块（TabBar）
+│   │   │   ├── resources.vue    # 资源列表页
+│   │   │   ├── upload.vue       # 资源上传页
+│   │   │   └── detail.vue       # 资源详情页
+│   │   ├── forum/         # 论坛模块（TabBar）
+│   │   │   ├── forum.vue        # 论坛首页
+│   │   │   ├── create.vue       # 发帖页面
+│   │   │   └── detail.vue       # 帖子详情页
+│   │   ├── learning/       # 学习管理模块（TabBar）
+│   │   │   ├── learning.vue     # 学习管理首页
+│   │   │   ├── create-plan.vue  # 创建学习计划
+│   │   │   └── plan-detail.vue  # 计划详情页
+│   │   ├── profile/        # 个人中心（TabBar）
+│   │   │   ├── profile.vue      # 个人中心首页
+│   │   │   ├── favorites.vue    # 我的收藏
+│   │   │   ├── my-resources.vue # 我的资源
+│   │   │   ├── my-discussions.vue # 我的帖子
+│   │   │   ├── following.vue    # 关注列表
+│   │   │   ├── followers.vue    # 粉丝列表
+│   │   │   ├── edit.vue         # 编辑资料
+│   │   │   ├── feedback.vue     # 意见反馈
+│   │   │   └── about.vue        # 关于应用
+│   │   └── notification/   # 通知模块
+│   │       ├── notification.vue # 系统通知
+│   │       ├── messages.vue     # 消息通知
+│   │       └── detail.vue       # 通知详情
 │   ├── static/             # 静态资源
 │   ├── utils/              # 工具函数
 │   ├── App.vue             # 应用入口
@@ -247,21 +269,54 @@ GET  /users/stats           # 获取用户统计信息
 ### 学习资源相关
 
 ```
-GET  /resources                    # 获取资源列表（支持多参数筛选）
-POST /resources                    # 创建资源
-GET  /resources/:id               # 获取资源详情
-POST /resources/:id/favorite      # 收藏/取消收藏
-POST /resources/:id/submit-review # 提交审核
-GET  /resources/:id/download/:fileId # 下载文件
+GET  /resources                         # 获取资源列表（支持搜索、分类、排序）
+POST /resources                         # 创建资源
+GET  /resources/:id                     # 获取资源详情
+POST /resources/:resourceId/favorite    # 收藏/取消收藏资源
+GET  /resources/:resourceId/favorite-status # 获取收藏状态
+POST /resources/:resourceId/submit-review   # 提交审核
+GET  /resources/:resourceId/files/:fileId/download # 下载文件
+POST /resources/:resourceId/rating      # 创建/更新评分
+GET  /resources/:resourceId/ratings     # 获取资源评分
+GET  /resources/:resourceId/my-rating   # 获取我的评分
+POST /resources/:resourceId/comments    # 创建资源评论
+GET  /resources/:resourceId/comments    # 获取资源评论
+
+# 管理员接口
+GET  /resources/pending                 # 获取待审核资源
+POST /resources/:resourceId/review      # 审核资源
 ```
 
-
-### 分类相关
+### 论坛相关
 
 ```
-GET  /categories        # 获取所有分类
-GET  /categories/options # 获取分类选项（用于下拉框）
-GET  /categories/:value # 根据分类值获取分类信息
+GET  /posts                 # 获取帖子列表（支持搜索、标签、排序）
+POST /posts                 # 创建帖子
+GET  /posts/tags           # 获取所有标签
+GET  /posts/:id            # 获取帖子详情
+GET  /posts/:id/comments   # 获取帖子评论
+POST /posts/:id/comments   # 创建评论
+POST /posts/:resourceId/favorite        # 收藏/取消收藏帖子
+GET  /posts/:resourceId/favorite-status # 获取收藏状态
+```
+
+### 分类和标签相关
+
+```
+GET  /categories           # 获取所有分类
+GET  /categories/options   # 获取分类选项（用于下拉框）
+GET  /categories/:value    # 根据分类值获取分类信息
+
+GET  /tags                 # 获取所有标签
+GET  /tags/categories      # 获取标签分类
+GET  /tags/search          # 搜索标签
+```
+
+### 收藏管理相关
+
+```
+GET  /collections         # 获取用户收藏
+DELETE /:contentId        # 删除收藏
 ```
 
 ### 通知消息相关
@@ -309,6 +364,241 @@ DELETE /study-plans/subtasks/:subtask_id  # 删除子任务
   "errors": [] // 失败时的错误详情
 }
 ```
+
+## 数据字典
+
+### 1. 用户数据字典
+
+#### 1.1 用户表 (users)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| phone_number | VARCHAR | 11 | PRIMARY KEY, NOT NULL | - | 手机号主键，必须以1开头的11位数字 | 13800138001 |
+| student_id | VARCHAR | 20 | UNIQUE | NULL | 学号，8位数字或S+9位数字格式 | S202012345 |
+| password | VARCHAR | 255 | NOT NULL | - | BCrypt加密密码，最小6位 | $2b$10$... |
+| name | VARCHAR | 50 | NOT NULL | - | 真实姓名，1-50个字符 | 张三 |
+| nickname | VARCHAR | 50 | - | NULL | 昵称，最大50个字符 | 小张 |
+| avatar_url | VARCHAR | 500 | - | NULL | 头像URL路径 | /uploads/avatars/... |
+| email | VARCHAR | 100 | - | NULL | 邮箱地址，符合邮箱格式 | zhang@bjut.edu.cn |
+| bio | TEXT | - | - | NULL | 个人简介，最大1000字符 | 计算机科学专业学生 |
+| gender | ENUM | - | - | 'U' | 性别：M-男，F-女，U-未知 | M |
+| status | ENUM | - | NOT NULL | 'active' | 状态：active-活跃，inactive-非活跃，banned-封禁 | active |
+
+**业务规则**:
+- 手机号必须是有效的中国大陆手机号格式
+- 密码必须经过BCrypt哈希加密存储
+- 学号支持本科生（8位数字）和研究生（S+9位数字）格式
+- 用户状态变更需要管理员权限
+
+#### 1.2 用户关注表 (user_follows)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| follow_id | VARCHAR | 9 | PRIMARY KEY | - | 9位数字的关注记录唯一标识符 | 123456789 |
+| follower_phone | VARCHAR | 11 | FOREIGN KEY, NOT NULL | - | 关注者手机号 | 13800138001 |
+| following_phone | VARCHAR | 11 | FOREIGN KEY, NOT NULL | - | 被关注者手机号 | 13800138002 |
+| status | ENUM | - | NOT NULL | 'active' | 关注状态：active-关注中，cancelled-已取消 | active |
+
+**业务规则**:
+- 用户不能关注自己
+- 关注关系具有唯一性约束 (follower_phone, following_phone)
+- 支持重复关注（取消后重新关注）
+
+### 2. 资源数据字典
+
+#### 2.1 资源表 (resources)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| resource_id | VARCHAR | 9 | PRIMARY KEY | - | 9位数字的资源唯一标识符 | 123456789 |
+| publisher_phone | VARCHAR | 11 | FOREIGN KEY, NOT NULL | - | 发布者手机号 | 13800138001 |
+| resource_name | VARCHAR | 100 | NOT NULL | - | 资源名称，1-100个字符 | 数据结构课件 |
+| description | TEXT | - | - | NULL | 资源描述，最大5000字符 | 包含排序算法详解 |
+| collection_count | INT | - | NOT NULL | 0 | 收藏次数，≥0 | 15 |
+| comment_count | INT | - | NOT NULL | 0 | 评论数量，≥0 | 3 |
+| rating | DECIMAL | 4,2 | NOT NULL | 0.00 | 平均评分，1.00-5.00 | 4.50 |
+| view_count | INT | - | NOT NULL | 0 | 浏览次数，≥0 | 120 |
+| download_count | INT | - | NOT NULL | 0 | 下载次数，≥0 | 45 |
+| status | ENUM | - | NOT NULL | 'draft' | 资源状态 | published |
+| category_id | VARCHAR | 20 | FOREIGN KEY | NULL | 分类ID | CAT001 |
+
+**资源状态枚举值**:
+- `draft`: 草稿状态
+- `pending`: 待审核状态
+- `published`: 已发布状态
+- `rejected`: 审核被拒绝
+- `archived`: 已归档
+
+**业务规则**:
+- 只有已发布的资源才能被其他用户查看
+- 资源名称不能为空且长度限制在100字符内
+- 统计字段（浏览量、下载量等）只能增加不能减少
+
+#### 2.2 文件表 (files)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| file_id | VARCHAR | 9 | PRIMARY KEY | - | 9位数字的文件唯一标识符 | 100000001 |
+| resource_id | VARCHAR | 9 | FOREIGN KEY, NOT NULL | - | 关联资源ID | 123456789 |
+| file_name | VARCHAR | 255 | NOT NULL | - | 文件名称，1-255个字符 | 算法课件.pdf |
+| file_size | BIGINT | - | - | NULL | 文件大小（字节），≥0 | 2048576 |
+| file_type | VARCHAR | 50 | - | NULL | MIME类型 | application/pdf |
+| storage_path | VARCHAR | 1000 | - | NULL | 文件存储路径 | /uploads/files/... |
+| storage_method | ENUM | - | NOT NULL | 'local' | 存储方式 | local |
+| download_count | INT | - | NOT NULL | 0 | 下载次数，≥0 | 25 |
+
+**存储方式枚举值**:
+- `local`: 本地存储
+- `cloud`: 云存储
+- `table`: 数据库存储
+
+### 3. 论坛数据字典
+
+#### 3.1 帖子表 (posts)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| post_id | VARCHAR | 9 | PRIMARY KEY | - | 9位数字的帖子唯一标识符 | 100000001 |
+| author_phone | VARCHAR | 11 | FOREIGN KEY, NOT NULL | - | 作者手机号 | 13800138001 |
+| title | VARCHAR | 200 | NOT NULL | - | 帖子标题，1-200个字符 | 学习心得分享 |
+| content | TEXT | - | NOT NULL | - | 帖子内容（支持Markdown），1-10000字符 | ## 今天学习了... |
+| view_count | INT | - | NOT NULL | 0 | 浏览次数，≥0 | 85 |
+| comment_count | INT | - | NOT NULL | 0 | 评论数量，≥0 | 12 |
+| collection_count | INT | - | NOT NULL | 0 | 收藏次数，≥0 | 8 |
+| status | ENUM | - | NOT NULL | 'active' | 帖子状态 | active |
+
+**帖子状态枚举值**:
+- `active`: 正常显示
+- `hidden`: 隐藏状态
+- `deleted`: 已删除
+
+#### 3.2 评论表 (comments)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| comment_id | INT | - | PRIMARY KEY, AUTO_INCREMENT | - | 评论唯一标识符 | 1001 |
+| author_phone | VARCHAR | 11 | FOREIGN KEY, NOT NULL | - | 评论者手机号 | 13800138002 |
+| post_id | VARCHAR | 9 | FOREIGN KEY | NULL | 关联帖子ID（帖子评论时） | 100000001 |
+| resource_id | VARCHAR | 9 | FOREIGN KEY | NULL | 关联资源ID（资源评论时） | 123456789 |
+| parent_comment_id | INT | FOREIGN KEY | NULL | 父评论ID（回复评论时） | 1000 |
+| content | TEXT | - | NOT NULL | - | 评论内容，1-1000字符 | 很有帮助的分享 |
+| status | ENUM | - | NOT NULL | 'active' | 评论状态 | active |
+
+**业务规则**:
+- post_id和resource_id不能同时为空
+- 支持无限层级的回复嵌套
+- 评论内容长度限制在1000字符内
+
+### 4. 学习管理数据字典
+
+#### 4.1 学习计划表 (study_plans)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| plan_id | VARCHAR | 9 | PRIMARY KEY | - | 9位数字的计划唯一标识符 | 400000001 |
+| user_phone | VARCHAR | 11 | FOREIGN KEY, NOT NULL | - | 用户手机号 | 13800138001 |
+| title | VARCHAR | 200 | NOT NULL | - | 计划标题，1-200字符 | 前端开发学习计划 |
+| description | TEXT | - | - | NULL | 计划详细描述，最大2000字符 | 系统学习前端技术栈 |
+| start_date | DATE | - | - | NULL | 开始日期 | 2025-06-01 |
+| end_date | DATE | - | - | NULL | 结束日期 | 2025-08-31 |
+| status | ENUM | - | NOT NULL | 'active' | 计划状态 | active |
+| progress_percent | INT | - | NOT NULL | 0 | 整体进度百分比，0-100 | 60 |
+| plan_type | VARCHAR | 50 | NOT NULL | '自定义计划' | 计划类型 | 前端开发 |
+| priority | ENUM | - | NOT NULL | 'medium' | 优先级 | high |
+
+**计划状态枚举值**:
+- `active`: 进行中
+- `completed`: 已完成
+- `paused`: 已暂停
+- `cancelled`: 已取消
+
+**优先级枚举值**:
+- `high`: 高优先级
+- `medium`: 中等优先级
+- `low`: 低优先级
+
+#### 4.2 学习任务表 (study_tasks)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| task_id | VARCHAR | 9 | PRIMARY KEY | - | 9位数字的任务唯一标识符 | 500000001 |
+| plan_id | VARCHAR | 9 | FOREIGN KEY, NOT NULL | - | 关联学习计划ID | 400000001 |
+| title | VARCHAR | 200 | NOT NULL | - | 任务标题，1-200字符 | 学习Vue.js基础 |
+| description | TEXT | - | - | NULL | 任务描述，最大1000字符 | 掌握Vue组件基础 |
+| deadline | DATE | - | - | NULL | 截止日期 | 2025-06-30 |
+| priority | ENUM | - | NOT NULL | 'medium' | 任务优先级 | high |
+| status | ENUM | - | NOT NULL | 'pending' | 任务状态 | completed |
+| estimated_hours | INT | - | - | NULL | 预估学习时长（小时），>0 | 20 |
+| actual_hours | INT | - | NOT NULL | 0 | 实际学习时长（小时），≥0 | 18 |
+| tags | VARCHAR | 500 | - | NULL | 标签（JSON格式） | ["Vue.js", "前端"] |
+
+**任务状态枚举值**:
+- `pending`: 待开始
+- `in_progress`: 进行中
+- `completed`: 已完成
+- `cancelled`: 已取消
+
+### 5. 系统数据字典
+
+#### 5.1 通知表 (notifications)
+
+| 字段名 | 数据类型 | 长度 | 约束 | 默认值 | 描述 | 示例值 |
+|--------|----------|------|------|--------|------|--------|
+| notification_id | VARCHAR | 9 | PRIMARY KEY | - | 9位数字的通知唯一标识符 | 600000001 |
+| receiver_phone | VARCHAR | 11 | FOREIGN KEY, NOT NULL | - | 接收者手机号 | 13800138001 |
+| sender_phone | VARCHAR | 11 | FOREIGN KEY | NULL | 发送者手机号（系统通知可为空） | 13800138002 |
+| type | ENUM | - | NOT NULL | - | 通知类型 | system |
+| priority | ENUM | - | NOT NULL | 'medium' | 优先级 | high |
+| title | VARCHAR | 200 | NOT NULL | - | 通知标题，1-200字符 | 系统维护通知 |
+| content | TEXT | - | NOT NULL | - | 通知内容，1-2000字符 | 系统将于今晚维护 |
+| is_read | BOOLEAN | - | NOT NULL | FALSE | 是否已读 | false |
+| expires_at | TIMESTAMP | - | - | NULL | 过期时间 | 2025-07-01 00:00:00 |
+
+**通知类型枚举值**:
+- `system`: 系统通知
+- `study`: 学习相关通知
+- `interaction`: 互动通知
+- `resource`: 资源相关通知
+- `announcement`: 公告通知
+
+### 6. 数据类型说明
+
+#### 6.1 基础数据类型约束
+
+| 数据类型 | 约束规则 | 示例 |
+|----------|----------|------|
+| VARCHAR(n) | 字符串长度不超过n个字符，支持UTF-8编码 | VARCHAR(11) |
+| TEXT | 长文本，最大65535字符 | TEXT |
+| INT | 32位有符号整数，-2147483648到2147483647 | INT |
+| BIGINT | 64位有符号整数 | BIGINT |
+| DECIMAL(m,n) | 定点数，m为总位数，n为小数位数 | DECIMAL(4,2) |
+| DATE | 日期格式：YYYY-MM-DD | 2025-06-29 |
+| TIMESTAMP | 时间戳格式：YYYY-MM-DD HH:MM:SS | 2025-06-29 14:30:00 |
+| BOOLEAN | 布尔值：TRUE/FALSE | TRUE |
+| ENUM | 枚举值，只能选择预定义的值 | ENUM('active','inactive') |
+
+#### 6.2 业务ID生成规则
+
+| ID类型 | 格式 | 长度 | 生成规则 | 示例 |
+|--------|------|------|----------|------|
+| 用户ID | 手机号 | 11位 | 以1开头的有效手机号 | 13800138001 |
+| 资源ID | 数字字符串 | 9位 | 随机生成的9位数字 | 123456789 |
+| 帖子ID | 数字字符串 | 9位 | 随机生成的9位数字 | 100000001 |
+| 文件ID | 数字字符串 | 9位 | 随机生成的9位数字 | 100000001 |
+| 计划ID | 数字字符串 | 9位 | 随机生成的9位数字 | 400000001 |
+| 任务ID | 数字字符串 | 9位 | 随机生成的9位数字 | 500000001 |
+| 通知ID | 数字字符串 | 9位 | 随机生成的9位数字 | 600000001 |
+
+#### 6.3 数据完整性约束
+
+| 约束类型 | 说明 | 示例 |
+|----------|------|------|
+| PRIMARY KEY | 主键约束，唯一且非空 | phone_number |
+| FOREIGN KEY | 外键约束，引用其他表的主键 | publisher_phone REFERENCES users(phone_number) |
+| UNIQUE | 唯一约束，值不能重复 | student_id UNIQUE |
+| NOT NULL | 非空约束，值不能为空 | password NOT NULL |
+| DEFAULT | 默认值约束 | status DEFAULT 'active' |
+| CHECK | 检查约束（通过应用层实现） | rating BETWEEN 1.00 AND 5.00 |
 
 ## 项目团队
 

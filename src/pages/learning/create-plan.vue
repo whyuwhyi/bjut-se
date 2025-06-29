@@ -5,7 +5,7 @@
 			<view class="nav-left" @click="goBack">
 				<text class="back-icon">←</text>
 			</view>
-			<text class="nav-title">新建学习计划</text>
+			<text class="nav-title">{{ planData.id ? '编辑学习计划' : '新建学习计划' }}</text>
 			<view class="nav-right">
 				<text class="save-btn" @click="savePlan">保存</text>
 			</view>
@@ -209,9 +209,56 @@ export default {
 			uni.navigateBack()
 		},
 		
-		loadPlanData(planId) {
-			// TODO: 从API加载计划数据
-			console.log('加载计划数据:', planId)
+		async loadPlanData(planId) {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.reLaunch({
+						url: '/pages/login/login'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/study-plans/${planId}`,
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.data.success) {
+					const plan = response.data.data
+					const typeIndex = this.planTypes.findIndex(t => t.value === plan.plan_type);
+					const priorityIndex = this.priorityOptions.findIndex(p => p.value === plan.priority);
+					
+					this.planData = {
+						id: plan.plan_id,
+						title: plan.title,
+						description: plan.description,
+						typeIndex: typeIndex !== -1 ? typeIndex : 0,
+						priorityIndex: priorityIndex !== -1 ? priorityIndex : 1,
+						startDate: plan.start_date.split('T')[0],
+						endDate: plan.end_date.split('T')[0],
+						tasks: plan.tasks ? plan.tasks.map(task => {
+							const taskPriorityIndex = this.priorityOptions.findIndex(p => p.value === task.priority);
+							return {
+								id: task.task_id,
+								title: task.title,
+								description: task.description,
+								priorityIndex: taskPriorityIndex !== -1 ? taskPriorityIndex : 1,
+								deadline: task.deadline ? task.deadline.split('T')[0] : ''
+							};
+						}) : []
+					}
+				}
+			} catch (error) {
+				console.error('加载计划数据失败:', error)
+				uni.showToast({
+					title: '加载失败',
+					icon: 'none'
+				})
+			}
 		},
 		
 		onTypeChange(e) {
@@ -340,15 +387,88 @@ export default {
 					})).filter(task => task.title) // 只提交有标题的任务
 				}
 				
-				// TODO: 调用API保存数据
-				console.log('保存计划数据:', submitData)
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.reLaunch({
+						url: '/pages/login/login'
+					})
+					return
+				}
 				
-				// 模拟API调用
-				await new Promise(resolve => setTimeout(resolve, 1500))
+				let planId = this.planData.id
+				
+				if (this.planData.id) {
+					// 编辑模式 - 更新计划
+					const response = await uni.request({
+						url: `http://localhost:3000/api/v1/study-plans/${this.planData.id}`,
+						method: 'PUT',
+						header: {
+							'Authorization': `Bearer ${token}`,
+							'Content-Type': 'application/json'
+						},
+						data: {
+							title: submitData.title,
+							description: submitData.description,
+							start_date: submitData.startDate,
+							end_date: submitData.endDate,
+							plan_type: submitData.planType,
+							priority: submitData.priority
+						}
+					})
+					
+					if (!response.data.success) {
+						throw new Error(response.data.message || '更新失败')
+					}
+				} else {
+					// 新建模式 - 创建计划
+					const response = await uni.request({
+						url: 'http://localhost:3000/api/v1/study-plans',
+						method: 'POST',
+						header: {
+							'Authorization': `Bearer ${token}`,
+							'Content-Type': 'application/json'
+						},
+						data: {
+							title: submitData.title,
+							description: submitData.description,
+							start_date: submitData.startDate,
+							end_date: submitData.endDate,
+							plan_type: submitData.planType,
+							priority: submitData.priority
+						}
+					})
+					
+					if (!response.data.success) {
+						throw new Error(response.data.message || '保存失败')
+					}
+					
+					planId = response.data.data.plan_id
+				}
+				
+				// 处理任务 - 只在新建模式下创建任务，编辑模式下不处理任务
+				if (!this.planData.id && submitData.tasks.length > 0) {
+					for (const task of submitData.tasks) {
+						await uni.request({
+							url: 'http://localhost:3000/api/v1/study-plans/tasks',
+							method: 'POST',
+							header: {
+								'Authorization': `Bearer ${token}`,
+								'Content-Type': 'application/json'
+							},
+							data: {
+								plan_id: planId,
+								title: task.title,
+								description: task.description,
+								priority: task.priority,
+								deadline: task.deadline
+							}
+						})
+					}
+				}
 				
 				uni.hideLoading()
 				uni.showToast({
-					title: '保存成功',
+					title: this.planData.id ? '更新成功' : '保存成功',
 					icon: 'success'
 				})
 				

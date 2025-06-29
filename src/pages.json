@@ -56,6 +56,13 @@
             }
         },
         {
+            "path": "pages/learning/plan-detail",
+            "style": {
+                "navigationBarTitleText": "计划详情",
+                "navigationStyle": "custom"
+            }
+        },
+        {
             "path": "pages/resources/detail",
             "style": {
                 "navigationBarTitleText": "资源详情"
@@ -129,13 +136,6 @@
             }
         },
         {
-            "path": "pages/profile/downloads",
-            "style": {
-                "navigationBarTitleText": "下载记录",
-                "enablePullDownRefresh": true
-            }
-        },
-        {
             "path": "pages/profile/feedback",
             "style": {
                 "navigationBarTitleText": "意见反馈"
@@ -145,12 +145,6 @@
             "path": "pages/profile/about",
             "style": {
                 "navigationBarTitleText": "关于我们"
-            }
-        },
-        {
-            "path": "pages/profile/achievements",
-            "style": {
-                "navigationBarTitleText": "我的成就"
             }
         },
         {

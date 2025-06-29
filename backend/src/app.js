@@ -19,7 +19,7 @@ app.use(helmet())
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:8080', 'http://127.0.0.1:8080'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
 
@@ -75,7 +75,7 @@ const startServer = async () => {
       // 暂时禁用自动同步以避免索引数量超限错误
       // await sequelize.sync({ alter: true })
       console.log('数据库模型同步已禁用，请使用SQL脚本初始化数据库')
-      console.log('测试数据请通过database/init/02-init-test-data.sql文件初始化')
+      console.log('数据库和测试数据已合并到database/init/01-init-database.sql文件中')
     }
 
     // 启动服务器

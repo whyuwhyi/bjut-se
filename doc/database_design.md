@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档详细描述了微信小程序教育资源平台的数据库设计，包含用户管理、资源共享、学习管理、讨论交流、通知系统等核心功能模块的完整数据库表结构设计。
+本文档详细描述了微信小程序教育资源平台的数据库设计，包含用户管理、资源共享、学习管理、讨论交流、通知系统等核心功能模块的完整数据库表结构设计。学习管理模块支持完整的学习计划创建、任务管理、进度跟踪和经验值系统。
 
 ---
 
@@ -64,17 +64,8 @@
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 2.3 资源类型关联表 (resource_type_relations)
 
-实现资源与类型的多对多关系。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| relation_id | INT | PRIMARY KEY, AUTO_INCREMENT | 关联记录唯一标识符 |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源表 |
-| type_id | INT | FOREIGN KEY | 关联资源类型表 |
-
-### 2.4 文件表 (files)
+### 2.3 文件表 (files)
 
 存储资源关联的文件信息，支持多种存储方式。
 
@@ -91,7 +82,7 @@
 | download_count | INT | DEFAULT 0 | 下载次数 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 2.5 资源分类表 (categories)
+### 2.4 资源分类表 (categories)
 
 支持资源分类管理，分类可通过后台动态管理。
 
@@ -131,6 +122,14 @@
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
+**业务特点：**
+- 支持多种计划类型：自定义计划、前端开发、后端开发、算法练习、考试复习、项目实战等
+- 自动计算整体进度百分比，基于关联任务的完成情况
+- 支持计划状态管理：进行中、已完成、已暂停、已取消
+- 提供优先级管理，便于用户规划学习重点
+- 计划创建时自动记录学习活动并奖励经验值
+- 支持灵活的时间范围设定和进度跟踪
+
 ### 3.2 学习任务表 (study_tasks)
 
 学习计划下的具体任务管理。
@@ -150,6 +149,15 @@
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
+**业务特点：**
+- 支持四种任务状态：待开始(pending)、进行中(in_progress)、已完成(completed)、已取消(cancelled)
+- 任务完成时自动记录学习活动，奖励经验值(20分)
+- 支持标签系统，以JSON格式存储便于搜索和分类
+- 提供预估时长和实际时长对比，帮助用户改善时间管理
+- 支持截止日期设定和逾期任务识别
+- 任务状态变更时自动更新所属计划的进度百分比
+- 支持子任务分解，便于大任务的管理和跟踪
+
 ### 3.3 子任务表 (sub_tasks)
 
 支持任务的细化分解。
@@ -164,9 +172,16 @@
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
+**业务特点：**
+- 支持任务的进一步细化分解，提高任务管理的精度
+- 提供排序功能，便于用户调整子任务执行顺序
+- 子任务完成状态影响父任务的整体进度显示
+- 支持快速的完成状态切换，提升用户体验
+- 为复杂学习任务提供清晰的执行路径
+
 ### 3.4 学习记录表 (study_records)
 
-记录用户的详细学习活动和进度。
+记录用户的详细学习活动和进度，支持学习轨迹追踪和经验值系统。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
@@ -175,29 +190,21 @@
 | plan_id | VARCHAR(9) | FOREIGN KEY | 关联学习计划（可选） |
 | task_id | VARCHAR(9) | FOREIGN KEY | 关联学习任务（可选） |
 | resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源（可选） |
-| activity_type | ENUM('resource_view','resource_download','task_complete','plan_create','discussion_join') | NOT NULL | 活动类型 |
+| post_id | VARCHAR(9) | FOREIGN KEY | 关联帖子（可选） |
+| activity_type | ENUM('resource_view','resource_download','task_complete','plan_create','post_view','post_create','comment_create') | NOT NULL | 活动类型 |
 | duration_minutes | INT | DEFAULT 0 | 学习时长（分钟） |
+| experience_gained | INT | DEFAULT 0 | 获得经验值 |
 | study_date | DATE | NOT NULL | 学习日期 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 3.5 学习目标表 (study_goals)
+**业务特点：**
+- 自动记录用户学习行为，包括资源浏览、下载、任务完成等
+- 支持经验值系统，不同活动类型获得不同经验值
+- 任务完成时自动记录学习活动并奖励经验值
+- 支持多种内容类型的学习记录（资源、帖子、任务）
+- 提供学习时长统计和学习轨迹分析
+- 支持按日期聚合的学习进度报告
 
-用户设定的学习目标管理。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| goal_id | VARCHAR(9) | PRIMARY KEY | 9位数字的目标唯一标识符 |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
-| title | VARCHAR(200) | NOT NULL | 目标标题 |
-| description | TEXT | | 目标描述 |
-| target_value | INT | NOT NULL | 目标数值 |
-| current_value | INT | DEFAULT 0 | 当前进度 |
-| unit | VARCHAR(20) | DEFAULT '次' | 计量单位（小时、次、个等） |
-| goal_type | ENUM('daily','weekly','monthly','custom') | NOT NULL | 目标类型 |
-| deadline | DATE | NOT NULL | 截止日期 |
-| status | ENUM('active','completed','paused','expired') | DEFAULT 'active' | 目标状态 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 ---
 
@@ -274,18 +281,6 @@
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 评分时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 4.6 图片表 (images)
-
-存储评论中上传的图片信息。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| image_id | VARCHAR(9) | PRIMARY KEY | 9位数字的图片唯一标识符 |
-| comment_id | INT | FOREIGN KEY | 关联评论表 |
-| image_path | VARCHAR(1000) | NOT NULL | 图片存储路径，以/开头，最多1000个字符 |
-| image_size | INT | | 图片大小（字节） |
-| image_type | VARCHAR(20) | | 图片类型（jpg, png, gif等） |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
 ---
 
@@ -350,53 +345,6 @@
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 
----
-
-## 7. 系统管理模块
-
-### 7.1 轮播图表 (banners)
-
-首页轮播图管理系统。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| banner_id | INT | PRIMARY KEY, AUTO_INCREMENT | 轮播图ID |
-| title | VARCHAR(200) | | 标题 |
-| image_url | VARCHAR(500) | NOT NULL | 图片URL |
-| link_url | VARCHAR(500) | | 跳转链接 |
-| sort_order | INT | DEFAULT 0 | 排序 |
-| status | ENUM('active','inactive') | DEFAULT 'active' | 状态 |
-| start_time | TIMESTAMP | | 开始时间 |
-| end_time | TIMESTAMP | | 结束时间 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-
-### 7.2 下载记录表 (download_records)
-
-统计和审计用户下载行为，提供详细的下载追踪功能。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| download_id | VARCHAR(9) | PRIMARY KEY | 9位数字的下载记录唯一标识符 |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 下载者手机号（外键） |
-| resource_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 资源ID（外键） |
-| file_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 文件ID（外键） |
-| download_size | INT | | 下载文件大小（字节） |
-| download_time | INT | | 下载耗时（毫秒） |
-| ip_address | VARCHAR(45) | | 下载IP地址（支持IPv6） |
-| user_agent | TEXT | | 用户代理字符串 |
-| status | ENUM('completed','failed','cancelled') | DEFAULT 'completed' | 下载状态 |
-| downloaded_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 下载时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**业务特点：**
-- 记录用户的完整下载历史
-- 支持下载失败和取消状态跟踪
-- 提供下载性能统计（文件大小、耗时）
-- 支持用户代理和IP追踪，便于数据分析
-- 为用户提供个人下载记录查询功能
-
-
----
 
 ## 数据库关系设计
 
@@ -421,19 +369,17 @@
 ```
 学习计划表 ←--一对多--→ 学习任务表 ←--一对多--→ 子任务表
      ↓                    ↓
-   学习目标表            学习记录表
+   进度跟踪              学习记录表
      ↓                    ↓
- 进度跟踪              学习历史
+ 自动更新              经验值系统
 ```
 
 #### 4. 论坛交流关系层次
 ```
 帖子表 ←--多对多--→ 帖子标签表（通过post_tag_relations）
   ↓
-评论表 ←--一对多--→ 图片表
+评论表（支持层级回复关系 parent_comment_id）
   ↓
-层级回复关系（parent_comment_id）
-
 资源表 ←--一对多--→ 评论表（资源评论）
 ```
 
@@ -452,21 +398,21 @@
 1. 用户发布资源 → `resources` 表
 2. 选择资源分类 → `category_id` 字段关联
 3. 上传相关文件 → `files` 表
-4. 其他用户浏览/下载 → 更新统计字段
+4. 其他用户浏览资源 → 更新浏览统计字段
 
 #### 学习管理流程
-1. 用户创建学习计划 → `study_plans` 表
+1. 用户创建学习计划 → `study_plans` 表（自动记录学习活动，奖励15经验值）
 2. 制定学习任务 → `study_tasks` 表
-3. 分解子任务 → `sub_tasks` 表
-4. 记录学习进度 → `study_records` 表
-5. 设定学习目标 → `study_goals` 表
+3. 分解子任务 → `sub_tasks` 表（可选，支持复杂任务管理）
+4. 完成任务 → 更新任务状态（自动记录学习活动，奖励20经验值）
+5. 自动更新计划进度 → 基于任务完成情况计算进度百分比
+6. 学习轨迹追踪 → `study_records` 表记录所有学习活动
 
 #### 论坛交流流程
 1. 用户发布帖子 → `posts` 表
 2. 关联帖子标签 → `post_tag_relations` 表
 3. 其他用户评论 → `comments` 表
-4. 支持图片评论 → `images` 表
-5. 层级回复机制 → `parent_comment_id` 字段
+4. 层级回复机制 → `parent_comment_id` 字段
 
 ---
 
@@ -538,4 +484,137 @@
 - 支持平滑的结构变更
 - 数据迁移工具和回滚机制
 
-本数据库设计充分考虑了教育资源平台的业务特点，重点围绕学习资源共享、论坛交流、学习管理和通知系统等核心功能，在保证数据一致性和完整性的基础上，提供了良好的扩展性和性能优化空间。该设计支持用户的完整学习生态系统，从资源获取到学习计划管理，再到社区互动交流，为用户提供一站式的学习服务体验。
+本数据库设计充分考虑了教育资源平台的业务特点，重点围绕学习资源共享、论坛交流、学习管理、通知系统和个人中心管理等核心功能，在保证数据一致性和完整性的基础上，提供了良好的扩展性和性能优化空间。该设计支持用户的完整学习生态系统，从资源获取到学习计划管理，再到社区互动交流和个人数据管理，为用户提供一站式的学习服务体验。
+
+---
+
+## 个人中心功能实现概述
+
+### 已实现功能模块
+
+✅ **用户统计信息**
+- 资源发布数量统计 (`resources` 表)
+- 帖子发布数量统计 (`posts` 表)
+- 关注和粉丝数量统计 (`user_follows` 表)
+- 收藏数量统计 (`collections` 表)
+
+✅ **我的资源管理**
+- 资源列表展示（支持状态筛选：published/pending/rejected）
+- 资源详情查看和编辑
+- 资源状态管理和审核流程
+- 文件关联和下载统计
+
+✅ **我的帖子管理**
+- 帖子列表展示（支持状态筛选：active/hidden/deleted）
+- 帖子内容管理和编辑
+- 评论数量和浏览统计
+- 帖子标签关联
+
+✅ **关注/粉丝管理**
+- 我的关注列表 (`user_follows` 表，follower_phone 查询）
+- 我的粉丝列表 (`user_follows` 表，following_phone 查询）
+- 关注/取消关注操作（状态切换：active/cancelled）
+- 双向关注检查和回关功能
+
+✅ **收藏管理**
+- 多类型收藏支持（resource/post 通过 `collection_type` 区分）
+- 收藏列表展示和筛选
+- 取消收藏操作（状态管理：active/cancelled）
+- 收藏内容详情关联
+
+### API接口设计
+
+#### 用户统计接口
+```http
+GET /api/v1/users/stats
+Authorization: Bearer {token}
+```
+**返回数据**: resourceCount, postCount, followingCount, followerCount, collectionCount
+
+#### 资源管理接口
+```http
+GET /api/v1/users/my-resources?status={status}&page={page}&limit={limit}
+Authorization: Bearer {token}
+```
+**支持状态**: published, pending, rejected
+**返回数据**: 用户发布的资源列表，包含文件信息和统计数据
+
+#### 帖子管理接口
+```http
+GET /api/v1/users/my-posts?status={status}&page={page}&limit={limit}
+Authorization: Bearer {token}
+```
+**支持状态**: active, hidden, deleted
+**返回数据**: 用户发布的帖子列表，包含标签和统计信息
+
+#### 关注管理接口
+```http
+GET /api/v1/users/following?page={page}&limit={limit}    # 获取关注列表
+GET /api/v1/users/followers?page={page}&limit={limit}    # 获取粉丝列表
+POST /api/v1/users/follow/{phone}                        # 关注/取消关注切换
+Authorization: Bearer {token}
+```
+
+#### 收藏管理接口
+```http
+GET /api/v1/users/my-collections?collection_type={type}&page={page}&limit={limit}
+DELETE /api/v1/collections/{content_id}?collection_type={type}
+Authorization: Bearer {token}
+```
+**支持类型**: resource, post
+
+### 数据库表结构优化
+
+#### 关键索引设计
+```sql
+-- 用户统计查询优化
+CREATE INDEX idx_resources_publisher_status ON resources(publisher_phone, status);
+CREATE INDEX idx_posts_author_status ON posts(author_phone, status);
+CREATE INDEX idx_collections_user_status ON collections(user_phone, status);
+CREATE INDEX idx_user_follows_status ON user_follows(follower_phone, following_phone, status);
+
+-- 分页查询优化
+CREATE INDEX idx_resources_created_at ON resources(created_at DESC);
+CREATE INDEX idx_posts_created_at ON posts(created_at DESC);
+CREATE INDEX idx_collections_created_at ON collections(created_at DESC);
+```
+
+#### 数据完整性约束
+- **唯一约束**: user_follows 表防止重复关注 `UNIQUE(follower_phone, following_phone)`
+- **唯一约束**: collections 表防止重复收藏 `UNIQUE(user_phone, content_id, collection_type)`
+- **外键约束**: 所有关联表设置级联删除或 SET NULL
+- **状态枚举**: 使用 ENUM 类型确保状态值一致性
+
+### 业务逻辑实现
+
+#### 关注系统设计
+- **关注操作**: 创建或更新 user_follows 记录，状态为 'active'
+- **取消关注**: 更新 status 为 'cancelled'（软删除，保留历史记录）
+- **重新关注**: 将已取消的关注记录状态改回 'active'
+- **互关检查**: 查询双向关注记录判断是否为互相关注
+
+#### 收藏系统设计
+- **多类型支持**: 通过 collection_type 区分资源收藏和帖子收藏
+- **内容关联**: content_id 字段存储被收藏内容的主键
+- **状态管理**: active/cancelled 状态实现软删除机制
+- **数据同步**: 收藏数变化时更新对应资源或帖子的统计字段
+
+#### 统计数据维护
+- **实时统计**: 通过 COUNT 查询实时计算统计数据
+- **缓存策略**: 可在 Redis 中缓存频繁查询的统计数据
+- **定时更新**: 可设置定时任务同步统计数据到主表字段
+
+### 性能优化策略
+
+#### 查询优化
+- **分页查询**: 使用 LIMIT/OFFSET 实现分页，避免大数据量查询
+- **状态筛选**: 利用状态字段索引快速筛选数据
+- **关联查询**: 适当使用 JOIN 减少 N+1 查询问题
+
+#### 数据同步优化
+- **批量操作**: 批量取消收藏等操作使用事务保证一致性
+- **异步处理**: 统计数据更新可异步处理，避免阻塞主流程
+- **读写分离**: 统计查询可分发到只读实例
+
+个人中心功能通过完善的数据库设计和 API 接口，为用户提供了完整的个人数据管理功能，支持资源管理、社交互动、内容收藏等核心需求，具备良好的扩展性和性能表现。
+

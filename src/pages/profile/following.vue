@@ -1,41 +1,58 @@
 <template>
 	<view class="following-container">
-		<!-- 搜索栏 -->
-		<view class="search-bar">
-			<input class="search-input" placeholder="搜索关注的用户" v-model="searchKeyword" @input="onSearch" />
-			<text class="search-icon">🔍</text>
-		</view>
-
-		<!-- 统计信息 -->
-		<view class="stats-bar">
-			<text class="stats-text">共关注了 {{ followingList.length }} 人</text>
+		<!-- 顶部统计 -->
+		<view class="stats-header">
+			<text class="stats-text">共关注 {{ totalCount }} 人</text>
 		</view>
 
 		<!-- 关注列表 -->
-		<view class="following-list">
-			<view class="user-item" v-for="(user, index) in filteredList" :key="index" @click="viewProfile(user)">
-				<image class="user-avatar" :src="user.avatar || require('@/static/images/default-avatar.png')" mode="aspectFill"></image>
+		<view class="following-list" v-if="followingList.length > 0">
+			<view 
+				class="following-item" 
+				v-for="(item, index) in followingList" 
+				:key="item.follow_id"
+				@click="viewProfile(item.followingUser)"
+			>
 				<view class="user-info">
-					<text class="user-name">{{ user.name }}</text>
-					<text class="user-desc">{{ user.description }}</text>
-					<view class="user-stats">
-						<text class="stat-item">{{ user.followersCount }}粉丝</text>
-						<text class="stat-item">{{ user.resourcesCount }}资源</text>
+					<image 
+						class="user-avatar" 
+						:src="item.followingUser.avatar_url || '/static/default-avatar.png'"
+						mode="aspectFill"
+					></image>
+					<view class="user-details">
+						<text class="user-name">{{ item.followingUser.nickname || item.followingUser.name }}</text>
+						<text class="user-bio" v-if="item.followingUser.bio">{{ item.followingUser.bio }}</text>
+						<text class="follow-time">{{ formatFollowTime(item.created_at) }}关注</text>
 					</view>
 				</view>
-				<view class="action-btn" @click.stop="toggleFollow(user, index)">
-					<text class="btn-text" :class="user.isFollowing ? 'btn-following' : 'btn-follow'">
-						{{ user.isFollowing ? '已关注' : '关注' }}
-					</text>
+				
+				<view class="action-buttons">
+					<button 
+						class="unfollow-btn"
+						@click.stop="toggleFollow(item)"
+					>
+						{{ item.status === 'active' ? '取消关注' : '重新关注' }}
+					</button>
 				</view>
 			</view>
 		</view>
 
 		<!-- 空状态 -->
-		<view class="empty-state" v-if="filteredList.length === 0">
+		<view class="empty-state" v-else-if="!loading">
 			<text class="empty-icon">👥</text>
-			<text class="empty-text">{{ searchKeyword ? '未找到相关用户' : '还没有关注任何人' }}</text>
-			<text class="empty-desc" v-if="!searchKeyword">去发现更多有趣的人吧</text>
+			<text class="empty-title">还没有关注任何人</text>
+			<text class="empty-desc">关注其他用户，获取他们的最新动态</text>
+			<button class="discover-btn" @click="goToDiscover">发现用户</button>
+		</view>
+
+		<!-- 加载更多 -->
+		<view class="load-more" v-if="hasMore && !loading">
+			<button class="load-more-btn" @click="loadMore">加载更多</button>
+		</view>
+
+		<!-- 加载中 -->
+		<view class="loading" v-if="loading">
+			<text class="loading-text">加载中...</text>
 		</view>
 	</view>
 </template>
@@ -44,99 +61,161 @@
 export default {
 	data() {
 		return {
-			searchKeyword: '',
 			followingList: [],
-			filteredList: []
+			totalCount: 0,
+			loading: false,
+			page: 1,
+			hasMore: true
 		}
 	},
 	
 	onLoad() {
-		this.loadFollowingList()
+		this.loadFollowing()
 	},
 	
 	onPullDownRefresh() {
-		this.loadFollowingList()
-		setTimeout(() => {
-			uni.stopPullDownRefresh()
-		}, 1000)
+		this.page = 1
+		this.hasMore = true
+		this.loadFollowing(true)
 	},
 	
 	methods: {
-		async loadFollowingList() {
+		async loadFollowing(refresh = false) {
+			if (this.loading) return
+			
 			try {
-				// 模拟数据，实际应调用云函数
-				this.followingList = [
-					{
-						id: 1,
-						name: '李教授',
-						avatar: '',
-						description: '计算机学院教授 · 人工智能方向',
-						followersCount: 1234,
-						resourcesCount: 89,
-						isFollowing: true
+				this.loading = true
+				
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.redirectTo({
+						url: '/pages/login/login'
+					})
+					return
+				}
+				
+				const response = await uni.request({
+					url: 'http://localhost:3000/api/v1/users/following',
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
 					},
-					{
-						id: 2,
-						name: '张同学',
-						avatar: '',
-						description: '软件工程专业 · 大三学生',
-						followersCount: 456,
-						resourcesCount: 23,
-						isFollowing: true
-					},
-					{
-						id: 3,
-						name: '王老师',
-						avatar: '',
-						description: '数据库系统专家',
-						followersCount: 789,
-						resourcesCount: 156,
-						isFollowing: true
+					data: {
+						page: refresh ? 1 : this.page,
+						limit: 20
 					}
-				]
-				this.filteredList = [...this.followingList]
+				})
+				
+				if (response.data.success) {
+					const { following, total, page, limit } = response.data.data
+					
+					if (refresh) {
+						this.followingList = following
+						this.page = 1
+						uni.stopPullDownRefresh()
+					} else {
+						this.followingList = [...this.followingList, ...following]
+					}
+					
+					this.totalCount = total
+					this.hasMore = following.length === limit
+					this.page = page + 1
+				} else {
+					uni.showToast({
+						title: response.data.message || '加载失败',
+						icon: 'none'
+					})
+				}
 			} catch (error) {
 				console.error('加载关注列表失败:', error)
 				uni.showToast({
-					title: '加载失败',
+					title: '网络错误',
+					icon: 'none'
+				})
+			} finally {
+				this.loading = false
+			}
+		},
+		
+		async loadMore() {
+			if (this.hasMore && !this.loading) {
+				await this.loadFollowing()
+			}
+		},
+		
+		async toggleFollow(item) {
+			try {
+				const token = uni.getStorageSync('token')
+				const response = await uni.request({
+					url: `http://localhost:3000/api/v1/users/follow/${item.followingUser.phone_number}`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				
+				if (response.data.success) {
+					// 更新关注状态
+					item.status = response.data.data.isFollowing ? 'active' : 'cancelled'
+					
+					// 更新总数
+					if (response.data.data.isFollowing) {
+						this.totalCount++
+					} else {
+						this.totalCount--
+					}
+					
+					uni.showToast({
+						title: response.data.message,
+						icon: 'success'
+					})
+				} else {
+					uni.showToast({
+						title: response.data.message || '操作失败',
+						icon: 'none'
+					})
+				}
+			} catch (error) {
+				console.error('关注操作失败:', error)
+				uni.showToast({
+					title: '网络错误',
 					icon: 'none'
 				})
 			}
 		},
 		
-		onSearch() {
-			if (this.searchKeyword.trim()) {
-				this.filteredList = this.followingList.filter(user => 
-					user.name.includes(this.searchKeyword) || 
-					user.description.includes(this.searchKeyword)
-				)
-			} else {
-				this.filteredList = [...this.followingList]
-			}
-		},
-		
 		viewProfile(user) {
-			uni.navigateTo({
-				url: `/pages/profile/user-detail?id=${user.id}`
+			// 跳转到用户详情页面（如果有的话）
+			uni.showToast({
+				title: `查看 ${user.nickname || user.name} 的资料`,
+				icon: 'none'
 			})
 		},
 		
-		toggleFollow(user, index) {
-			uni.showModal({
-				title: '确认操作',
-				content: `确定要取消关注 ${user.name} 吗？`,
-				success: (res) => {
-					if (res.confirm) {
-						// 从列表中移除
-						this.followingList.splice(this.followingList.findIndex(u => u.id === user.id), 1)
-						this.onSearch() // 重新过滤
-						uni.showToast({
-							title: '已取消关注',
-							icon: 'success'
-						})
-					}
-				}
+		goToDiscover() {
+			// 跳转到发现页面或论坛页面
+			uni.switchTab({
+				url: '/pages/forum/forum'
 			})
+		},
+		
+		formatFollowTime(time) {
+			if (!time) return ''
+			
+			const date = new Date(time)
+			const now = new Date()
+			const diff = now - date
+			const days = Math.floor(diff / (24 * 60 * 60 * 1000))
+			
+			if (days === 0) {
+				return '今天'
+			} else if (days < 30) {
+				return `${days}天前`
+			} else if (days < 365) {
+				return `${Math.floor(days / 30)}个月前`
+			} else {
+				return `${Math.floor(days / 365)}年前`
+			}
 		}
 	}
 }
@@ -148,125 +227,146 @@ export default {
 	min-height: 100vh;
 }
 
-.search-bar {
+.stats-header {
 	background: white;
-	padding: 20rpx 30rpx;
-	display: flex;
-	align-items: center;
-	border-bottom: 1rpx solid #f0f0f0;
-	
-	.search-input {
-		flex: 1;
-		background: #f8f8f8;
-		padding: 20rpx 30rpx;
-		border-radius: 30rpx;
-		font-size: 28rpx;
-		color: #333;
-	}
-	
-	.search-icon {
-		font-size: 32rpx;
-		color: #999;
-		margin-left: 20rpx;
-	}
-}
-
-.stats-bar {
-	background: white;
-	padding: 20rpx 30rpx;
+	padding: 30rpx;
 	border-bottom: 1rpx solid #f0f0f0;
 	
 	.stats-text {
-		font-size: 26rpx;
+		font-size: 28rpx;
 		color: #666;
 	}
 }
 
 .following-list {
-	.user-item {
-		background: white;
-		padding: 30rpx;
-		margin-bottom: 2rpx;
+	padding: 20rpx;
+}
+
+.following-item {
+	background: white;
+	border-radius: 20rpx;
+	padding: 30rpx;
+	margin-bottom: 20rpx;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+	
+	.user-info {
 		display: flex;
 		align-items: center;
+		flex: 1;
 		
 		.user-avatar {
 			width: 100rpx;
 			height: 100rpx;
 			border-radius: 50%;
-			margin-right: 30rpx;
+			margin-right: 24rpx;
+			background: #f0f0f0;
 		}
 		
-		.user-info {
+		.user-details {
 			flex: 1;
 			
 			.user-name {
 				display: block;
 				font-size: 32rpx;
-				font-weight: bold;
+				font-weight: 600;
 				color: #333;
-				margin-bottom: 10rpx;
+				margin-bottom: 8rpx;
 			}
 			
-			.user-desc {
+			.user-bio {
 				display: block;
-				font-size: 26rpx;
+				font-size: 24rpx;
 				color: #666;
-				margin-bottom: 15rpx;
+				margin-bottom: 8rpx;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
 			}
 			
-			.user-stats {
-				display: flex;
-				
-				.stat-item {
-					font-size: 24rpx;
-					color: #999;
-					margin-right: 30rpx;
-				}
+			.follow-time {
+				font-size: 22rpx;
+				color: #999;
 			}
 		}
+	}
+	
+	.action-buttons {
+		margin-left: 20rpx;
 		
-		.action-btn {
-			.btn-text {
-				padding: 12rpx 30rpx;
-				border-radius: 30rpx;
-				font-size: 26rpx;
-				border: 2rpx solid;
-				
-				&.btn-follow {
-					color: #007aff;
-					border-color: #007aff;
-					background: white;
-				}
-				
-				&.btn-following {
-					color: #666;
-					border-color: #ddd;
-					background: #f8f8f8;
-				}
+		.unfollow-btn {
+			padding: 12rpx 24rpx;
+			background: #f0f0f0;
+			color: #666;
+			border: none;
+			border-radius: 20rpx;
+			font-size: 24rpx;
+			
+			&:active {
+				background: #e0e0e0;
 			}
 		}
 	}
 }
 
 .empty-state {
-	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
 	padding: 120rpx 60rpx;
+	text-align: center;
 	
 	.empty-icon {
-		display: block;
 		font-size: 120rpx;
-		margin-bottom: 30rpx;
+		margin-bottom: 32rpx;
+		opacity: 0.6;
 	}
 	
-	.empty-text {
-		display: block;
+	.empty-title {
 		font-size: 32rpx;
-		color: #666;
-		margin-bottom: 15rpx;
+		color: #333;
+		font-weight: 600;
+		margin-bottom: 16rpx;
 	}
 	
 	.empty-desc {
+		font-size: 28rpx;
+		color: #666;
+		margin-bottom: 48rpx;
+	}
+	
+	.discover-btn {
+		padding: 20rpx 40rpx;
+		background: #007aff;
+		color: white;
+		border: none;
+		border-radius: 24rpx;
+		font-size: 28rpx;
+	}
+}
+
+.load-more {
+	padding: 20rpx;
+	text-align: center;
+	
+	.load-more-btn {
+		background: #f8f8f8;
+		color: #666;
+		border: none;
+		border-radius: 50rpx;
+		padding: 20rpx 40rpx;
+		font-size: 26rpx;
+	}
+}
+
+.loading {
+	padding: 40rpx;
+	text-align: center;
+	
+	.loading-text {
 		font-size: 26rpx;
 		color: #999;
 	}
