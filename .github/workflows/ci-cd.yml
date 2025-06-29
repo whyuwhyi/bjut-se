@@ -227,8 +227,21 @@ jobs:
             mv current backup-$(date +%Y%m%d-%H%M%S)
           fi
           
-          # 克隆最新代码
-          git clone https://github.com/${{ github.repository }}.git current
+          # 下载最新代码压缩包
+          echo "下载最新代码..."
+          if wget -O repo.zip https://github.com/${{ github.repository }}/archive/refs/heads/main.zip 2>/dev/null; then
+            echo "✅ 代码下载成功"
+            unzip -q repo.zip
+            mv *-main current
+            rm -f repo.zip
+            echo "✅ 代码解压完成"
+          elif [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
+            cp -r backup-$(ls -t backup-* | head -n 1) current
+            echo "⚠️ 下载失败，使用备份: backup-$(ls -t backup-* | head -n 1)"
+          else
+            echo "❌ 下载失败且无备份可用"
+            exit 1
+          fi
           cd current
           
           # 创建环境配置
