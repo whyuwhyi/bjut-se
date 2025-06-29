@@ -10,9 +10,9 @@ const config = {
   
   // 生产环境配置
   production: {
-    // 生产环境的API地址 - 需要根据实际部署地址修改
-    apiBaseUrl: 'https://your-domain.com/api/v1',
-    h5ApiBaseUrl: 'https://your-domain.com/api/v1'
+    // 生产环境的API地址
+    apiBaseUrl: 'https://rixin.whywhy.me/api/v1',
+    h5ApiBaseUrl: '/api/v1'
   }
 }
 
