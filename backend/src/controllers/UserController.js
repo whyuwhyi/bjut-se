@@ -5,8 +5,8 @@ const config = require('../config/app')
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs').promises
-const twilio = require('twilio'); // 确保安装Twilio以发送短信
-const { VerificationCode } = require('../models'); // 假设你有一个 VerificationCode 模型用于存储验证码
+// const twilio = require('twilio'); // 短信功能暂未启用
+// const { VerificationCode } = require('../models'); // 验证码功能暂未启用
 
 
 class UserController {
