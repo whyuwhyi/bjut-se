@@ -22,9 +22,20 @@
 | avatar_url | VARCHAR(500) | | 头像URL |
 | email | VARCHAR(100) | | 邮箱地址 |
 | gender | ENUM('M','F','U') | DEFAULT 'U' | 性别：M-男，F-女，U-未知 |
+| role | ENUM('user','admin') | DEFAULT 'user' | 用户角色：user-普通用户，admin-管理员 |
 | status | ENUM('active','inactive','banned') | DEFAULT 'active' | 用户状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**权限说明**:
+- **user (普通用户)**: 可以注册、登录、发布资源、参与论坛讨论等基础功能
+- **admin (管理员)**: 具备所有普通用户权限，同时可以审核资源、管理用户、发布系统通知、查看统计数据等管理功能
+
+**业务规则**:
+- 默认注册用户角色为 'user'
+- 管理员账号需要手动设置或通过数据库初始化
+- 管理员权限验证通过后端中间件实现
+- 支持基于角色的访问控制 (RBAC)
 
 ---
 

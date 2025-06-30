@@ -68,6 +68,12 @@ const User = sequelize.define('User', {
     defaultValue: 'U',
     comment: '性别：M-男，F-女，U-未知'
   },
+  role: {
+    type: DataTypes.ENUM('user', 'admin'),
+    allowNull: false,
+    defaultValue: 'user',
+    comment: '用户角色'
+  },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'banned'),
     defaultValue: 'active',

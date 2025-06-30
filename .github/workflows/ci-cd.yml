@@ -48,11 +48,17 @@ jobs:
 
     - name: 安装项目依赖
       run: |
-        # 使用我们的统一脚本来安装依赖
+        # 使用我们的统一脚本来安装依赖（包含管理后台）
         chmod +x scripts/dev.sh
         scripts/dev.sh install-deps || {
           # 如果脚本不支持install-deps命令，则使用传统方式
           cd frontend
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+          cd ../admin-frontend
           if [ -f package-lock.json ]; then
             npm ci
           else
@@ -135,6 +141,12 @@ jobs:
         else
           npm install
         fi
+        cd ../admin-frontend
+        if [ -f package-lock.json ]; then
+          npm ci
+        else
+          npm install
+        fi
         cd ..
 
     - name: 构建前端H5
@@ -142,11 +154,23 @@ jobs:
         cd frontend
         npm run build:h5
 
-    - name: 上传构建产物
+    - name: 构建管理后台
+      run: |
+        cd admin-frontend
+        npm run build
+
+    - name: 上传前端构建产物
       uses: actions/upload-artifact@v4
       with:
         name: frontend-dist
         path: frontend/dist/build/h5/
+        retention-days: 7
+
+    - name: 上传管理后台构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: admin-dist
+        path: admin-frontend/dist/
         retention-days: 7
 
   # Docker镜像构建
@@ -204,6 +228,23 @@ jobs:
         push: true
         tags: ${{ steps.meta-frontend.outputs.tags }}
         labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: 提取管理后台元数据
+      id: meta-admin
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-admin
+
+    - name: 构建并推送管理后台镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: ./admin-frontend
+        file: ./docker/admin-frontend/Dockerfile
+        push: true
+        tags: ${{ steps.meta-admin.outputs.tags }}
+        labels: ${{ steps.meta-admin.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 

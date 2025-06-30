@@ -85,6 +85,19 @@ install_frontend() {
   print_info "前端依赖安装完成 ✓"
 }
 
+# 安装管理后台依赖
+install_admin() {
+  print_step "安装管理后台依赖..."
+  cd admin-frontend
+  if [ ! -f package.json ]; then
+    print_error "admin-frontend/package.json 不存在"
+    exit 1
+  fi
+  npm install
+  cd ..
+  print_info "管理后台依赖安装完成 ✓"
+}
+
 # 安装后端依赖
 install_backend() {
   print_step "安装后端依赖..."
@@ -302,6 +315,41 @@ start_frontend() {
   print_info "前端开发服务器已启动 (PID: $FRONTEND_PID) ✓"
 }
 
+# 启动管理后台开发服务器
+start_admin() {
+  print_step "启动管理后台开发服务器..."
+
+  # 设置开发环境变量
+  export NODE_ENV=development
+
+  cd admin-frontend
+  npm run dev &
+  ADMIN_PID=$!
+  echo $ADMIN_PID >../admin.pid
+  cd ..
+
+  print_info "管理后台开发服务器已启动 (PID: $ADMIN_PID) ✓"
+  print_info "等待管理后台服务器准备就绪..."
+
+  # 等待管理后台服务器启动
+  local max_attempts=15
+  local attempt=0
+  while [ $attempt -lt $max_attempts ]; do
+    if curl -s http://localhost:5173 >/dev/null 2>&1; then
+      print_info "管理后台服务器已就绪 ✓"
+      break
+    fi
+    echo -n "."
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+  echo ""
+
+  if [ $attempt -eq $max_attempts ]; then
+    print_warning "管理后台服务器启动可能有问题，请检查日志"
+  fi
+}
+
 # 停止开发服务器
 stop_servers() {
   print_step "停止开发服务器..."
@@ -313,6 +361,15 @@ stop_servers() {
       print_info "前端服务器已停止 ✓"
     fi
     rm -f frontend.pid
+  fi
+
+  if [ -f admin.pid ]; then
+    ADMIN_PID=$(cat admin.pid)
+    if ps -p $ADMIN_PID >/dev/null 2>&1; then
+      kill $ADMIN_PID 2>/dev/null
+      print_info "管理后台服务器已停止 ✓"
+    fi
+    rm -f admin.pid
   fi
 
   if [ -f backend.pid ]; then
@@ -343,6 +400,7 @@ show_dev_info() {
   echo ""
   echo "🌐 服务访问地址："
   echo "   - 前端H5: http://localhost:8080"
+  echo "   - 管理后台: http://localhost:5173"
   echo "   - 后端API: http://localhost:3000"
   echo "   - 健康检查: http://localhost:3000/api/v1/health"
   echo ""
@@ -353,9 +411,8 @@ show_dev_info() {
   echo "   - 用户: appuser"
   echo ""
   echo "👤 测试账号："
-  echo "   - 教师: 13800138001 (密码: 123456)"
-  echo "   - 学生: 13800138002 (密码: 123456)"
-  echo "   - 管理: 13800138003 (密码: 123456)"
+  echo "   - 普通用户: 13800138002, 13800138003 (密码: 123456)"
+  echo "   - 管理员: 13800138001 (密码: 123456)"
   echo ""
   echo "🛠️  开发命令："
   echo "   - 停止服务: ./scripts/dev.sh stop"
@@ -428,6 +485,18 @@ show_status() {
     print_warning "前端服务器未启动"
   fi
 
+  # 检查管理后台进程
+  if [ -f admin.pid ]; then
+    ADMIN_PID=$(cat admin.pid)
+    if ps -p $ADMIN_PID >/dev/null 2>&1; then
+      print_info "管理后台服务器运行中 (PID: $ADMIN_PID) ✓"
+    else
+      print_warning "管理后台服务器未运行"
+    fi
+  else
+    print_warning "管理后台服务器未启动"
+  fi
+
   # 检查后端进程
   if [ -f backend.pid ]; then
     BACKEND_PID=$(cat backend.pid)
@@ -485,11 +554,13 @@ main() {
   "start")
     check_dependencies
     install_frontend
+    install_admin
     install_backend
     start_database
     check_database
     start_backend
     start_frontend
+    start_admin
     show_dev_info
 
     # 等待用户中断
@@ -522,6 +593,7 @@ main() {
     ;;
   "install-deps")
     install_frontend
+    install_admin
     install_backend
     ;;
   "help" | "-h" | "--help")

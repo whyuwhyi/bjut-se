@@ -12,17 +12,22 @@ const { errorHandler, notFound } = require('./middleware/errorHandler')
 
 const app = express()
 
-// 信任代理设置（用于生产环境的负载均衡器/反向代理）
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1)
-}
+// 信任代理设置（用于负载均衡器/反向代理）
+// 开发环境和生产环境都需要启用，因为开发环境也可能通过代理访问
+app.set('trust proxy', 1)
 
 // 安全中间件
 app.use(helmet())
 
 // CORS配置
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:8080', 'http://127.0.0.1:8080', 'https://rixin.whywhy.me'],
+  origin: process.env.CORS_ORIGIN?.split(',') || process.env.ALLOWED_ORIGINS?.split(',') || [
+    'http://localhost:8080', 
+    'http://127.0.0.1:8080', 
+    'http://localhost:5173',  // 管理后台开发服务器
+    'http://127.0.0.1:5173',  // 管理后台开发服务器
+    'https://rixin.whywhy.me'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

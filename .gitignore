@@ -63,5 +63,3 @@ coverage/
 
 # 进程ID文件
 *.pid
-backend.pid
-frontend.pid
