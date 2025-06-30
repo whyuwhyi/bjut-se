@@ -1,5 +1,5 @@
 <template>
-	<view class="login-container">
+	<view class="container">
 		<!-- 顶部Logo区域 -->
 		<view class="login-header animated fadeInDown">
 			<image class="logo animated fadeIn" src="/static/logo.png" mode="aspectFit"></image>
@@ -200,7 +200,7 @@ export default {
 }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 /* 定义动画 */
 @keyframes fadeIn {
 	from { opacity: 0; }
@@ -215,19 +215,6 @@ export default {
 @keyframes fadeInUp {
 	from { opacity: 0; transform: translateY(20rpx); }
 	to { opacity: 1; transform: translateY(0); }
-}
-
-/* 新增背景渐变动画 */
-@keyframes backgroundPan {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
 }
 
 .animated {
@@ -247,193 +234,176 @@ export default {
 .delay-500 { animation-delay: 0.5s; }
 .delay-600 { animation-delay: 0.6s; }
 
-.login-container {
-	min-height: 100vh;
-	background-image: linear-gradient(135deg, #A8BFFF 0%, #88A6E0 100%); /* 恢复为原始渐变色 */
-	background-size: 400% 400%; /* 恢复背景尺寸 */
-	animation: backgroundPan 15s ease infinite; /* 恢复动画属性 */
-	
-	padding: 80rpx 50rpx; /* 增加内边距 */
+.login-header {
 	display: flex;
 	flex-direction: column;
-}
+	align-items: center;
+	padding-top: 100rpx;
+	margin-bottom: 80rpx;
 
-.login-header {
-	text-align: center;
-	margin-bottom: 100rpx; /* 增加底部间距 */
-	
 	.logo {
-		width: 160rpx; /* 调整大小 */
-		height: 160rpx; /* 调整大小 */
-		border-radius: 30rpx; /* 调整圆角 */
-		margin-bottom: 40rpx;
-		box-shadow: 0 15rpx 40rpx rgba(0, 0, 0, 0.1); /* 添加柔和阴影 */
-		background-color: rgba(255, 255, 255, 0.9); /* 添加白色半透明背景 */
-		padding: 20rpx; /* 增加内边距 */
-		box-sizing: content-box; /* 确保 padding 不会影响原有的 width/height */
+		width: 200rpx;
+		height: 200rpx;
+		margin-bottom: 20rpx;
 	}
 
 	.app-name {
-		display: block;
-		font-size: 56rpx; /* 调整字体大小 */
+		font-size: 60rpx;
 		font-weight: bold;
-		margin-bottom: 15rpx; /* 调整间距 */
-		text-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.1);
-		/* 添加渐变文本样式 */
-		background-image: linear-gradient(135deg, #FFFDE7 0%, #FFCC80 100%); /* 浅黄到浅橙 */
-		-webkit-background-clip: text; /* 将背景裁剪到文字 */
-		-webkit-text-fill-color: transparent; /* 将文字填充色设为透明 */
+		color: #333;
+		margin-bottom: 10rpx;
 	}
 
 	.app-slogan {
-		font-size: 32rpx; /* 调整字体大小 */
-		/* 添加渐变文本样式 */
-		background-image: linear-gradient(135deg, #FFFDE7 0%, #FFCC80 100%); /* 浅黄到浅橙 */
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
+		font-size: 30rpx;
+		color: #666;
 	}
 }
 
 .login-form {
-	flex: 1;
+	background-color: #FFFFFF;
+	border-radius: 30rpx;
+	box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.1);
+	margin: 0 40rpx;
+	padding: 40rpx;
+}
 
-	.form-item {
-		margin-bottom: 40rpx; /* 增加间距 */
-		
-		.form-label {
-			display: flex;
-			align-items: center;
-			background: rgba(255, 255, 255, 0.95); /* 更不透明的白色 */
-			border-radius: 50rpx;
-			padding: 0 30rpx;
-			border: none; /* 移除边框 */
-			box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.08); /* 添加柔和阴影 */
-			transition: all 0.3s ease; /* 添加过渡效果 */
-			
-			&:focus-within { /* 聚焦时增加阴影和微小缩放 */
-				box-shadow: 0 15rpx 45rpx rgba(0, 0, 0, 0.2); /* 调整阴影更深 */
-				transform: translateY(-5rpx) scale(1.01); /* 增加微小放大效果 */
-			}
-			
-			.icon {
-				font-size: 36rpx; /* 调整图标大小 */
-				margin-right: 25rpx;
-				color: #88A6E0; /* 调整图标颜色 */
-			}
-			
-			.form-input {
-				flex: 1;
-				height: 110rpx; /* 调整高度 */
-				font-size: 32rpx;
-				color: #333;
-				
-				&::placeholder {
-					color: #A0A0A0; /* 调整占位符颜色 */
-				}
-			}
-		}
-		
-		.field-tip {
-			display: block;
-			font-size: 24rpx; /* 调整字体大小 */
-			color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
-			margin-top: 15rpx;
-			padding-left: 35rpx; /* 调整内边距 */
-		}
-	}
+.form-item {
+	margin-bottom: 40rpx; /* 增加间距 */
 	
-	.form-options {
+	.form-label {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 50rpx;
-		
-		.remember-me {
-			display: flex;
-			align-items: center;
-			
-			.checkbox {
-				width: 40rpx; /* 调整大小 */
-				height: 40rpx; /* 调整大小 */
-				border: 2rpx solid rgba(255, 255, 255, 0.7); /* 调整边框颜色 */
-				border-radius: 8rpx; /* 调整圆角 */
-				margin-right: 15rpx;
-				text-align: center;
-				line-height: 36rpx; /* 调整行高 */
-				font-size: 28rpx; /* 调整字体大小 */
-				color: white;
-				transition: all 0.2s ease; /* 添加过渡效果 */
-				
-				&.active {
-					background: rgba(255, 255, 255, 0.3); /* 调整选中背景色 */
-					border-color: rgba(255, 255, 255, 0.4); /* 调整选中边框色 */
-				}
-			}
-			
-			.option-text {
-				color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
-				font-size: 30rpx; /* 调整字体大小 */
-			}
-		}
-		
-		.forgot-password {
-			color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
-			font-size: 30rpx; /* 调整字体大小 */
-			transition: color 0.2s ease; /* 添加过渡效果 */
-			
-			&:active {
-				color: rgba(255, 255, 255, 0.6); /* 点击时颜色变暗 */
-			}
-		}
-	}
-	
-	.login-btn {
-		width: 100%;
-		height: 100rpx;
-		background: linear-gradient(135deg, #4A76EC 0%, #6F8EE7 100%); /* 调整为更协调的蓝色渐变 */
-		border: none;
+		background: rgba(255, 255, 255, 0.95); /* 更不透明的白色 */
 		border-radius: 50rpx;
-		color: white;
-		font-size: 36rpx;
-		font-weight: bold;
-		margin-bottom: 40rpx;
-		box-shadow: 0 15rpx 40rpx rgba(74, 118, 236, 0.4); /* 调整阴影，更柔和且与渐变色协调 */
+		padding: 0 30rpx;
+		border: none; /* 移除边框 */
+		box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.08); /* 添加柔和阴影 */
 		transition: all 0.3s ease; /* 添加过渡效果 */
 		
-		&:disabled {
-			opacity: 0.6;
+		&:focus-within { /* 聚焦时增加阴影和微小缩放 */
+			box-shadow: 0 15rpx 45rpx rgba(0, 0, 0, 0.2); /* 调整阴影更深 */
+			transform: translateY(-5rpx) scale(1.01); /* 增加微小放大效果 */
 		}
 		
-		&:hover { /* 新增悬停效果 */
-			transform: translateY(-5rpx) scale(1.01); /* 悬停时轻微上浮和放大 */
-			box-shadow: 0 20rpx 50rpx rgba(74, 118, 236, 0.5); /* 悬停时阴影更明显 */
+		.icon {
+			font-size: 36rpx; /* 调整图标大小 */
+			margin-right: 25rpx;
+			color: #88A6E0; /* 调整图标颜色 */
 		}
 		
-		&:active {
-			transform: scale(0.96); /* 点击时更明显的缩小 */
-			box-shadow: 0 5rpx 20rpx rgba(74, 118, 236, 0.2); /* 点击时阴影变浅 */
+		.form-input {
+			flex: 1;
+			height: 110rpx; /* 调整高度 */
+			font-size: 32rpx;
+			color: #333;
+			
+			&::placeholder {
+				color: #A0A0A0; /* 调整占位符颜色 */
+			}
 		}
 	}
 	
-	.register-link {
-		text-align: center;
-		margin-top: 30rpx; /* 增加顶部间距 */
+	.field-tip {
+		display: block;
+		font-size: 24rpx; /* 调整字体大小 */
+		color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
+		margin-top: 15rpx;
+		padding-left: 35rpx; /* 调整内边距 */
+	}
+}
+
+.form-options {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 50rpx;
+	
+	.remember-me {
+		display: flex;
+		align-items: center;
 		
-		.register-text {
-			color: rgba(255, 255, 255, 0.8); /* 调整颜色 */
-			font-size: 30rpx; /* 调整字体大小 */
+		.checkbox {
+			width: 40rpx; /* 调整大小 */
+			height: 40rpx; /* 调整大小 */
+			border: 2rpx solid rgba(255, 255, 255, 0.7); /* 调整边框颜色 */
+			border-radius: 8rpx; /* 调整圆角 */
+			margin-right: 15rpx;
+			text-align: center;
+			line-height: 36rpx; /* 调整行高 */
+			font-size: 28rpx; /* 调整字体大小 */
+			color: white;
+			transition: all 0.2s ease; /* 添加过渡效果 */
+			
+			&.active {
+				background: rgba(255, 255, 255, 0.3); /* 调整选中背景色 */
+				border-color: rgba(255, 255, 255, 0.4); /* 调整选中边框色 */
+			}
 		}
 		
-		.register-action {
-			color: #FFDE6B; /* 调整为更柔和的黄色 */
+		.option-text {
+			color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
 			font-size: 30rpx; /* 调整字体大小 */
-			font-weight: bold;
-			margin-left: 10rpx;
-			transition: color 0.2s ease; /* 添加过渡效果 */
-			
-			&:active {
-				color: #FFE58B; /* 点击时颜色变浅 */
-			}
+		}
+	}
+	
+	.forgot-password {
+		color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
+		font-size: 30rpx; /* 调整字体大小 */
+		transition: color 0.2s ease; /* 添加过渡效果 */
+		
+		&:active {
+			color: rgba(255, 255, 255, 0.6); /* 点击时颜色变暗 */
+		}
+	}
+}
+
+.login-btn {
+	width: 100%;
+	height: 100rpx;
+	background: linear-gradient(135deg, #4A76EC 0%, #6F8EE7 100%); /* 调整为更协调的蓝色渐变 */
+	border: none;
+	border-radius: 50rpx;
+	color: white;
+	font-size: 36rpx;
+	font-weight: bold;
+	margin-bottom: 40rpx;
+	box-shadow: 0 15rpx 40rpx rgba(74, 118, 236, 0.4); /* 调整阴影，更柔和且与渐变色协调 */
+	transition: all 0.3s ease; /* 添加过渡效果 */
+	
+	&:disabled {
+		opacity: 0.6;
+	}
+	
+	&:hover { /* 新增悬停效果 */
+		transform: translateY(-5rpx) scale(1.01); /* 悬停时轻微上浮和放大 */
+		box-shadow: 0 20rpx 50rpx rgba(74, 118, 236, 0.5); /* 悬停时阴影更明显 */
+	}
+	
+	&:active {
+		transform: scale(0.96); /* 点击时更明显的缩小 */
+		box-shadow: 0 5rpx 20rpx rgba(74, 118, 236, 0.2); /* 点击时阴影变浅 */
+	}
+}
+
+.register-link {
+	text-align: center;
+	margin-top: 30rpx; /* 增加顶部间距 */
+	
+	.register-text {
+		color: rgba(255, 255, 255, 0.8); /* 调整颜色 */
+		font-size: 30rpx; /* 调整字体大小 */
+	}
+	
+	.register-action {
+		color: #FFDE6B; /* 调整为更柔和的黄色 */
+		font-size: 30rpx; /* 调整字体大小 */
+		font-weight: bold;
+		margin-left: 10rpx;
+		transition: color 0.2s ease; /* 添加过渡效果 */
+		
+		&:active {
+			color: #FFE58B; /* 点击时颜色变浅 */
 		}
 	}
 }

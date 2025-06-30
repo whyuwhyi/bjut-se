@@ -1,5 +1,5 @@
 <template>
-	<view class="register-container">
+	<view class="container">
 		<!-- 顶部区域 -->
 		<view class="register-header">
 			<text class="title">注册账号</text>
@@ -325,189 +325,162 @@ export default {
 }
 </script>
 
-<style lang="scss" scoped>
-/* 定义动画 */
-@keyframes fadeIn {
-	from { opacity: 0; }
-	to { opacity: 1; }
-}
-
-@keyframes fadeInDown {
-	from { opacity: 0; transform: translateY(-20rpx); }
-	to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeInUp {
-	from { opacity: 0; transform: translateY(20rpx); }
-	to { opacity: 1; transform: translateY(0); }
-}
-
-/* 新增背景渐变动画 (与登录页面一致) */
-@keyframes backgroundPan {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.register-container {
-	min-height: 100vh;
-	background-image: linear-gradient(135deg, #A8BFFF 0%, #88A6E0 100%); /* 与登录页面一致的柔和蓝色渐变 */
-	background-size: 400% 400%; /* 使背景足够大以便移动 */
-	animation: backgroundPan 15s ease infinite; /* 应用动画 */
-	padding: 40rpx;
-}
-
+<style lang="scss">
 .register-header {
-	text-align: center;
-	margin-bottom: 50rpx;
-	padding-top: 40rpx;
-	
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-top: 100rpx;
+	margin-bottom: 80rpx;
+
 	.title {
-		display: block;
-		font-size: 48rpx;
+		font-size: 60rpx;
 		font-weight: bold;
-		color: white;
+		color: #333;
 		margin-bottom: 10rpx;
 	}
-	
+
 	.subtitle {
-		font-size: 28rpx;
-		color: rgba(255, 255, 255, 0.8);
+		font-size: 30rpx;
+		color: #666;
 	}
 }
 
 .register-form {
-	.form-item {
-		margin-bottom: 40rpx;
-		
-		&.required::before {
-			content: "*";
-			color: #ff6b6b;
-			font-size: 32rpx;
-			font-weight: bold;
-			position: absolute;
-			margin-left: -20rpx;
-			margin-top: 35rpx;
-		}
-		
-		.form-label {
-			display: flex;
-			align-items: center;
-			background: rgba(255, 255, 255, 0.95);
-			border-radius: 50rpx;
-			padding: 0 30rpx;
-			border: none;
-			box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.08);
-			transition: all 0.3s ease;
-			
-			&:focus-within {
-				box-shadow: 0 15rpx 45rpx rgba(0, 0, 0, 0.2);
-				transform: translateY(-5rpx) scale(1.01);
-			}
-			
-			.icon {
-				font-size: 36rpx;
-				margin-right: 25rpx;
-				color: #88A6E0;
-			}
-			
-			.form-input {
-				flex: 1;
-				height: 110rpx;
-				font-size: 32rpx;
-				color: #333;
-				
-				&::placeholder {
-					color: #A0A0A0;
-				}
-			}
-		}
-		
-		.field-tip {
-			display: block;
-			font-size: 24rpx;
-			color: rgba(255, 255, 255, 0.9);
-			margin-top: 15rpx;
-			padding-left: 35rpx;
-			line-height: 1.6;
-		}
-	}
+	background-color: #FFFFFF;
+	border-radius: 30rpx;
+	box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.1);
+	margin: 0 40rpx;
+	padding: 40rpx;
+}
+
+.form-item {
+	margin-bottom: 40rpx;
 	
-	.agreement {
-		margin-bottom: 40rpx;
-		
-		.agreement-check {
-			display: flex;
-			align-items: center;
-			flex-wrap: wrap;
-			
-			.checkbox {
-				width: 32rpx;
-				height: 32rpx;
-				border: 2rpx solid rgba(255, 255, 255, 0.6);
-				border-radius: 6rpx;
-				margin-right: 15rpx;
-				text-align: center;
-				line-height: 28rpx;
-				font-size: 20rpx;
-				color: white;
-				
-				&.active {
-					background: rgba(255, 255, 255, 0.2);
-				}
-			}
-			
-			.agreement-text {
-				color: rgba(255, 255, 255, 0.8);
-				font-size: 26rpx;
-			}
-			
-			.agreement-link {
-				color: #ffd93d;
-				font-size: 26rpx;
-				text-decoration: underline;
-				margin: 0 5rpx;
-			}
-		}
-	}
-	
-	.register-btn {
-		width: 100%;
-		height: 100rpx;
-		background: linear-gradient(45deg, #4ecdc4, #44a08d);
-		border: none;
-		border-radius: 50rpx;
-		color: white;
-		font-size: 36rpx;
+	&.required::before {
+		content: "*";
+		color: #ff6b6b;
+		font-size: 32rpx;
 		font-weight: bold;
-		margin-bottom: 30rpx;
-		box-shadow: 0 10rpx 30rpx rgba(78, 205, 196, 0.3);
+		position: absolute;
+		margin-left: -20rpx;
+		margin-top: 35rpx;
+	}
+	
+	.form-label {
+		display: flex;
+		align-items: center;
+		background: rgba(255, 255, 255, 0.95);
+		border-radius: 50rpx;
+		padding: 0 30rpx;
+		border: none;
+		box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.08);
+		transition: all 0.3s ease;
 		
-		&:disabled {
-			opacity: 0.6;
+		&:focus-within {
+			box-shadow: 0 15rpx 45rpx rgba(0, 0, 0, 0.2);
+			transform: translateY(-5rpx) scale(1.01);
+		}
+		
+		.icon {
+			font-size: 36rpx;
+			margin-right: 25rpx;
+			color: #88A6E0;
+		}
+		
+		.form-input {
+			flex: 1;
+			height: 110rpx;
+			font-size: 32rpx;
+			color: #333;
+			
+			&::placeholder {
+				color: #A0A0A0;
+			}
 		}
 	}
 	
-	.login-link {
-		text-align: center;
-		margin-bottom: 40rpx;
+	.field-tip {
+		display: block;
+		font-size: 24rpx;
+		color: rgba(255, 255, 255, 0.9);
+		margin-top: 15rpx;
+		padding-left: 35rpx;
+		line-height: 1.6;
+	}
+}
+
+.agreement {
+	margin-bottom: 40rpx;
+	
+	.agreement-check {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
 		
-		.login-text {
-			color: rgba(255, 255, 255, 0.8);
-			font-size: 28rpx;
+		.checkbox {
+			width: 32rpx;
+			height: 32rpx;
+			border: 2rpx solid #cccccc;
+			border-radius: 6rpx;
+			margin-right: 15rpx;
+			text-align: center;
+			line-height: 28rpx;
+			font-size: 20rpx;
+			color: #333333;
+			margin-bottom: 10rpx;
+			
+			&.active {
+				background: rgba(0, 0, 0, 0.1);
+			}
 		}
 		
-		.login-action {
+		.agreement-text {
+			color: #666666;
+			font-size: 26rpx;
+			margin-right: 10rpx;
+		}
+		
+		.agreement-link {
 			color: #ffd93d;
-			font-size: 28rpx;
-			font-weight: bold;
+			font-size: 26rpx;
+			text-decoration: underline;
+			margin: 0 5rpx;
+			margin-right: 10rpx;
 		}
+	}
+}
+
+.register-btn {
+	width: 100%;
+	height: 100rpx;
+	background: linear-gradient(45deg, #4ecdc4, #44a08d);
+	border: none;
+	border-radius: 50rpx;
+	color: white;
+	font-size: 36rpx;
+	font-weight: bold;
+	margin-bottom: 30rpx;
+	box-shadow: 0 10rpx 30rpx rgba(78, 205, 196, 0.3);
+	
+	&:disabled {
+		opacity: 0.6;
+	}
+}
+
+.login-link {
+	text-align: center;
+	margin-bottom: 40rpx;
+	
+	.login-text {
+		color: rgba(255, 255, 255, 0.8);
+		font-size: 28rpx;
+	}
+	
+	.login-action {
+		color: #ffd93d;
+		font-size: 28rpx;
+		font-weight: bold;
 	}
 }
 </style>

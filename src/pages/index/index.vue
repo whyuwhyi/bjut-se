@@ -9,45 +9,52 @@
 			</swiper>
 		</view>
 
+		<!-- 快捷功能入口 -->
+		<view class="quick-access-section">
+			<view 
+				class="quick-access-item" 
+				v-for="(item, index) in quickAccess" 
+				:key="index"
+				@click="navigateTo(item.url)"
+			>
+				<image :src="item.icon" class="icon-img" mode="aspectFit"></image>
+				<text class="text">{{ item.text }}</text>
+			</view>
+		</view>
 
 		<!-- 最新公告 -->
-		<view class="notice-section">
+		<view class="notice-section card">
 			<view class="section-header">
 				<text class="section-title">最新公告</text>
 				<text class="section-more" @click="navigateTo('/pages/notification/messages')">更多</text>
 			</view>
 			<view class="notice-list">
 				<view class="notice-item" v-for="(item, index) in notices" :key="index" @click="viewNotice(item)">
-					<view class="notice-tag" :class="'tag-' + item.type">{{ item.typeName }}</view>
+					<view class="notice-header">
+						<text class="notice-tag" :class="'tag-' + item.type">{{ item.typeName }}</text>
+						<text class="notice-time">{{ formatTime(item.createTime) }}</text>
+					</view>
 					<text class="notice-title">{{ item.title }}</text>
-					<text class="notice-time">{{ formatTime(item.createTime) }}</text>
 				</view>
 			</view>
 		</view>
 
 		<!-- 热门资源 -->
-		<view class="resource-section">
+		<view class="resource-section card">
 			<view class="section-header">
 				<text class="section-title">热门资源</text>
 				<text class="section-more" @click="navigateTo('/pages/resources/resources')">更多</text>
 			</view>
 			<view class="resource-list">
 				<view class="resource-item" v-for="(item, index) in hotResources" :key="index" @click="viewResource(item)">
-					<text class="resource-icon-emoji">{{ getFileIcon(item.fileType) }}</text>
-					<view class="resource-info">
-						<text class="resource-title">{{ item.title }}</text>
-						<view class="resource-meta">
-							<text class="resource-author">{{ item.uploaderName }}</text>
-							<text class="resource-download">{{ item.downloadCount }}次下载</text>
-						</view>
-					</view>
+					<text class="resource-title">{{ item.title }}</text>
 				</view>
 			</view>
 		</view>
 
 
 		<!-- 热门帖子 -->
-		<view class="forum-section">
+		<view class="forum-section card">
 			<view class="section-header">
 				<text class="section-title">热门帖子</text>
 				<text class="section-more" @click="navigateTo('/pages/forum/forum')">更多</text>
@@ -57,11 +64,6 @@
 					<view class="forum-header">
 						<text class="forum-title">{{ item.title }}</text>
 						<view class="forum-tag" v-if="item.isHot">热门</view>
-					</view>
-					<view class="forum-meta">
-						<text class="forum-author">{{ item.authorName }}</text>
-						<text class="forum-reply">{{ item.commentCount }}评论</text>
-						<text class="forum-time">{{ formatTime(item.createTime) }}</text>
 					</view>
 				</view>
 			</view>
@@ -76,6 +78,28 @@
 				banners: [
 					{
 						image: require('@/static/logo.png')
+					}
+				],
+				quickAccess: [
+					{
+						icon: require('@/static/icons/learning.png'),
+						text: '我的学习',
+						url: '/pages/learning/learning'
+					},
+					{
+						icon: require('@/static/icons/post.png'),
+						text: '发布帖子',
+						url: '/pages/forum/create'
+					},
+					{
+						icon: require('@/static/icons/upload.png'),
+						text: '上传资源',
+						url: '/pages/resources/upload'
+					},
+					{
+						icon: require('@/static/icons/profile.png'),
+						text: '个人中心',
+						url: '/pages/profile/profile'
 					}
 				],
 				notices: [],
@@ -372,204 +396,193 @@
 	}
 </script>
 
-<style lang="scss" scoped>
-	.container {
-		padding-bottom: 20rpx;
-	}
+<style lang="scss">
+.banner-section {
+	margin-bottom: 30rpx; /* 增加底部间距，将下方内容向下推 */
 
-	// 轮播图样式
-	.banner-section {
-		.banner-swiper {
-			height: 300rpx;
-			
-			.banner-image {
-				width: 100%;
-				height: 100%;
-			}
+	.banner-swiper {
+		height: 300rpx;
+
+		.banner-image {
+			width: 100%;
+			height: 100%;
 		}
 	}
+}
 
+.quick-access-section {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 20rpx;
+	margin: 30rpx 0;
+	padding: 0 10rpx;
 
-	// 通用section样式
-	.section-header {
+	.quick-access-item {
+		width: 160rpx;
+		height: 160rpx;
+		background-color: rgba(255, 255, 255, 0.7);
+		border-radius: 30rpx;
 		display: flex;
-		justify-content: space-between;
+		flex-direction: column;
+		justify-content: center;
 		align-items: center;
-		padding: 0 30rpx 20rpx;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+		transition: transform 0.2s ease;
 
-		.section-title {
-			font-size: 32rpx;
-			font-weight: bold;
+		&:active {
+			transform: scale(0.95);
+		}
+
+		.icon-img {
+			width: 60rpx;
+			height: 60rpx;
+			margin-bottom: 16rpx;
+			object-fit: contain;
+		}
+
+		.text {
+			font-size: 26rpx;
 			color: #333;
-		}
-
-		.section-more {
-			font-size: 24rpx;
-			color: #007aff;
-		}
-	}
-
-	// 公告样式
-	.notice-section {
-		margin: 20rpx;
-		background: white;
-		border-radius: 16rpx;
-		padding: 30rpx;
-
-		.notice-list {
-			.notice-item {
-				display: flex;
-				align-items: center;
-				padding: 20rpx 0;
-				border-bottom: 1rpx solid #f0f0f0;
-
-				&:last-child {
-					border-bottom: none;
-				}
-
-				.notice-tag {
-					padding: 4rpx 12rpx;
-					border-radius: 8rpx;
-					font-size: 20rpx;
-					color: white;
-					margin-right: 20rpx;
-
-					&.tag-high {
-						background: #ff3b30;
-					}
-
-					&.tag-medium {
-						background: #007aff;
-					}
-
-					&.tag-low {
-						background: #5ac725;
-					}
-				}
-
-				.notice-title {
-					flex: 1;
-					font-size: 28rpx;
-					color: #333;
-				}
-
-				.notice-time {
-					font-size: 22rpx;
-					color: #999;
-				}
-			}
+			text-align: center;
+			width: 120rpx;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
 		}
 	}
+}
 
-	// 资源样式
-	.resource-section {
-		margin: 20rpx;
-		background: white;
-		border-radius: 16rpx;
-		padding: 30rpx;
+.card {
+	background-color: #FFFFFF;
+	border-radius: 20rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+	margin-bottom: 40rpx;
+	padding: 30rpx;
+}
 
-		.resource-list {
-			.resource-item {
-				display: flex;
-				align-items: center;
-				padding: 20rpx 0;
-				border-bottom: 1rpx solid #f0f0f0;
+.section-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20rpx;
 
-				&:last-child {
-					border-bottom: none;
-				}
-
-				.resource-icon-emoji {
-					font-size: 40rpx;
-					margin-right: 20rpx;
-					line-height: 1;
-				}
-
-				.resource-info {
-					flex: 1;
-
-					.resource-title {
-						display: block;
-						font-size: 28rpx;
-						color: #333;
-						margin-bottom: 10rpx;
-					}
-
-					.resource-meta {
-						display: flex;
-						justify-content: space-between;
-
-						.resource-author {
-							font-size: 22rpx;
-							color: #666;
-						}
-
-						.resource-download {
-							font-size: 22rpx;
-							color: #999;
-						}
-					}
-				}
-			}
-		}
+	.section-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
 	}
 
+	.section-more {
+		font-size: 28rpx;
+		color: #666;
+	}
+}
 
-	// 讨论样式
-	.forum-section {
-		margin: 20rpx;
-		background: white;
-		border-radius: 16rpx;
-		padding: 30rpx;
+.notice-list,
+.resource-list,
+.forum-list {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr); /* 两列平均分布 */
+	gap: 20rpx; /* 项目间距 */
+	margin-top: 20rpx; /* 与section header的间距 */
+}
 
-		.forum-list {
-			.forum-item {
-				padding: 20rpx 0;
-				border-bottom: 1rpx solid #f0f0f0;
+.notice-item,
+.resource-item,
+.forum-item {
+	background-color: rgba(255, 255, 255, 0.7); /* 半透明白色背景 */
+	border-radius: 20rpx; /* 圆角 */
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05); /* 轻微阴影 */
+	padding: 20rpx;
+	box-sizing: border-box;
+	aspect-ratio: 1 / 1; /* 保持正方形比例 */
+	display: flex;
+	flex-direction: column;
+	justify-content: center; /* 垂直居中内容 */
+	align-items: center;   /* 水平居中内容 */
+	text-align: center;    /* 文本居中 */
+	overflow: hidden;      /* 隐藏溢出内容 */
+	transition: transform 0.2s ease; /* 添加过渡效果 */
 
-				&:last-child {
-					border-bottom: none;
-				}
+	&:active {
+		transform: scale(0.95); /* 点击时缩小 */
+	}
 
-				.forum-header {
-					display: flex;
-					align-items: center;
-					margin-bottom: 10rpx;
+	// Common title styling for truncation
+	.notice-title,
+	.resource-title,
+	.forum-title {
+		font-size: 28rpx;
+		color: #333;
+		white-space: normal; /* 允许换行 */
+		display: -webkit-box; /* 启用多行文本截断 */
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2; /* 最多显示2行 */
+		overflow: hidden;
+		text-overflow: ellipsis;
+		font-weight: bold;
+		margin: 0; // 重置任何之前的margin
+	}
+}
 
-					.forum-title {
-						flex: 1;
-						font-size: 28rpx;
-						color: #333;
-					}
-
-					.forum-tag {
-						background: #ff9500;
-						color: white;
-						padding: 4rpx 12rpx;
-						border-radius: 8rpx;
-						font-size: 20rpx;
-					}
-				}
-
-				.forum-meta {
-					display: flex;
-					align-items: center;
-					font-size: 22rpx;
-					color: #999;
-
-					.forum-author {
-						margin-right: 20rpx;
-					}
-
-					.forum-reply {
-						margin-right: 20rpx;
-					}
-					
-					.forum-time {
-						margin-left: auto;
-					}
-				}
-			}
+.notice-list {
+	.notice-item {
+		.notice-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			width: 100%;
+			margin-bottom: 8rpx;
+		}
+		.notice-tag {
+			font-size: 20rpx;
+			padding: 4rpx 8rpx;
+			border-radius: 6rpx;
+			flex-shrink: 0;
+			margin-right: 8rpx;
+		}
+		.notice-time {
+			font-size: 18rpx;
+			color: #999;
+			flex-shrink: 0;
+			text-align: right;
 		}
 	}
+}
+
+.resource-list {
+	.resource-item {
+		.resource-icon-emoji {
+			font-size: 80rpx;
+			margin-bottom: 10rpx;
+		}
+		.resource-info, .resource-meta {
+			display: none;
+		}
+	}
+}
+
+.forum-list {
+	.forum-item {
+		.forum-header {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			width: 100%;
+			margin-bottom: 8rpx;
+		}
+		.forum-title {
+			margin-right: 8rpx;
+		}
+		.forum-tag {
+			font-size: 20rpx;
+			padding: 4rpx 8rpx;
+			border-radius: 6rpx;
+			flex-shrink: 0;
+		}
+		.forum-meta {
+			display: none;
+		}
+	}
+}
 </style>
