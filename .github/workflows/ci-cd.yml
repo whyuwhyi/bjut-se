@@ -52,12 +52,13 @@ jobs:
         chmod +x scripts/dev.sh
         scripts/dev.sh install-deps || {
           # 如果脚本不支持install-deps命令，则使用传统方式
+          cd frontend
           if [ -f package-lock.json ]; then
             npm ci
           else
             npm install
           fi
-          cd backend
+          cd ../backend
           if [ -f package-lock.json ]; then
             npm ci
           else
@@ -73,11 +74,13 @@ jobs:
         scripts/dev.sh test || {
           # 备用方案：直接运行测试
           echo "使用传统方式运行测试"
+          cd frontend
           if npm run --silent test:h5 2>/dev/null; then
             npm run test:h5
           else
             echo "前端测试脚本不存在，跳过"
           fi
+          cd ..
           
           cd backend
           if npm run --silent test 2>/dev/null; then
@@ -126,20 +129,24 @@ jobs:
     - name: 安装依赖
       run: |
         chmod +x scripts/dev.sh
+        cd frontend
         if [ -f package-lock.json ]; then
           npm ci
         else
           npm install
         fi
+        cd ..
 
     - name: 构建前端H5
-      run: npm run build:h5
+      run: |
+        cd frontend
+        npm run build:h5
 
     - name: 上传构建产物
       uses: actions/upload-artifact@v4
       with:
         name: frontend-dist
-        path: dist/build/h5/
+        path: frontend/dist/build/h5/
         retention-days: 7
 
   # Docker镜像构建

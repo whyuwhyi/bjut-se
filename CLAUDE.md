@@ -25,6 +25,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Frontend Development (uni-app)
 ```bash
+cd frontend
+
 # H5 development server (localhost:8080)
 npm run dev:h5
 

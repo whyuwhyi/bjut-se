@@ -5,16 +5,16 @@ FROM node:18-alpine AS builder
 # 设置工作目录
 WORKDIR /app
 
-# 复制package.json和package-lock.json
-COPY package*.json ./
+# 复制前端package.json和package-lock.json
+COPY frontend/package*.json ./
 
 # 安装依赖（跳过puppeteer下载）
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN npm config set registry https://registry.npmmirror.com && \
     npm install --production=false --prefer-offline --no-audit --ignore-scripts
 
-# 复制源代码
-COPY . .
+# 复制前端源代码
+COPY frontend/ .
 
 # 构建H5应用
 RUN npm run build:h5

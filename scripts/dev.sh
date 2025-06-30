@@ -75,11 +75,13 @@ check_dependencies() {
 # 安装前端依赖
 install_frontend() {
   print_step "安装前端依赖..."
+  cd frontend
   if [ ! -f package.json ]; then
-    print_error "package.json 不存在"
+    print_error "frontend/package.json 不存在"
     exit 1
   fi
   npm install
+  cd ..
   print_info "前端依赖安装完成 ✓"
 }
 
@@ -291,9 +293,11 @@ start_frontend() {
   # 设置开发环境变量
   export NODE_ENV=development
 
+  cd frontend
   npm run dev:h5 &
   FRONTEND_PID=$!
-  echo $FRONTEND_PID >frontend.pid
+  echo $FRONTEND_PID >../frontend.pid
+  cd ..
 
   print_info "前端开发服务器已启动 (PID: $FRONTEND_PID) ✓"
 }
@@ -398,10 +402,12 @@ run_tests() {
   cd ..
 
   # 前端测试（如果存在）
+  cd frontend
   if grep -q "test:h5" package.json 2>/dev/null; then
     print_step "运行前端测试..."
     npm run test:h5
   fi
+  cd ..
 
   print_info "测试完成 ✓"
 }

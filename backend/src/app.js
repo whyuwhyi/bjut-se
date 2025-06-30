@@ -12,6 +12,11 @@ const { errorHandler, notFound } = require('./middleware/errorHandler')
 
 const app = express()
 
+// 信任代理设置（用于生产环境的负载均衡器/反向代理）
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1)
+}
+
 // 安全中间件
 app.use(helmet())
 

@@ -109,60 +109,64 @@
 
 ```
 wechat_software/
-├── src/                      # uni-app前端
-│   ├── pages/               # 页面文件
-│   │   ├── index/          # 首页（TabBar）
-│   │   ├── login/          # 登录页
-│   │   ├── register/       # 注册页
-│   │   ├── resources/      # 学习资源模块（TabBar）
-│   │   │   ├── resources.vue    # 资源列表页
-│   │   │   ├── upload.vue       # 资源上传页
-│   │   │   └── detail.vue       # 资源详情页
-│   │   ├── forum/         # 论坛模块（TabBar）
-│   │   │   ├── forum.vue        # 论坛首页
-│   │   │   ├── create.vue       # 发帖页面
-│   │   │   └── detail.vue       # 帖子详情页
-│   │   ├── learning/       # 学习管理模块（TabBar）
-│   │   │   ├── learning.vue     # 学习管理首页
-│   │   │   ├── create-plan.vue  # 创建学习计划
-│   │   │   └── plan-detail.vue  # 计划详情页
-│   │   ├── profile/        # 个人中心（TabBar）
-│   │   │   ├── profile.vue      # 个人中心首页
-│   │   │   ├── favorites.vue    # 我的收藏
-│   │   │   ├── my-resources.vue # 我的资源
-│   │   │   ├── my-discussions.vue # 我的帖子
-│   │   │   ├── following.vue    # 关注列表
-│   │   │   ├── followers.vue    # 粉丝列表
-│   │   │   ├── edit.vue         # 编辑资料
-│   │   │   ├── feedback.vue     # 意见反馈
-│   │   │   └── about.vue        # 关于应用
-│   │   └── notification/   # 通知模块
-│   │       ├── notification.vue # 系统通知
-│   │       ├── messages.vue     # 消息通知
-│   │       └── detail.vue       # 通知详情
-│   ├── static/             # 静态资源
-│   ├── utils/              # 工具函数
-│   ├── App.vue             # 应用入口
-│   └── pages.json          # 页面配置
-├── backend/                 # Node.js 后端
+├── frontend/               # uni-app前端应用
+│   ├── src/               # 前端源码
+│   │   ├── pages/        # 页面文件
+│   │   │   ├── index/    # 首页（TabBar）
+│   │   │   ├── login/    # 登录页
+│   │   │   ├── register/ # 注册页
+│   │   │   ├── resources/ # 学习资源模块（TabBar）
+│   │   │   │   ├── resources.vue    # 资源列表页
+│   │   │   │   ├── upload.vue       # 资源上传页
+│   │   │   │   └── detail.vue       # 资源详情页
+│   │   │   ├── forum/    # 论坛模块（TabBar）
+│   │   │   │   ├── forum.vue        # 论坛首页
+│   │   │   │   ├── create.vue       # 发帖页面
+│   │   │   │   └── detail.vue       # 帖子详情页
+│   │   │   ├── learning/ # 学习管理模块（TabBar）
+│   │   │   │   ├── learning.vue     # 学习管理首页
+│   │   │   │   ├── create-plan.vue  # 创建学习计划
+│   │   │   │   └── plan-detail.vue  # 计划详情页
+│   │   │   ├── profile/  # 个人中心（TabBar）
+│   │   │   │   ├── profile.vue      # 个人中心首页
+│   │   │   │   ├── favorites.vue    # 我的收藏
+│   │   │   │   ├── my-resources.vue # 我的资源
+│   │   │   │   ├── my-discussions.vue # 我的帖子
+│   │   │   │   ├── following.vue    # 关注列表
+│   │   │   │   ├── followers.vue    # 粉丝列表
+│   │   │   │   ├── edit.vue         # 编辑资料
+│   │   │   │   ├── feedback.vue     # 意见反馈
+│   │   │   │   └── about.vue        # 关于应用
+│   │   │   └── notification/ # 通知模块
+│   │   │       ├── notification.vue # 系统通知
+│   │   │       ├── messages.vue     # 消息通知
+│   │   │       └── detail.vue       # 通知详情
+│   │   ├── static/       # 静态资源
+│   │   ├── utils/        # 工具函数
+│   │   └── App.vue       # 应用入口
+│   ├── pages.json        # 页面配置
+│   ├── manifest.json     # 应用配置
+│   └── package.json      # 前端依赖
+├── backend/               # Node.js 后端应用
 │   ├── src/
-│   │   ├── config/         # 配置文件
-│   │   ├── controllers/    # 控制器
-│   │   ├── middleware/     # 中间件
-│   │   ├── models/         # 数据模型
-│   │   ├── routes/         # 路由
-│   │   ├── services/       # 业务逻辑
-│   │   ├── utils/          # 工具函数
-│   │   └── tests/          # 测试文件
-│   ├── Dockerfile          # Docker镜像配置
-│   └── package.json        # 后端依赖
-├── database/               # 数据库相关
-│   └── init/              # 初始化脚本
-├── nginx/                  # Nginx配置
-├── doc/                    # 项目文档
-├── docker-compose.yml      # Docker编排
-├── deploy.sh              # 部署脚本
-└── README.md              # 项目说明
+│   │   ├── config/       # 配置文件
+│   │   ├── controllers/  # 控制器
+│   │   ├── middleware/   # 中间件
+│   │   ├── models/       # 数据模型
+│   │   ├── routes/       # 路由
+│   │   └── tests/        # 测试文件
+│   └── package.json      # 后端依赖
+├── docker/               # Docker配置
+│   ├── frontend/         # 前端镜像配置
+│   ├── backend/          # 后端镜像配置
+│   ├── nginx/            # Nginx配置
+│   └── docker-compose.yml # Docker编排
+├── database/             # 数据库相关
+│   └── init/            # 初始化脚本
+├── scripts/              # 开发脚本
+│   └── dev.sh           # 统一开发管理脚本
+├── package.json          # 根目录统一管理
+└── README.md            # 项目说明
 ```
 
 ## 快速开始
@@ -188,17 +192,18 @@ cp .env.example .env
 # 编辑 .env 文件，配置数据库密码、JWT密钥等
 ```
 
-### 3. 使用 Docker 部署（推荐）
+### 3. 使用统一开发脚本（推荐）
 
 ```bash
-# 完整部署
-./deploy.sh deploy
+# 完整开发环境启动
+./scripts/dev.sh start
 
 # 或者分步执行
-./deploy.sh start      # 启动服务
-./deploy.sh status     # 查看状态
-./deploy.sh logs       # 查看日志
-./deploy.sh stop       # 停止服务
+./scripts/dev.sh start      # 启动开发环境
+./scripts/dev.sh status     # 查看状态
+./scripts/dev.sh logs       # 查看日志
+./scripts/dev.sh stop       # 停止服务
+./scripts/dev.sh reset-db   # 重置数据库
 ```
 
 ### 4. 手动部署后端
@@ -236,8 +241,15 @@ npm start
 ### 5. 前端开发
 
 ```bash
-# 在微信开发者工具中打开 src 目录
-# 或使用 HBuilderX 打开项目
+# 前端开发服务器（H5）
+cd frontend
+npm run dev:h5
+
+# 微信小程序开发
+npm run dev:mp-weixin
+
+# 或在微信开发者工具中打开 frontend 目录
+# 或使用 HBuilderX 打开 frontend 目录
 ```
 
 ## API 文档

@@ -27,7 +27,7 @@ const PostTagRelation = sequelize.define('PostTagRelation', {
   tableName: 'post_tag_relations',
   timestamps: false,
   charset: 'utf8mb4',
-  collate: 'utf8mb4_0900_ai_ci',
+  collation: 'utf8mb4_0900_ai_ci',
   indexes: [
     {
       unique: true,
