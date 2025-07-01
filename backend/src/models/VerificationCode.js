@@ -1,35 +1,45 @@
 
-const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../config/database'); // 你的数据库配置
+const { DataTypes } = require('sequelize')
+const { sequelize } = require('../config/database')
 
-class VerificationCode extends Model { }
-
-VerificationCode.init({
-	phone_number: {
-		type: DataTypes.STRING,
-		allowNull: false,
-		unique: true // 确保同一手机号只能有一条记录
-	},
-	code: {
-		type: DataTypes.STRING,
-		allowNull: false,
-	},
-	created_at: {
-		type: DataTypes.DATE,
-		defaultValue: DataTypes.NOW,
-	},
-	expires_at: {
-		type: DataTypes.DATE,
-		allowNull: false,
-	},
-	status: {
-		type: DataTypes.ENUM('valid', 'used', 'expired'),
-		defaultValue: 'valid',
-	},
+const VerificationCode = sequelize.define('VerificationCode', {
+  phone_number: {
+    type: DataTypes.STRING(11),
+    allowNull: false,
+    comment: '手机号'
+  },
+  code: {
+    type: DataTypes.STRING(6),
+    allowNull: false,
+    comment: '验证码'
+  },
+  expires_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    comment: '过期时间'
+  },
+  status: {
+    type: DataTypes.ENUM('valid', 'used', 'expired'),
+    defaultValue: 'valid',
+    comment: '验证码状态'
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+    comment: '创建时间'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+    comment: '更新时间'
+  }
 }, {
-	sequelize,
-	modelName: 'VerificationCode',
-	timestamps: false, // 如果不需要自动生成时间戳
-});
+  tableName: 'verification_codes',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  charset: 'utf8mb4',
+  collation: 'utf8mb4_0900_ai_ci'
+})
 
 module.exports = VerificationCode;

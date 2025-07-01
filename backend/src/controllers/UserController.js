@@ -1,4 +1,4 @@
-const { User, Resource, Post, Collection, UserFollow, File } = require('../models')
+const { User, Resource, Post, Collection, UserFollow, File, VerificationCode } = require('../models')
 const jwt = require('jsonwebtoken')
 const { validationResult } = require('express-validator')
 const config = require('../config/app')

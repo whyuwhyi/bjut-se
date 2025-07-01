@@ -18,6 +18,7 @@ const SubTask = require('./SubTask')
 const StudyRecord = require('./StudyRecord')
 // 用户管理模块
 const UserFollow = require('./UserFollow')
+const VerificationCode = require('./VerificationCode')
 // 通知模块
 const Notification = require('./Notification')
 const Feedback = require('./Feedback')
@@ -335,6 +336,7 @@ const models = {
   StudyRecord,
   // 用户管理模块
   UserFollow,
+  VerificationCode,
   // 通知模块
   Notification,
   Feedback,
