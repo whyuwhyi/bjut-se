@@ -209,7 +209,8 @@ class ResourceController {
       const {
         resource_name,
         description,
-        resource_id
+        resource_id,
+        category_id
       } = req.body
 
       // 生成资源ID（如果没有提供）
@@ -220,6 +221,7 @@ class ResourceController {
         publisher_phone: userPhone,
         resource_name,
         description,
+        category_id,
         status: 'draft'
       })
 

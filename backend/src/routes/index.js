@@ -1,6 +1,7 @@
 const express = require('express')
 const userRoutes = require('./users')
 const resourceRoutes = require('./resources')
+const fileRoutes = require('./files')
 const postRoutes = require('./posts')
 const commentRoutes = require('./comments')
 const ratingRoutes = require('./ratings')
@@ -26,6 +27,7 @@ router.get('/health', (req, res) => {
 // 注册各模块路由
 router.use('/users', userRoutes)
 router.use('/resources', resourceRoutes)
+router.use('/files', fileRoutes)
 router.use('/posts', postRoutes)
 router.use('/tags', tagRoutes)
 router.use('/categories', categoryRoutes)

@@ -1,6 +1,7 @@
 const express = require('express')
 const ResourceController = require('../controllers/ResourceController')
 const { auth } = require('../middleware/auth')
+const { adminAuth } = require('../middleware/adminAuth')
 
 const router = express.Router()
 
@@ -8,13 +9,13 @@ const router = express.Router()
 router.get('/', ResourceController.getResources)
 
 // 管理员路由（需要管理员权限） - 具体路由必须在参数路由之前
-router.get('/pending', auth, ResourceController.getPendingResources)
+router.get('/pending', auth, adminAuth, ResourceController.getPendingResources)
 
 // 需要认证的路由
 router.post('/', auth, ResourceController.createResource)
 router.post('/:resourceId/favorite', auth, ResourceController.toggleFavorite)
 router.post('/:resourceId/submit-review', auth, ResourceController.submitForReview)
-router.post('/:resourceId/review', auth, ResourceController.reviewResource)
+router.post('/:resourceId/review', auth, adminAuth, ResourceController.reviewResource)
 
 // 下载路由 - 参数路由放在最后
 router.get('/:resourceId/files/:fileId/download', auth, ResourceController.downloadResource)

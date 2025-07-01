@@ -43,30 +43,6 @@ const uploadAvatar = multer({
   }
 }).single('avatar')
 
-// 资源文件上传配置
-const resourceStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/resources')
-    createUploadDir(uploadDir)
-    cb(null, uploadDir)
-  },
-  filename: (req, file, cb) => {
-    // 生成唯一文件名：时间戳_原文件名
-    const timestamp = Date.now()
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const filename = `${timestamp}_${safeName}`
-    cb(null, filename)
-  }
-})
-
-// 资源文件上传中间件
-const uploadResource = multer({
-  storage: resourceStorage,
-  limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB
-  }
-}).array('files', 10) // 最多10个文件
-
 // 通用文件过滤器（用于资源上传）
 const resourceFileFilter = (req, file, cb) => {
   // 允许的文件类型
@@ -83,7 +59,14 @@ const resourceFileFilter = (req, file, cb) => {
     'text/plain',
     'image/jpeg',
     'image/png',
-    'image/gif'
+    'image/gif',
+    'audio/mpeg',    // MP3
+    'audio/mp3',     // MP3 (alternative)
+    'audio/wav',     // WAV
+    'audio/ogg',     // OGG
+    'video/mp4',     // MP4
+    'video/avi',     // AVI
+    'video/mkv'      // MKV
   ]
 
   if (allowedTypes.includes(file.mimetype)) {
@@ -92,6 +75,32 @@ const resourceFileFilter = (req, file, cb) => {
     cb(new Error('不支持的文件类型'), false)
   }
 }
+
+// 资源文件上传配置
+const resourceStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/files')
+    createUploadDir(uploadDir)
+    cb(null, uploadDir)
+  },
+  filename: (req, file, cb) => {
+    // 生成唯一文件名：资源ID_时间戳_原文件名
+    const timestamp = Date.now()
+    const resourceId = req.body.resource_id
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const filename = `${resourceId}_${timestamp}_${safeName}`
+    cb(null, filename)
+  }
+})
+
+// 资源文件上传中间件
+const uploadResource = multer({
+  storage: resourceStorage,
+  fileFilter: resourceFileFilter,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB
+  }
+}).single('file') // 单个文件上传
 
 // 错误处理中间件
 const handleUploadError = (error, req, res, next) => {
@@ -123,5 +132,6 @@ const handleUploadError = (error, req, res, next) => {
 module.exports = {
   uploadAvatar,
   uploadResource,
-  handleUploadError
+  handleUploadError,
+  resourceFileFilter
 }

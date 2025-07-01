@@ -109,6 +109,7 @@ export default {
 			this.selectedCategory = e.detail.value
 			const selectedCat = this.categories[e.detail.value]
 			this.uploadForm.category = selectedCat.name
+			this.uploadForm.categoryId = selectedCat.id || selectedCat.category_id
 		},
 		
 		
@@ -216,7 +217,8 @@ export default {
 					},
 					data: {
 						resource_name: this.uploadForm.title,
-						description: this.uploadForm.description
+						description: this.uploadForm.description,
+						category_id: this.uploadForm.categoryId
 					}
 				})
 				
@@ -306,45 +308,43 @@ export default {
 		
 		// 真实文件上传
 		async uploadFiles(resourceId) {
-			if (!this.uploadForm.files || this.uploadForm.files.length === 0) {
+			if (!this.uploadForm.file) {
 				return
 			}
 			
-			for (let i = 0; i < this.uploadForm.files.length; i++) {
-				const file = this.uploadForm.files[i]
+			const file = this.uploadForm.file
 				
-				const uploadTask = uni.uploadFile({
-					url: `${this.$config.apiBaseUrl}/files/upload`,
-					filePath: file.path,
-					name: 'file',
-					formData: {
-						resource_id: resourceId,
-						file_name: file.name,
-						file_type: file.type
+			const uploadTask = uni.uploadFile({
+				url: `${this.$config.apiBaseUrl}/files/upload`,
+				filePath: file.path,
+				name: 'file',
+				formData: {
+					resource_id: resourceId,
+					file_name: file.name,
+					file_type: file.type
+				}
+			})
+			
+			uploadTask.onProgressUpdate((progress) => {
+				const baseProgress = 30
+				const fileProgress = progress.progress / 100 * 60
+				this.uploadProgress = Math.min(90, baseProgress + fileProgress)
+			})
+			
+			await new Promise((resolve, reject) => {
+				uploadTask.onSuccess((res) => {
+					const data = JSON.parse(res.data)
+					if (data.success) {
+						resolve(data)
+					} else {
+						reject(new Error(data.message || '文件上传失败'))
 					}
 				})
 				
-				uploadTask.onProgressUpdate((progress) => {
-					const baseProgress = 30 + (i / this.uploadForm.files.length) * 60
-					const fileProgress = progress.progress / 100 * (60 / this.uploadForm.files.length)
-					this.uploadProgress = Math.min(90, baseProgress + fileProgress)
+				uploadTask.onFail((err) => {
+					reject(new Error('文件上传失败'))
 				})
-				
-				await new Promise((resolve, reject) => {
-					uploadTask.onSuccess((res) => {
-						const data = JSON.parse(res.data)
-						if (data.success) {
-							resolve(data)
-						} else {
-							reject(new Error(data.message || '文件上传失败'))
-						}
-					})
-					
-					uploadTask.onFail((err) => {
-						reject(new Error('文件上传失败'))
-					})
-				})
-			}
+			})
 		}
 	}
 }
