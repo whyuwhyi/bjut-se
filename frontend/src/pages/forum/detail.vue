@@ -86,7 +86,12 @@
 							<view class="reply-header">
 								<image class="reply-avatar" :src="reply.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill"></image>
 								<view class="reply-info">
-									<text class="reply-author">{{ reply.author.nickname || reply.author.name }}</text>
+									<text class="reply-author">
+										{{ reply.author.nickname || reply.author.name }}
+										<template v-if="comment.author && (reply.parent_comment_id === comment.comment_id)">
+											回复{{ comment.author.nickname || comment.author.name }}：
+										</template>
+									</text>
 									<text class="reply-time">{{ formatTime(reply.created_at) }}</text>
 								</view>
 							</view>
