@@ -29,8 +29,7 @@ COPY --from=builder /app/dist /var/www/html
 RUN chmod -R 755 /var/www/html && \
     chown -R nginx:nginx /var/www/html
 
-# 复制nginx配置
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# 使用默认nginx配置，无需特殊配置
 
 # 暴露端口
 EXPOSE 80
