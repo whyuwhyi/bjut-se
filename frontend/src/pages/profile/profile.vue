@@ -280,9 +280,9 @@ export default {
 
 <style lang="scss" scoped>
 .profile-container {
-	background: #f5f5f5;
 	min-height: 100vh;
-	padding-bottom: 40rpx;
+	padding: 30rpx;
+	padding-bottom: 160rpx;
 }
 
 .profile-card {

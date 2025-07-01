@@ -1,5 +1,5 @@
 <template>
-	<view class="my-posts-container">
+	<view class="my-discussions-container">
 		<!-- 顶部统计 -->
 		<view class="stats-section">
 			<view class="stat-item">
@@ -42,7 +42,7 @@
 		</view>
 		
 		<!-- 帖子列表 -->
-		<view class="posts-list">
+		<view class="discussions-list">
 			<view 
 				class="post-item" 
 				v-for="(post, index) in posts" 
@@ -331,9 +331,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.my-posts-container {
-	background: #f5f5f5;
+.my-discussions-container {
 	min-height: 100vh;
+	padding: 30rpx;
+	padding-bottom: 160rpx;
 }
 
 .stats-section {
@@ -399,8 +400,11 @@ export default {
 	}
 }
 
-.posts-list {
-	padding: 20rpx;
+.discussions-list {
+	background: white;
+	border-radius: 20rpx;
+	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 	
 	.post-item {
 		background: white;
