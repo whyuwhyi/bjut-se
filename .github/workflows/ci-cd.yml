@@ -370,17 +370,27 @@ jobs:
           
           # 回滚到最新的备份版本
           cd ..
+          echo "当前目录: $(pwd)"
+          echo "查找备份文件: $(ls -la | grep backup || echo '无备份文件')"
+          
           LATEST_BACKUP=$(ls -t backup-* 2>/dev/null | head -n 1)
           if [ -n "$LATEST_BACKUP" ] && [ -d "$LATEST_BACKUP" ]; then
             echo "回滚到备份版本: $LATEST_BACKUP"
             rm -rf current
             cp -r "$LATEST_BACKUP" current
             cd current
+            
+            # 确保环境配置存在
+            if [ -f .env.production ]; then
+              cp .env.production .env
+            elif [ -f .env.example ]; then
+              cp .env.example .env
+            fi
+            
             docker-compose -f docker/docker-compose.prod.yml up -d
             echo "🔄 已回滚到备份版本: $LATEST_BACKUP"
           else
             echo "❌ 没有可用的备份版本进行回滚"
-            # 如果没有备份，至少尝试重新克隆代码
             echo "尝试重新获取代码..."
             if [ -d "current" ]; then
               rm -rf current
@@ -388,6 +398,16 @@ jobs:
             if git clone https://github.com/${{ github.repository }}.git current; then
               echo "✅ 重新获取代码成功"
               cd current
+              
+              # 创建环境配置
+              if [ -f .env.production ]; then
+                cp .env.production .env
+              elif [ -f .env.example ]; then
+                cp .env.example .env
+              fi
+              
+              echo "⚠️ 使用新代码重新部署..."
+              docker-compose -f docker/docker-compose.prod.yml up -d
             else
               echo "❌ 重新获取代码失败"
             fi

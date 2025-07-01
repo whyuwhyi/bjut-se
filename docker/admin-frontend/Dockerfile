@@ -19,6 +19,9 @@ RUN npm run build
 # 生产阶段 - 使用nginx来服务静态文件
 FROM nginx:alpine
 
+# 安装wget用于健康检查
+RUN apk add --no-cache wget
+
 # 复制构建产物
 COPY --from=builder /app/dist /var/www/html
 
@@ -32,9 +35,11 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # 暴露端口
 EXPOSE 80
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+# 健康检查 - 使用curl作为备选方案
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost/health || \
+      curl -f http://localhost/health || \
+      exit 1
 
 # 启动nginx
 CMD ["nginx", "-g", "daemon off;"]
