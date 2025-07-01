@@ -439,11 +439,24 @@
 <style scoped>
 	.my-resources-container {
 		min-height: 100vh;
-		padding: 30rpx;
-		padding-bottom: 160rpx;
+		padding: 20rpx;
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		animation: gradientBG 15s ease infinite;
 	}
 
-	/* 统计头部 */
+	@keyframes gradientBG {
+		0% {
+			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		}
+		50% {
+			background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+		}
+		100% {
+			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		}
+	}
+
+	/* 顶部统计 */
 	.stats-header {
 		padding: 32rpx;
 	}
