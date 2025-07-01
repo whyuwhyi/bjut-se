@@ -62,43 +62,87 @@
           {{ formatDate(row.created_at) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-dropdown @command="(command) => handleAction(command, row)">
-            <el-button type="primary" size="small">
-              操作 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item
-                  v-if="row.status === 'active'"
-                  command="disable"
-                  :disabled="row.role === 'admin'"
-                >
-                  禁用
-                </el-dropdown-item>
-                <el-dropdown-item
-                  v-if="row.status === 'inactive'"
-                  command="enable"
-                >
-                  启用
-                </el-dropdown-item>
-                <el-dropdown-item
-                  v-if="row.status !== 'banned'"
-                  command="ban"
-                  :disabled="row.role === 'admin'"
-                >
-                  封禁
-                </el-dropdown-item>
-                <el-dropdown-item
-                  v-if="row.status === 'banned'"
-                  command="unban"
-                >
-                  解封
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <el-button-group>
+            <el-button size="small" @click="viewUser(row)">详情</el-button>
+            <el-dropdown 
+              v-if="currentUser?.phone_number !== row.phone_number"
+              @command="(command) => handleAction(command, row)"
+            >
+              <el-button type="primary" size="small">
+                操作 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <!-- 状态操作 -->
+                  <el-dropdown-item
+                    v-if="row.status === 'active'"
+                    command="disable"
+                    :disabled="row.role === 'admin'"
+                  >
+                    禁用
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.status === 'inactive'"
+                    command="enable"
+                  >
+                    启用
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.status !== 'banned'"
+                    command="ban"
+                    :disabled="row.role === 'admin'"
+                  >
+                    封禁
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.status === 'banned'"
+                    command="unban"
+                  >
+                    解封
+                  </el-dropdown-item>
+                  
+                  <el-dropdown-item divided command="separator" disabled>
+                    ── 角色管理 ──
+                  </el-dropdown-item>
+                  
+                  <!-- 角色操作 -->
+                  <el-dropdown-item
+                    v-if="row.role === 'user'"
+                    command="promote"
+                    :disabled="row.status !== 'active'"
+                  >
+                    设为管理员
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.role === 'admin'"
+                    command="demote"
+                  >
+                    取消管理员
+                  </el-dropdown-item>
+                  
+                  <el-dropdown-item divided command="separator" disabled>
+                    ── 账户管理 ──
+                  </el-dropdown-item>
+                  
+                  <!-- 其他操作 -->
+                  <el-dropdown-item
+                    command="resetPassword"
+                  >
+                    重置密码
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    command="delete"
+                    :disabled="row.role === 'admin'"
+                  >
+                    删除用户
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-tag v-else type="warning" size="small">当前用户</el-tag>
+          </el-button-group>
         </template>
       </el-table-column>
     </el-table>
@@ -114,12 +158,76 @@
         @current-change="handleCurrentChange"
       />
     </div>
+
+    <!-- 用户详情对话框 -->
+    <el-dialog v-model="userDetailVisible" title="用户详情" width="800px">
+      <div v-if="selectedUserDetail" class="user-detail">
+        <el-descriptions title="基本信息" :column="2" border>
+          <el-descriptions-item label="手机号">{{ selectedUserDetail.user.phone_number }}</el-descriptions-item>
+          <el-descriptions-item label="姓名">{{ selectedUserDetail.user.name }}</el-descriptions-item>
+          <el-descriptions-item label="昵称">{{ selectedUserDetail.user.nickname || '未设置' }}</el-descriptions-item>
+          <el-descriptions-item label="邮箱">{{ selectedUserDetail.user.email || '未设置' }}</el-descriptions-item>
+          <el-descriptions-item label="角色">
+            <el-tag :type="selectedUserDetail.user.role === 'admin' ? 'danger' : 'info'">
+              {{ selectedUserDetail.user.role === 'admin' ? '管理员' : '普通用户' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="selectedUserDetail.user.status === 'active' ? 'success' : selectedUserDetail.user.status === 'inactive' ? 'warning' : 'danger'">
+              {{ getStatusText(selectedUserDetail.user.status) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="注册时间">{{ formatDate(selectedUserDetail.user.created_at) }}</el-descriptions-item>
+          <el-descriptions-item label="个人简介">{{ selectedUserDetail.user.bio || '未设置' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <el-descriptions title="统计信息" :column="4" border style="margin-top: 20px;">
+          <el-descriptions-item label="发布资源">{{ selectedUserDetail.stats.resourceCount }}</el-descriptions-item>
+          <el-descriptions-item label="已审核资源">{{ selectedUserDetail.stats.publishedResourceCount }}</el-descriptions-item>
+          <el-descriptions-item label="发布帖子">{{ selectedUserDetail.stats.postCount }}</el-descriptions-item>
+          <el-descriptions-item label="活跃帖子">{{ selectedUserDetail.stats.activePostCount }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+    </el-dialog>
+
+    <!-- 重置密码对话框 -->
+    <el-dialog v-model="resetPasswordVisible" title="重置密码" width="400px">
+      <el-form :model="resetPasswordForm" label-width="100px">
+        <el-form-item label="用户">
+          <el-input :value="selectedUser?.name + ' (' + selectedUser?.phone_number + ')'" disabled />
+        </el-form-item>
+        <el-form-item label="新密码" required>
+          <el-input
+            v-model="resetPasswordForm.newPassword"
+            type="password"
+            placeholder="请输入新密码（6-32位）"
+            maxlength="32"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="确认密码" required>
+          <el-input
+            v-model="resetPasswordForm.confirmPassword"
+            type="password"
+            placeholder="请再次输入新密码"
+            maxlength="32"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="resetPasswordVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmResetPassword">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
-import { getUsers, updateUserStatus } from '@/api/admin'
+import { getUsers, updateUserStatus, updateUserRole, resetUserPassword, deleteUser, getUserDetail, getUserProfile } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { User } from '@/types'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
@@ -127,6 +235,11 @@ import { Search, ArrowDown } from '@element-plus/icons-vue'
 const loading = ref(false)
 const searchText = ref('')
 const users = ref<User[]>([])
+const currentUser = ref<User | null>(null)
+const selectedUser = ref<User | null>(null)
+const selectedUserDetail = ref<any>(null)
+const userDetailVisible = ref(false)
+const resetPasswordVisible = ref(false)
 
 const filters = reactive({
   role: '',
@@ -137,6 +250,11 @@ const pagination = reactive({
   page: 1,
   limit: 20,
   total: 0
+})
+
+const resetPasswordForm = reactive({
+  newPassword: '',
+  confirmPassword: ''
 })
 
 const getStatusText = (status: string) => {
@@ -203,17 +321,51 @@ const handleCurrentChange = (page: number) => {
   loadUsers()
 }
 
+const viewUser = async (user: User) => {
+  try {
+    const response = await getUserDetail(user.phone_number)
+    selectedUserDetail.value = response.data.data
+    userDetailVisible.value = true
+  } catch (error: any) {
+    ElMessage.error(error.message || '获取用户详情失败')
+  }
+}
+
 const handleAction = async (command: string, user: User) => {
-  const actionMap: Record<string, { status: string; text: string }> = {
+  // 过滤分隔符
+  if (command === 'separator') return
+  
+  selectedUser.value = user
+  
+  // 状态操作
+  const statusActions: Record<string, { status: string; text: string }> = {
     enable: { status: 'active', text: '启用' },
     disable: { status: 'inactive', text: '禁用' },
     ban: { status: 'banned', text: '封禁' },
     unban: { status: 'active', text: '解封' }
   }
   
-  const action = actionMap[command]
-  if (!action) return
+  if (statusActions[command]) {
+    await handleStatusAction(command, user, statusActions[command])
+    return
+  }
   
+  // 角色操作
+  if (command === 'promote') {
+    await handleRoleAction(user, 'admin', '设为管理员')
+  } else if (command === 'demote') {
+    await handleRoleAction(user, 'user', '取消管理员')
+  }
+  
+  // 其他操作
+  else if (command === 'resetPassword') {
+    handleResetPassword(user)
+  } else if (command === 'delete') {
+    await handleDeleteUser(user)
+  }
+}
+
+const handleStatusAction = async (command: string, user: User, action: { status: string; text: string }) => {
   try {
     await ElMessageBox.confirm(
       `确定要${action.text}用户 ${user.name || user.phone_number} 吗？`,
@@ -235,13 +387,111 @@ const handleAction = async (command: string, user: User) => {
   }
 }
 
+const handleRoleAction = async (user: User, role: string, actionText: string) => {
+  try {
+    const warningText = role === 'admin' 
+      ? `确定要将用户 ${user.name || user.phone_number} 设为管理员吗？\n\n警告：管理员拥有系统最高权限，请谨慎操作！`
+      : `确定要取消用户 ${user.name || user.phone_number} 的管理员权限吗？`
+    
+    await ElMessageBox.confirm(warningText, '确认操作', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: role === 'admin' ? 'error' : 'warning'
+    })
+    
+    await updateUserRole(user.phone_number, role)
+    ElMessage.success(`${actionText}成功`)
+    loadUsers()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || `${actionText}失败`)
+    }
+  }
+}
+
+const handleResetPassword = (user: User) => {
+  selectedUser.value = user
+  resetPasswordForm.newPassword = ''
+  resetPasswordForm.confirmPassword = ''
+  resetPasswordVisible.value = true
+}
+
+const confirmResetPassword = async () => {
+  if (!resetPasswordForm.newPassword) {
+    ElMessage.error('请输入新密码')
+    return
+  }
+  
+  if (resetPasswordForm.newPassword.length < 6) {
+    ElMessage.error('密码至少6位')
+    return
+  }
+  
+  if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
+    ElMessage.error('两次输入的密码不一致')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要重置用户 ${selectedUser.value?.name || selectedUser.value?.phone_number} 的密码吗？`,
+      '确认重置密码',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    await resetUserPassword(selectedUser.value!.phone_number, resetPasswordForm.newPassword)
+    ElMessage.success('密码重置成功')
+    resetPasswordVisible.value = false
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '重置密码失败')
+    }
+  }
+}
+
+const handleDeleteUser = async (user: User) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要永久删除用户 ${user.name || user.phone_number} 吗？\n\n警告：此操作不可恢复，将永久删除用户及其所有相关数据（资源、帖子、评论等）！`,
+      '确认永久删除用户',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'error'
+      }
+    )
+    
+    await deleteUser(user.phone_number)
+    ElMessage.success('用户及其所有相关数据已永久删除')
+    loadUsers()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '删除用户失败')
+    }
+  }
+}
+
 // 监听过滤器变化
 watch([() => filters.role, () => filters.status], () => {
   pagination.page = 1
   loadUsers()
 })
 
+const loadCurrentUser = async () => {
+  try {
+    const response = await getUserProfile()
+    currentUser.value = response.data.data
+  } catch (error: any) {
+    console.error('获取当前用户信息失败:', error)
+  }
+}
+
 onMounted(() => {
+  loadCurrentUser()
   loadUsers()
 })
 </script>

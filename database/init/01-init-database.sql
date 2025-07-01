@@ -11,51 +11,23 @@
 -- ================================================================
 
 -- 设置正确的字符集
-SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 
 -- ================================================================
--- 第一部分：数据库创建
+-- 数据库初始化：删除并重新创建数据库（最简洁的方式）
 -- ================================================================
 
--- 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS wechat_education 
-CHARACTER SET utf8mb4 
-COLLATE utf8mb4_0900_ai_ci;
+-- 删除并重新创建数据库（自动清理所有表和数据）
+DROP DATABASE IF EXISTS wechat_education;
+CREATE DATABASE wechat_education CHARACTER SET utf8mb4;
 
 -- 使用数据库
 USE wechat_education;
 
--- 确保数据库使用正确的字符集
-ALTER DATABASE wechat_education CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
-
 -- ================================================================
--- 第二部分：表结构创建
+-- 表结构创建
 -- ================================================================
-
--- 删除所有表（确保干净的初始化）
--- 按照外键依赖关系的逆序删除表
-DROP TABLE IF EXISTS verification_codes;
-DROP TABLE IF EXISTS notifications;
-DROP TABLE IF EXISTS study_goals;
-DROP TABLE IF EXISTS study_records;
-DROP TABLE IF EXISTS sub_tasks;
-DROP TABLE IF EXISTS study_tasks;
-DROP TABLE IF EXISTS study_plans;
-DROP TABLE IF EXISTS user_follows;
-DROP TABLE IF EXISTS collections;
-DROP TABLE IF EXISTS ratings;
-DROP TABLE IF EXISTS comments;
-DROP TABLE IF EXISTS post_tag_relations;
-DROP TABLE IF EXISTS resource_tags;
-DROP TABLE IF EXISTS posts;
-DROP TABLE IF EXISTS post_tags;
-DROP TABLE IF EXISTS tags;
-DROP TABLE IF EXISTS files;
-DROP TABLE IF EXISTS resources;
-DROP TABLE IF EXISTS resource_types;
-DROP TABLE IF EXISTS categories;
-DROP TABLE IF EXISTS users;
 
 -- 1. 用户表
 CREATE TABLE users (
@@ -72,7 +44,7 @@ CREATE TABLE users (
     status ENUM('active', 'inactive', 'banned') DEFAULT 'active' COMMENT '用户状态',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户信息表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='用户信息表';
 
 -- 2. 资源分类表
 CREATE TABLE categories (
@@ -85,15 +57,8 @@ CREATE TABLE categories (
     status ENUM('active', 'inactive') DEFAULT 'active' COMMENT '状态',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资源分类表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源分类表';
 
--- 3. 资源类型表
-CREATE TABLE resource_types (
-    type_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '资源类型ID',
-    type_name VARCHAR(50) UNIQUE NOT NULL COMMENT '资源类型名称',
-    description TEXT COMMENT '类型描述',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资源类型表';
 
 -- 4. 资源表
 CREATE TABLE resources (
@@ -116,7 +81,7 @@ CREATE TABLE resources (
     FOREIGN KEY (publisher_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
     FOREIGN KEY (reviewer_phone) REFERENCES users(phone_number) ON DELETE SET NULL,
     FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资源表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源表';
 
 -- 5. 文件表
 CREATE TABLE files (
@@ -131,7 +96,7 @@ CREATE TABLE files (
     download_count INT DEFAULT 0 COMMENT '下载次数',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='文件表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='文件表';
 
 -- 6. 标签表
 CREATE TABLE tags (
@@ -142,7 +107,7 @@ CREATE TABLE tags (
     status ENUM('active', 'inactive') DEFAULT 'active' COMMENT '标签状态',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='标签表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='标签表';
 
 -- 7. 资源标签关联表
 CREATE TABLE resource_tags (
@@ -152,7 +117,7 @@ CREATE TABLE resource_tags (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资源标签关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源标签关联表';
 
 -- 8. 帖子表
 CREATE TABLE posts (
@@ -167,7 +132,7 @@ CREATE TABLE posts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (author_phone) REFERENCES users(phone_number) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子表';
 
 -- 9. 帖子标签表
 CREATE TABLE post_tags (
@@ -178,7 +143,7 @@ CREATE TABLE post_tags (
     status ENUM('active', 'inactive') DEFAULT 'active' COMMENT '标签状态',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子标签表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子标签表';
 
 -- 10. 帖子标签关联表
 CREATE TABLE post_tag_relations (
@@ -188,7 +153,7 @@ CREATE TABLE post_tag_relations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES post_tags(tag_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='帖子标签关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子标签关联表';
 
 -- 11. 评论表
 CREATE TABLE comments (
@@ -205,7 +170,7 @@ CREATE TABLE comments (
     FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE,
     FOREIGN KEY (parent_comment_id) REFERENCES comments(comment_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='评论表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='评论表';
 
 -- 12. 评分表
 CREATE TABLE ratings (
@@ -219,7 +184,7 @@ CREATE TABLE ratings (
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE,
     UNIQUE KEY unique_user_resource (user_phone, resource_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='评分表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='评分表';
 
 -- 13. 收藏表
 CREATE TABLE collections (
@@ -232,7 +197,7 @@ CREATE TABLE collections (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
     UNIQUE KEY unique_user_content (user_phone, content_id, collection_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='收藏表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='收藏表';
 
 -- 14. 用户关注表
 CREATE TABLE user_follows (
@@ -245,7 +210,7 @@ CREATE TABLE user_follows (
     FOREIGN KEY (follower_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
     FOREIGN KEY (following_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
     UNIQUE KEY unique_follow (follower_phone, following_phone)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户关注表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='用户关注表';
 
 
 -- 15. 学习计划表
@@ -263,7 +228,7 @@ CREATE TABLE study_plans (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学习计划表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='学习计划表';
 
 -- 16. 学习任务表
 CREATE TABLE study_tasks (
@@ -280,7 +245,7 @@ CREATE TABLE study_tasks (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (plan_id) REFERENCES study_plans(plan_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学习任务表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='学习任务表';
 
 -- 17. 子任务表
 CREATE TABLE sub_tasks (
@@ -292,7 +257,7 @@ CREATE TABLE sub_tasks (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (task_id) REFERENCES study_tasks(task_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='子任务表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='子任务表';
 
 -- 18. 学习记录表
 CREATE TABLE study_records (
@@ -312,7 +277,7 @@ CREATE TABLE study_records (
     FOREIGN KEY (task_id) REFERENCES study_tasks(task_id) ON DELETE SET NULL,
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE SET NULL,
     FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学习记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='学习记录表';
 
 -- 19. 学习目标表
 CREATE TABLE study_goals (
@@ -329,7 +294,7 @@ CREATE TABLE study_goals (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='学习目标表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='学习目标表';
 
 -- 20. 通知表
 CREATE TABLE notifications (
@@ -350,7 +315,7 @@ CREATE TABLE notifications (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
     FOREIGN KEY (sender_phone) REFERENCES users(phone_number) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='通知表';
 
 -- 21. 验证码表
 CREATE TABLE verification_codes (
@@ -360,7 +325,7 @@ CREATE TABLE verification_codes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     expires_at TIMESTAMP NOT NULL COMMENT '过期时间',
     status ENUM('valid', 'used', 'expired') DEFAULT 'valid' COMMENT '状态'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='验证码表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='验证码表';
 
 -- ================================================================
 -- 第三部分：测试数据插入 - 严格控制数量匹配

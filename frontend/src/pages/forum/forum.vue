@@ -267,25 +267,8 @@ export default {
 		},
 		
 		formatTime(time) {
-			if (!time) return '未知时间'
-			
-			const date = new Date(time)
-			if (isNaN(date.getTime())) {
-				return '时间格式错误'
-			}
-			
-			const now = new Date()
-			const diff = now - date
-			const day = 24 * 60 * 60 * 1000
-			
-			if (diff < day) {
-				const hours = Math.floor(diff / (60 * 60 * 1000))
-				return hours > 0 ? `${hours}小时前` : '刚刚'
-			} else if (diff < 7 * day) {
-				return `${Math.floor(diff / day)}天前`
-			} else {
-				return date.toLocaleDateString()
-			}
+			const { formatTime } = require('@/utils/time.js')
+			return formatTime(time)
 		}
 	}
 }

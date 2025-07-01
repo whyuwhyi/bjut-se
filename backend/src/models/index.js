@@ -3,7 +3,6 @@ const { sequelize } = require('../config/database')
 // 导入所有模型
 const User = require('./User')
 const Resource = require('./Resource')
-const ResourceType = require('./ResourceType')
 const Category = require('./Category')
 const File = require('./File')
 const Collection = require('./Collection')
@@ -320,7 +319,6 @@ Collection.belongsTo(Post, {
 const models = {
   User,
   Resource,
-  ResourceType,
   Category,
   File,
   Collection,

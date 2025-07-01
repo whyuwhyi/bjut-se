@@ -41,16 +41,35 @@
 
 ## 2. 资源管理模块
 
-### 2.1 资源类型表 (resource_types)
+### 2.1 资源分类表 (categories)
 
-定义资源分类体系，支持动态扩展资源类型。
+支持资源分类管理，分类可通过管理后台动态管理。资源分类是整个资源系统的核心组织方式，提供灵活的分类体系支持。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| type_id | INT | PRIMARY KEY, AUTO_INCREMENT | 资源类型ID |
-| type_name | VARCHAR(50) | UNIQUE, NOT NULL | 资源类型名称 |
-| description | TEXT | | 类型描述 |
+| category_id | VARCHAR(20) | PRIMARY KEY | 分类唯一标识符 |
+| category_name | VARCHAR(50) | UNIQUE, NOT NULL | 分类名称，1-50个字符 |
+| category_value | VARCHAR(50) | UNIQUE, NOT NULL | 分类值（用于API参数） |
+| description | TEXT | | 分类描述 |
+| icon | VARCHAR(10) | | 分类图标（支持emoji） |
+| sort_order | INT | NOT NULL, DEFAULT 0 | 排序顺序 |
+| status | ENUM('active','inactive') | NOT NULL, DEFAULT 'active' | 状态：active-启用，inactive-禁用 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**分类系统特点：**
+- **双重标识**: 既有用户友好的分类名称，也有系统内部使用的分类值
+- **图标支持**: 支持emoji图标，提升用户体验
+- **灵活排序**: 通过sort_order字段支持自定义排序
+- **状态管理**: 支持启用/禁用分类，便于动态调整
+- **管理界面**: 分类可通过管理后台进行创建、编辑、删除和排序
+
+**预设分类示例：**
+- 编程开发 (programming) 📚
+- 设计素材 (design) 🎨  
+- 学术论文 (academic) 📖
+- 工具软件 (tools) 🛠️
+- 其他资源 (others) 📦
 
 ### 2.2 资源表 (resources)
 
@@ -71,9 +90,21 @@
 | review_comment | TEXT | | 审核意见 |
 | reviewed_at | DATETIME | | 审核时间 |
 | download_count | INT | DEFAULT 0 | 下载次数 |
-| category_id | VARCHAR(20) | FOREIGN KEY | 资源分类ID（外键到分类表） |
+| category_id | VARCHAR(20) | FOREIGN KEY | 资源分类ID（外键到categories表） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**资源审核工作流：**
+- **draft**: 草稿状态，用户编辑中
+- **pending**: 提交审核，等待管理员处理
+- **published**: 审核通过，公开展示
+- **rejected**: 审核拒绝，需要修改
+- **archived**: 已归档，不再展示
+
+**分类关联：**
+- 通过 `category_id` 字段关联到 `categories` 表
+- 支持分类筛选和统计功能
+- 当分类被删除时，相关资源的category_id设为NULL
 
 
 ### 2.3 文件表 (files)
@@ -93,21 +124,11 @@
 | download_count | INT | DEFAULT 0 | 下载次数 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-### 2.4 资源分类表 (categories)
-
-支持资源分类管理，分类可通过后台动态管理。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| category_id | VARCHAR(20) | PRIMARY KEY | 分类唯一标识符 |
-| category_name | VARCHAR(50) | UNIQUE, NOT NULL | 分类名称，1-50个字符 |
-| category_value | VARCHAR(50) | UNIQUE, NOT NULL | 分类值（用于API参数） |
-| description | TEXT | | 分类描述 |
-| icon | VARCHAR(10) | | 分类图标（emoji） |
-| sort_order | INT | NOT NULL, DEFAULT 0 | 排序顺序 |
-| status | ENUM('active','inactive') | NOT NULL, DEFAULT 'active' | 状态：active-启用，inactive-禁用 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+**文件存储架构：**
+- **本地存储**: 文件保存在Docker容器的持久化卷中
+- **路径组织**: `/uploads/files/{resource_id}_{filename}.{ext}`
+- **类型支持**: 支持文档、图片、音频、视频等多种文件类型
+- **安全下载**: 通过JWT认证控制文件访问权限
 
 
 ---

@@ -75,7 +75,7 @@ const User = sequelize.define('User', {
     comment: '用户角色'
   },
   status: {
-    type: DataTypes.ENUM('active', 'inactive', 'banned'),
+    type: DataTypes.ENUM('active', 'inactive', 'banned', 'deleted'),
     defaultValue: 'active',
     comment: '用户状态'
   }
