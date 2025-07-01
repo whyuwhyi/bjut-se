@@ -46,94 +46,60 @@
 			</view>
 		</view>
 		
-		<!-- 评论区域 -->
-		<view class="comments-section">
-			<view class="comments-header">
-				<text class="comments-title">评论 ({{ totalComments }})</text>
+		<!-- 评论区 -->
+		<view class="comment-section">
+			<view class="section-header">
+				<text class="section-title">评论 ({{ comments.length }})</text>
 			</view>
-			
-			<view class="comments-list">
-				<view 
-					class="comment-item" 
-					v-for="comment in comments" 
-					:key="comment.comment_id"
-				>
-					<view class="comment-header">
-						<image class="comment-avatar" :src="comment.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill"></image>
-						<view class="comment-info">
-							<text class="comment-author">{{ comment.author.nickname || comment.author.name }}</text>
-							<text class="comment-time">{{ formatTime(comment.created_at) }}</text>
-						</view>
-					</view>
-					
-					<view class="comment-content">
-						<text class="comment-text">{{ comment.content }}</text>
-					</view>
-					
-					<view class="comment-footer">
-						<view class="reply-btn" @click="replyToComment(comment)">
-							<text class="reply-text">回复</text>
-						</view>
-					</view>
-					
-					<!-- 回复列表 -->
-					<view class="replies" v-if="comment.replies && comment.replies.length > 0">
-						<view 
-							class="reply-item"
-							v-for="reply in comment.replies"
-							:key="reply.comment_id"
-						>
-							<view class="reply-header">
-								<image class="reply-avatar" :src="reply.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill"></image>
-								<view class="reply-info">
-									<text class="reply-author">
-										{{ reply.author.nickname || reply.author.name }}
-										<template v-if="comment.author && (reply.parent_comment_id === comment.comment_id)">
-											回复{{ comment.author.nickname || comment.author.name }}：
-										</template>
-									</text>
-									<text class="reply-time">{{ formatTime(reply.created_at) }}</text>
-								</view>
-							</view>
-							<view class="reply-content">
-								<text class="reply-text">{{ reply.content }}</text>
-							</view>
-						</view>
-					</view>
+			<!-- 评论输入区域 -->
+			<view class="comment-input-area">
+				<textarea 
+					class="comment-textarea" 
+					v-model="commentText" 
+					:placeholder="replyTarget ? `回复 ${replyTarget.userName}：` : '写下你的评论...'"
+					:maxlength="200"
+					auto-height
+				></textarea>
+				<button class="submit-btn" @click="handleSubmitComment">{{ sending ? '发送中...' : '发表' }}</button>
+				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
+					<text class="cancel-text">取消回复</text>
 				</view>
 			</view>
-			
-			<!-- 加载更多评论 -->
-			<view class="load-more" v-if="hasMoreComments && !loadingComments">
-				<button class="load-more-btn" @click="loadMoreComments">加载更多评论</button>
-			</view>
-			
-			<!-- 加载中提示 -->
-			<view class="loading" v-if="loadingComments">
-				<text class="loading-text">加载中...</text>
-			</view>
-		</view>
-		
-		<!-- 评论输入框 -->
-		<view class="comment-input-section">
-			<view class="input-container">
-				<textarea 
-					class="comment-input" 
-					:placeholder="replyTarget ? `回复 ${replyTarget.author.nickname || replyTarget.author.name}：` : '写评论...'"
-					v-model="commentContent"
-					maxlength="1000"
-				></textarea>
-				<view class="input-actions">
-					<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
-						<text class="cancel-text">取消回复</text>
+			<!-- 评论列表 -->
+			<view class="comment-list">
+				<view class="comment-item" v-for="(comment, index) in comments" :key="comment.comment_id">
+					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'"></image>
+					<view class="comment-content">
+						<view class="comment-header">
+							<text class="comment-username">{{ comment.userName }}</text>
+							<text class="comment-time">{{ formatTime(comment.createTime) }}</text>
+						</view>
+						<text class="comment-text">{{ comment.content }}</text>
+						<view class="comment-footer">
+							<view class="reply-btn" @click="replyToComment(comment)">
+								<text class="reply-text">回复</text>
+							</view>
+						</view>
+						<!-- 回复列表 -->
+						<view class="replies" v-if="comment.replies && comment.replies.length > 0">
+							<view class="reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
+								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'"></image>
+								<view class="reply-content-wrap">
+									<view class="reply-header">
+										<view class="reply-info">
+											<text class="reply-author">
+												{{ reply.userName }}<template v-if="reply.replyToName"> 回复 {{ reply.replyToName }}</template>：
+											</text>
+											<text class="reply-time">{{ formatTime(reply.createTime) }}</text>
+										</view>
+									</view>
+									<view class="reply-content">
+										<text class="reply-text">{{ reply.content }}</text>
+									</view>
+								</view>
+							</view>
+						</view>
 					</view>
-					<button 
-						class="send-btn" 
-						@click="sendComment"
-						:disabled="!commentContent.trim() || sending"
-					>
-						{{ sending ? '发送中...' : '发送' }}
-					</button>
 				</view>
 			</view>
 		</view>
@@ -141,33 +107,40 @@
 		<view v-if="sharePopupVisible" class="share-popup-mask" @click.self="closeSharePopup">
 			<view class="share-popup-window">
 				<view class="share-popup-title">分享帖子</view>
-				<view class="share-popup-options">
+				<view class="share-popup-options" v-if="!postQrCodeVisible">
 					<button class="share-popup-btn" @click="shareToFriend">分享给好友</button>
 					<button class="share-popup-btn" @click="copyPostLink">复制链接</button>
-					<button class="share-popup-btn" @click="savePostQr">保存二维码</button>
+					<button class="share-popup-btn" @click="showPostQrCode">保存二维码</button>
 				</view>
-				<button class="share-popup-close" @click="closeSharePopup">取消</button>
+				<view v-else class="qrcode-section">
+					<image :src="postQrCodeDataUrl" class="qrcode-img" mode="aspectFit"/>
+					<view class="qrcode-tip">长按图片保存（移动端）或右键图片另存为（PC端）</view>
+					<button class="share-popup-close" @click="closePostQrCode">关闭二维码</button>
+				</view>
+				<button v-if="!postQrCodeVisible" class="share-popup-close" @click="closeSharePopup">取消</button>
 			</view>
 		</view>
 	</view>
 </template>
 
 <script>
+import QRCode from 'qrcode'
 export default {
 	data() {
 		return {
 			postId: '',
 			post: null,
+			commentText: '',
 			comments: [],
-			commentContent: '',
-			replyTarget: null,
 			page: 1,
-			totalComments: 0,
 			hasMoreComments: true,
 			loadingComments: false,
 			sending: false,
 			isCollected: false,
-			sharePopupVisible: false
+			sharePopupVisible: false,
+			postQrCodeVisible: false,
+			postQrCodeDataUrl: '',
+			replyTarget: null
 		}
 	},
 	
@@ -237,74 +210,55 @@ export default {
 			}
 		},
 		
-		async loadComments(refresh = false) {
-			if (this.loadingComments) return
-			
+		async loadComments() {
 			try {
 				this.loadingComments = true
-				
-				const params = {
-					page: refresh ? 1 : this.page,
-					limit: 10
-				}
-				
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/comments`,
-					method: 'GET',
-					data: params
+					method: 'GET'
 				})
-				
 				if (response.statusCode === 200 && response.data.success) {
-					const { comments, pagination } = response.data.data
-					
-					if (refresh) {
-						this.comments = comments
-						this.page = 1
-					} else {
-						this.comments = [...this.comments, ...comments]
-					}
-					
-					this.totalComments = pagination.totalItems
-					this.hasMoreComments = pagination.currentPage < pagination.totalPages
-					this.page = pagination.currentPage + 1
+					this.comments = (response.data.data.comments || []).map(comment => ({
+						comment_id: comment.comment_id,
+						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
+						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
+						content: comment.content,
+						createTime: new Date(comment.created_at),
+						replies: (comment.replies || []).map(reply => ({
+							comment_id: reply.comment_id,
+							userName: reply.author?.nickname || reply.author?.name || '匿名用户',
+							userAvatar: reply.author?.avatar_url || '/static/images/default-avatar.png',
+							content: reply.content,
+							createTime: new Date(reply.created_at),
+							replyToName: reply.reply_to_name || ''
+						}))
+					}))
 				}
 			} catch (error) {
-				console.error('加载评论失败:', error)
+				uni.showToast({ title: '加载评论失败', icon: 'none' })
 			} finally {
 				this.loadingComments = false
 			}
 		},
 		
-		async loadMoreComments() {
-			if (this.hasMoreComments && !this.loadingComments) {
-				await this.loadComments()
+		async handleSubmitComment() {
+			const token = uni.getStorageSync('token')
+			if (!token) {
+				uni.showToast({ title: '请先登录', icon: 'none' })
+				return
 			}
-		},
-		
-		
-		async sendComment() {
-			if (!this.commentContent.trim() || this.sending) return
-			
+			if (!this.commentText || !this.commentText.trim()) {
+				uni.showToast({ title: '评论内容不能为空', icon: 'none' })
+				return
+			}
 			try {
 				this.sending = true
-				
-				const token = uni.getStorageSync('token')
-				if (!token) {
-					uni.showToast({
-						title: '请先登录',
-						icon: 'none'
-					})
-					return
-				}
-				
 				const data = {
-					content: this.commentContent.trim()
+					content: this.commentText.trim()
 				}
-				
 				if (this.replyTarget) {
 					data.parent_comment_id = this.replyTarget.comment_id
 				}
-				
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/comments`,
 					method: 'POST',
@@ -312,53 +266,20 @@ export default {
 						'Authorization': `Bearer ${token}`,
 						'Content-Type': 'application/json'
 					},
-					data: data
+					data
 				})
-				
 				if (response.statusCode === 201 && response.data.success) {
-					uni.showToast({
-						title: '评论成功',
-						icon: 'success'
-					})
-					
-					this.commentContent = ''
+					this.commentText = ''
 					this.replyTarget = null
-					
-					// 重新加载评论列表
-					this.page = 1
-					this.hasMoreComments = true
-					this.loadComments(true)
-					
-					// 更新帖子评论数
-					if (this.post) {
-						this.post.comment_count++
-					}
-				} else {
-					uni.showToast({
-						title: response.data.message || '评论失败',
-						icon: 'none'
-					})
+					this.loadComments()
+					uni.showToast({ title: '评论成功', icon: 'success' })
 				}
 			} catch (error) {
-				console.error('发表评论失败:', error)
-				uni.showToast({
-					title: '网络错误',
-					icon: 'none'
-				})
+				uni.showToast({ title: '评论失败', icon: 'none' })
 			} finally {
 				this.sending = false
 			}
 		},
-		
-		replyToComment(comment) {
-			this.replyTarget = comment
-			// 聚焦到输入框（在小程序中可能需要特殊处理）
-		},
-		
-		cancelReply() {
-			this.replyTarget = null
-		},
-		
 		
 		async toggleCollection() {
 			try {
@@ -412,6 +333,7 @@ export default {
 		},
 		closeSharePopup() {
 			this.sharePopupVisible = false
+			this.postQrCodeVisible = false
 		},
 		shareToFriend() {
 			this.closeSharePopup()
@@ -427,9 +349,19 @@ export default {
 				}
 			})
 		},
-		savePostQr() {
-			this.closeSharePopup()
-			uni.showToast({ title: '二维码保存功能开发中', icon: 'none' })
+		showPostQrCode() {
+			const url = window.location.origin + `/#/pages/forum/detail?id=${this.postId}`
+			QRCode.toDataURL(url, { width: 240, margin: 2 }, (err, url) => {
+				if (!err) {
+					this.postQrCodeDataUrl = url
+					this.postQrCodeVisible = true
+				} else {
+					uni.showToast({ title: '二维码生成失败', icon: 'none' })
+				}
+			})
+		},
+		closePostQrCode() {
+			this.postQrCodeVisible = false
 		},
 		
 		renderMarkdown(content) {
@@ -458,6 +390,15 @@ export default {
 			} else {
 				return date.toLocaleDateString()
 			}
+		},
+		
+		cancelReply() {
+			this.replyTarget = null
+			this.commentText = ''
+		},
+		replyToComment(comment) {
+			this.replyTarget = comment
+			this.commentText = ''
 		}
 	}
 }
@@ -619,196 +560,166 @@ export default {
 	}
 }
 
-.comments-section {
+.comment-section {
 	background: white;
-	
-	.comments-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 30rpx;
-		border-bottom: 1rpx solid #f0f0f0;
-		
-		.comments-title {
-			font-size: 30rpx;
+	border-radius: 20rpx;
+	margin: 20rpx 0;
+	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+	.section-header {
+		margin-bottom: 20rpx;
+		.section-title {
+			font-size: 32rpx;
 			font-weight: bold;
 			color: #333;
 		}
-		
 	}
-	
-	.comments-list {
-		.comment-item {
-			padding: 30rpx;
-			border-bottom: 1rpx solid #f0f0f0;
-			
+}
+.comment-input-area {
+	display: flex;
+	gap: 20rpx;
+	margin-bottom: 30rpx;
+	.comment-textarea {
+		flex: 1;
+		height: 72rpx;
+		max-height: 144rpx;
+		padding: 16rpx;
+		background: #fff;
+		border-radius: 12rpx;
+		font-size: 28rpx;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+	}
+	.submit-btn {
+		width: 120rpx;
+		height: 72rpx;
+		line-height: 72rpx;
+		text-align: center;
+		background: #6CB4EE;
+		color: white;
+		border-radius: 12rpx;
+		font-size: 28rpx;
+		padding: 0;
+		margin: 0;
+		box-shadow: 0 2rpx 8rpx rgba(108, 180, 238, 0.3);
+		transition: all 0.3s ease;
+		&:active {
+			transform: scale(0.95);
+			background: #5AA1DB;
+		}
+	}
+	.cancel-reply {
+		padding: 4rpx 12rpx;
+		background: #f5f5f5;
+		border-radius: 12rpx;
+		font-size: 24rpx;
+		color: #666;
+		margin-left: 10rpx;
+		&:active {
+			background: #e0e0e0;
+		}
+	}
+}
+.comment-list {
+	.comment-item {
+		display: flex;
+		padding: 20rpx 0;
+		border-bottom: 1rpx solid #f0f0f0;
+		&:last-child {
+			border-bottom: none;
+			padding-bottom: 0;
+		}
+		.comment-avatar {
+			width: 60rpx;
+			height: 60rpx;
+			border-radius: 50%;
+			margin-right: 20rpx;
+		}
+		.comment-content {
+			flex: 1;
 			.comment-header {
 				display: flex;
 				align-items: center;
-				margin-bottom: 20rpx;
-				
-				.comment-avatar {
-					width: 60rpx;
-					height: 60rpx;
-					border-radius: 50%;
-					margin-right: 15rpx;
-				}
-				
-				.comment-info {
-					flex: 1;
-					
-					.comment-author {
-						display: block;
-						font-size: 26rpx;
-						font-weight: bold;
-						color: #333;
-						margin-bottom: 5rpx;
-					}
-					
-					.comment-time {
-						font-size: 22rpx;
-						color: #999;
-					}
-				}
-				
-			}
-			
-			.comment-content {
-				margin-bottom: 20rpx;
-				
-				.comment-text {
+				margin-bottom: 8rpx;
+				.comment-username {
 					font-size: 26rpx;
-					line-height: 1.5;
+					font-weight: bold;
 					color: #333;
+					margin-right: 16rpx;
+				}
+				.comment-time {
+					font-size: 22rpx;
+					color: #999;
 				}
 			}
-			
+			.comment-text {
+				font-size: 26rpx;
+				color: #333;
+				line-height: 1.5;
+			}
 			.comment-footer {
+				display: flex;
+				justify-content: flex-end;
+				margin-top: 8rpx;
 				.reply-btn {
-					.reply-text {
-						font-size: 24rpx;
-						color: #007aff;
-					}
-				}
-			}
-			
-			.replies {
-				margin-top: 20rpx;
-				padding-left: 40rpx;
-				
-				.reply-item {
-					padding: 20rpx 0;
-					border-top: 1rpx solid #f0f0f0;
-					
-					.reply-header {
-						display: flex;
-						align-items: center;
-						margin-bottom: 15rpx;
-						
-						.reply-avatar {
-							width: 50rpx;
-							height: 50rpx;
-							border-radius: 50%;
-							margin-right: 10rpx;
-						}
-						
-						.reply-info {
-							.reply-author {
-								display: block;
-								font-size: 24rpx;
-								font-weight: bold;
-								color: #333;
-								margin-bottom: 3rpx;
-							}
-							
-							.reply-time {
-								font-size: 20rpx;
-								color: #999;
-							}
-						}
-					}
-					
-					.reply-content {
-						.reply-text {
-							font-size: 24rpx;
-							line-height: 1.4;
-							color: #333;
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-.load-more {
-	padding: 20rpx;
-	text-align: center;
-	
-	.load-more-btn {
-		background: #f8f8f8;
-		color: #666;
-		border: none;
-		border-radius: 50rpx;
-		padding: 20rpx 40rpx;
-		font-size: 26rpx;
-	}
-}
-
-.loading {
-	padding: 40rpx;
-	text-align: center;
-	
-	.loading-text {
-		font-size: 26rpx;
-		color: #999;
-	}
-}
-
-.comment-input-section {
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	background: white;
-	border-top: 1rpx solid #e0e0e0;
-	
-	.input-container {
-		padding: 20rpx;
-		
-		.comment-input {
-			width: 100%;
-			min-height: 80rpx;
-			max-height: 200rpx;
-			border: 1rpx solid #e0e0e0;
-			border-radius: 25rpx;
-			padding: 20rpx;
-			font-size: 26rpx;
-			margin-bottom: 15rpx;
-		}
-		
-		.input-actions {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			
-			.cancel-reply {
-				.cancel-text {
+					padding: 4rpx 12rpx;
+					background: #f5f5f5;
+					border-radius: 12rpx;
 					font-size: 24rpx;
 					color: #666;
+					margin-left: 10rpx;
+					&:active {
+						background: #e0e0e0;
+					}
 				}
 			}
-			
-			.send-btn {
-				background: #007aff;
-				color: white;
-				border: none;
-				border-radius: 25rpx;
-				padding: 15rpx 30rpx;
-				font-size: 26rpx;
-				
-				&[disabled] {
-					background: #ccc;
+			.replies {
+				margin-top: 10rpx;
+				.reply-item {
+					display: flex;
+					flex-direction: row;
+					align-items: flex-start;
+					padding: 10rpx 0;
+					border-bottom: 1rpx solid #f0f0f0;
+					&:last-child {
+						border-bottom: none;
+						padding-bottom: 0;
+					}
+					.reply-avatar {
+						width: 40rpx;
+						height: 40rpx;
+						border-radius: 50%;
+						margin-right: 10rpx;
+					}
+					.reply-content-wrap {
+						flex: 1;
+						display: flex;
+						flex-direction: column;
+						.reply-header {
+							display: flex;
+							align-items: center;
+							margin-bottom: 6rpx;
+							.reply-info {
+								flex: 1;
+								.reply-author {
+									font-size: 24rpx;
+									font-weight: bold;
+									color: #333;
+									margin-right: 8rpx;
+								}
+								.reply-time {
+									font-size: 20rpx;
+									color: #999;
+								}
+							}
+						}
+						.reply-content {
+							.reply-text {
+								font-size: 24rpx;
+								color: #333;
+								line-height: 1.5;
+							}
+						}
+					}
 				}
 			}
 		}
@@ -861,5 +772,22 @@ export default {
 	border-radius: 12rpx;
 	font-size: 30rpx;
 	margin-top: 10rpx;
+}
+
+.qrcode-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+.qrcode-img {
+	width: 240rpx;
+	height: 240rpx;
+	margin: 20rpx 0;
+}
+.qrcode-tip {
+	font-size: 24rpx;
+	color: #888;
+	margin-bottom: 10rpx;
 }
 </style>

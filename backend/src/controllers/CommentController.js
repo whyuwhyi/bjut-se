@@ -88,6 +88,22 @@ class CommentController {
         offset: parseInt(offset)
       })
 
+      // 为每条回复补充 reply_to_name 字段
+      for (const comment of rows) {
+        if (comment.replies && comment.replies.length > 0) {
+          for (const reply of comment.replies) {
+            if (reply.parent_comment_id) {
+              const parent = await Comment.findByPk(reply.parent_comment_id, {
+                include: [{ model: User, as: 'author', attributes: ['nickname', 'name'] }]
+              })
+              reply.dataValues.reply_to_name = parent && parent.author ? (parent.author.nickname || parent.author.name || '') : ''
+            } else {
+              reply.dataValues.reply_to_name = ''
+            }
+          }
+        }
+      }
+
       res.json({
         success: true,
         data: {

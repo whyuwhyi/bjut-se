@@ -110,16 +110,19 @@
 				<textarea 
 					class="comment-textarea" 
 					v-model="commentText" 
-					placeholder="写下你的评论..."
+					:placeholder="replyTarget ? `回复 ${replyTarget.userName}：` : '写下你的评论...'"
 					:maxlength="200"
 					auto-height
 				></textarea>
-				<button class="submit-btn" @click="handleSubmitComment">发表</button>
+				<button class="submit-btn" @click="handleSubmitComment">{{ sending ? '发送中...' : '发表' }}</button>
+				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
+					<text class="cancel-text">取消回复</text>
+				</view>
 			</view>
 			
 			<!-- 评论列表 -->
 			<view class="comment-list">
-				<view class="comment-item" v-for="(comment, index) in comments" :key="index">
+				<view class="comment-item" v-for="(comment, index) in comments" :key="comment.comment_id">
 					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'"></image>
 					<view class="comment-content">
 						<view class="comment-header">
@@ -127,6 +130,30 @@
 							<text class="comment-time">{{ formatTime(comment.createTime) }}</text>
 						</view>
 						<text class="comment-text">{{ comment.content }}</text>
+						<view class="comment-footer">
+							<view class="reply-btn" @click="replyToComment(comment)">
+								<text class="reply-text">回复</text>
+							</view>
+						</view>
+						<!-- 回复列表 -->
+						<view class="replies" v-if="comment.replies && comment.replies.length > 0">
+							<view class="reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
+								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" />
+								<view class="reply-content-wrap">
+									<view class="reply-header">
+										<view class="reply-info">
+											<text class="reply-author">
+												{{ reply.userName }}<template v-if="reply.replyToName"> 回复 {{ reply.replyToName }}</template>：
+											</text>
+											<text class="reply-time">{{ formatTime(reply.createTime) }}</text>
+										</view>
+									</view>
+									<view class="reply-content">
+										<text class="reply-text">{{ reply.content }}</text>
+									</view>
+								</view>
+							</view>
+						</view>
 					</view>
 				</view>
 			</view>
@@ -135,17 +162,17 @@
 		<view v-if="sharePopupVisible" class="share-popup-mask" @click.self="closeSharePopup">
 			<view class="share-popup-window">
 				<view class="share-popup-title">分享资源</view>
-				<view class="share-popup-options">
+				<view class="share-popup-options" v-if="!qrCodeVisible">
 					<button class="share-popup-btn" @click="shareToFriend">分享给好友</button>
 					<button class="share-popup-btn" @click="copyResourceLink">复制链接</button>
 					<button class="share-popup-btn" @click="showQrCode">保存二维码</button>
 				</view>
-				<view v-if="qrCodeVisible" class="qrcode-section">
+				<view v-else class="qrcode-section">
 					<image :src="qrCodeDataUrl" class="qrcode-img" mode="aspectFit"/>
 					<view class="qrcode-tip">长按图片保存（移动端）或右键图片另存为（PC端）</view>
 					<button class="share-popup-close" @click="closeQrCode">关闭二维码</button>
 				</view>
-				<button v-else class="share-popup-close" @click="closeSharePopup">取消</button>
+				<button v-if="!qrCodeVisible" class="share-popup-close" @click="closeSharePopup">取消</button>
 			</view>
 		</view>
 	</view>
@@ -175,6 +202,8 @@ export default {
 			userRating: 0,
 			commentText: '',
 			comments: [],
+			replyTarget: null,
+			sending: false,
 			sharePopupVisible: false,
 			qrCodeVisible: false,
 			qrCodeDataUrl: ''
@@ -185,6 +214,7 @@ export default {
 		if (options.id) {
 			this.resourceId = options.id
 			this.loadResourceDetail()
+			this.loadComments()
 		}
 	},
 	
@@ -231,9 +261,6 @@ export default {
 				} else {
 					throw new Error('获取资源详情失败')
 				}
-				
-				// 加载评论
-				await this.loadComments()
 				
 				// 检查收藏状态
 				await this.checkCollectionStatus()
@@ -508,6 +535,7 @@ export default {
 		},
 		closeSharePopup() {
 			this.sharePopupVisible = false
+			this.qrCodeVisible = false
 		},
 		showQrCode() {
 			const url = window.location.origin + `/#/pages/resources/detail?id=${this.resourceId}`
@@ -616,98 +644,27 @@ export default {
 			return ratingTexts[rating] || '点击评分'
 		},
 		
-		handleSubmitComment() {
-			// 检查登录状态
-			const token = uni.getStorageSync('token')
-			if (!token) {
-				uni.showToast({
-					title: '请先登录',
-					icon: 'none'
-				})
-				return
-			}
-			
-			// 检查评论内容
-			if (!this.commentText || !this.commentText.trim()) {
-				uni.showToast({
-					title: '评论内容不能为空',
-					icon: 'none'
-				})
-				return
-			}
-			
-			// 提交评论
-			this.submitComment(this.commentText)
-		},
-		
-		async submitComment(content) {
-			try {
-				if (!content || !content.trim()) {
-					uni.showToast({
-						title: '评论内容不能为空',
-						icon: 'none'
-					})
-					return
-				}
-				
-				const token = uni.getStorageSync('token')
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
-					method: 'POST',
-					header: {
-						'Authorization': `Bearer ${token}`,
-						'Content-Type': 'application/json'
-					},
-					data: {
-						comment_content: content.trim()
-					}
-				})
-				
-				if (response.statusCode === 201 && response.data.success) {
-					const commentData = response.data.data
-					
-					// 使用后端返回的完整评论数据
-					this.comments.unshift({
-						comment_id: commentData.comment_id,
-						userName: commentData.author?.nickname || commentData.author?.name || '我',
-						userAvatar: commentData.author?.avatar_url || '/static/images/default-avatar.png',
-						content: commentData.content,
-						createTime: new Date(commentData.created_at)
-					})
-					
-					this.commentText = '' // 清空输入框
-					
-					uni.showToast({
-						title: '评论成功',
-						icon: 'success'
-					})
-				} else {
-					throw new Error(response.data.message || '评论失败')
-				}
-			} catch (error) {
-				console.error('发表评论失败:', error)
-				uni.showToast({
-					title: error.message || '评论失败',
-					icon: 'none'
-				})
-			}
-		},
-		
-		// 加载评论列表
 		async loadComments() {
 			try {
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'GET'
 				})
-				
 				if (response.statusCode === 200 && response.data.success) {
 					this.comments = (response.data.data.comments || []).map(comment => ({
 						comment_id: comment.comment_id,
 						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
 						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
 						content: comment.content,
-						createTime: new Date(comment.created_at)
+						createTime: new Date(comment.created_at),
+						replies: (comment.replies || []).map(reply => ({
+							comment_id: reply.comment_id,
+							userName: reply.author?.nickname || reply.author?.name || '匿名用户',
+							userAvatar: reply.author?.avatar_url || '/static/images/default-avatar.png',
+							content: reply.content,
+							createTime: new Date(reply.created_at),
+							replyToName: reply.reply_to_name || ''
+						}))
 					}))
 				}
 			} catch (error) {
@@ -716,6 +673,53 @@ export default {
 					title: '加载评论失败',
 					icon: 'none'
 				})
+			}
+		},
+		
+		replyToComment(comment) {
+			this.replyTarget = comment
+		},
+		cancelReply() {
+			this.replyTarget = null
+			this.commentText = ''
+		},
+		async handleSubmitComment() {
+			const token = uni.getStorageSync('token')
+			if (!token) {
+				uni.showToast({ title: '请先登录', icon: 'none' })
+				return
+			}
+			if (!this.commentText || !this.commentText.trim()) {
+				uni.showToast({ title: '评论内容不能为空', icon: 'none' })
+				return
+			}
+			try {
+				this.sending = true
+				const data = {
+					comment_content: this.commentText.trim()
+				}
+				if (this.replyTarget) {
+					data.parent_comment_id = this.replyTarget.comment_id
+				}
+				const response = await uni.request({
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data
+				})
+				if (response.statusCode === 201 && response.data.success) {
+					this.commentText = ''
+					this.replyTarget = null
+					this.loadComments()
+					uni.showToast({ title: '评论成功', icon: 'success' })
+				}
+			} catch (error) {
+				uni.showToast({ title: '评论失败', icon: 'none' })
+			} finally {
+				this.sending = false
 			}
 		},
 		
@@ -1006,11 +1010,25 @@ export default {
 	}
 }
 
+.comment-section {
+	background: white;
+	border-radius: 20rpx;
+	margin: 20rpx 0;
+	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+	.section-header {
+		margin-bottom: 20rpx;
+		.section-title {
+			font-size: 32rpx;
+			font-weight: bold;
+			color: #333;
+		}
+	}
+}
 .comment-input-area {
 	display: flex;
 	gap: 20rpx;
 	margin-bottom: 30rpx;
-	
 	.comment-textarea {
 		flex: 1;
 		height: 72rpx;
@@ -1021,71 +1039,135 @@ export default {
 		font-size: 28rpx;
 		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
 	}
-	
 	.submit-btn {
 		width: 120rpx;
 		height: 72rpx;
 		line-height: 72rpx;
 		text-align: center;
-		background: #6CB4EE;  /* 浅蓝色 */
+		background: #6CB4EE;
 		color: white;
 		border-radius: 12rpx;
 		font-size: 28rpx;
 		padding: 0;
 		margin: 0;
-		box-shadow: 0 2rpx 8rpx rgba(108, 180, 238, 0.3);  /* 添加浅蓝色阴影 */
+		box-shadow: 0 2rpx 8rpx rgba(108, 180, 238, 0.3);
 		transition: all 0.3s ease;
-		
 		&:active {
 			transform: scale(0.95);
-			background: #5AA1DB;  /* 点击时稍微深一点的蓝色 */
+			background: #5AA1DB;
+		}
+	}
+	.cancel-reply {
+		margin-left: 10rpx;
+		align-self: center;
+		.cancel-text {
+			color: #888;
+			font-size: 26rpx;
 		}
 	}
 }
-
 .comment-list {
 	.comment-item {
 		display: flex;
 		padding: 20rpx 0;
 		border-bottom: 1rpx solid #f0f0f0;
-		
 		&:last-child {
 			border-bottom: none;
 			padding-bottom: 0;
 		}
-		
 		.comment-avatar {
 			width: 60rpx;
 			height: 60rpx;
 			border-radius: 50%;
 			margin-right: 20rpx;
 		}
-		
 		.comment-content {
 			flex: 1;
-			
 			.comment-header {
 				display: flex;
 				align-items: center;
 				margin-bottom: 8rpx;
-				
 				.comment-username {
 					font-size: 26rpx;
 					font-weight: bold;
 					color: #333;
 					margin-right: 16rpx;
 				}
-				
 				.comment-time {
 					font-size: 22rpx;
 					color: #999;
 				}
 			}
-			
 			.comment-text {
 				font-size: 26rpx;
 				color: #333;
 				line-height: 1.5;
+			}
+			.comment-footer {
+				display: flex;
+				justify-content: flex-end;
+				margin-top: 8rpx;
+				.reply-btn {
+					padding: 4rpx 12rpx;
+					background: #f5f5f5;
+					border-radius: 12rpx;
+					font-size: 24rpx;
+					color: #666;
+					margin-left: 10rpx;
+					&:active {
+						background: #e0e0e0;
+					}
+				}
+			}
+			.replies {
+				margin-top: 10rpx;
+				.reply-item {
+					display: flex;
+					flex-direction: row;
+					align-items: flex-start;
+					padding: 10rpx 0;
+					border-bottom: 1rpx solid #f0f0f0;
+					&:last-child {
+						border-bottom: none;
+						padding-bottom: 0;
+					}
+					.reply-avatar {
+						width: 40rpx;
+						height: 40rpx;
+						border-radius: 50%;
+						margin-right: 10rpx;
+					}
+					.reply-content-wrap {
+						flex: 1;
+						display: flex;
+						flex-direction: column;
+						.reply-header {
+							display: flex;
+							align-items: center;
+							margin-bottom: 6rpx;
+							.reply-info {
+								flex: 1;
+								.reply-author {
+									font-size: 24rpx;
+									font-weight: bold;
+									color: #333;
+									margin-right: 8rpx;
+								}
+								.reply-time {
+									font-size: 20rpx;
+									color: #999;
+								}
+							}
+						}
+						.reply-content {
+							.reply-text {
+								font-size: 24rpx;
+								color: #333;
+								line-height: 1.5;
+							}
+						}
+					}
+				}
 			}
 		}
 	}
