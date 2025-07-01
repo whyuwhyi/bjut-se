@@ -303,24 +303,33 @@ jobs:
             echo "警告: 没有找到环境配置模板"
           fi
           
-          # 清理旧容器（保留基础镜像）
-          echo "清理旧容器..."
-          docker rm -f $(docker ps -aq --filter "name=wechat-education") 2>/dev/null || true
+          # 设置镜像环境变量
+          export BACKEND_IMAGE=ghcr.io/${{ github.repository }}-backend:main
+          export FRONTEND_IMAGE=ghcr.io/${{ github.repository }}-frontend:main
+          export ADMIN_IMAGE=ghcr.io/${{ github.repository }}-admin:main
           
-          # 只删除应用镜像，保留MySQL、Redis、Nginx等基础镜像
-          docker rmi $(docker images | grep "docker.*backend" | awk '{print $3}') 2>/dev/null || true
-          docker rmi $(docker images | grep "docker.*frontend" | awk '{print $3}') 2>/dev/null || true
-          docker rmi $(docker images | grep "docker.*admin" | awk '{print $3}') 2>/dev/null || true
+          echo "使用镜像："
+          echo "Backend: $BACKEND_IMAGE"
+          echo "Frontend: $FRONTEND_IMAGE" 
+          echo "Admin: $ADMIN_IMAGE"
+          
+          # 登录GitHub Container Registry
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
           # 停止旧服务
           docker-compose -f docker/docker-compose.prod.yml down 2>/dev/null || true
           
-          # 设置构建超时并重新构建应用镜像（使用缓存）
-          export COMPOSE_HTTP_TIMEOUT=1200
-          export DOCKER_CLIENT_TIMEOUT=1200
-          docker-compose -f docker/docker-compose.prod.yml build --parallel
+          # 清理旧容器和应用镜像
+          echo "清理旧资源..."
+          docker container prune -f
+          docker image prune -f
           
-          # 启动新服务
+          # 拉取最新镜像
+          echo "拉取最新镜像..."
+          docker-compose -f docker/docker-compose.prod.yml pull
+          
+          # 启动新服务（使用预构建镜像）
+          echo "启动服务..."
           docker-compose -f docker/docker-compose.prod.yml up -d
           
           # 等待服务启动
