@@ -351,6 +351,23 @@ jobs:
               fi
               
               echo "✅ 部署成功！"
+              
+              # 强制清理浏览器和CDN缓存
+              echo "清理缓存..."
+              
+              # 通过在主页添加时间戳参数来强制浏览器更新
+              TIMESTAMP=$(date +%s)
+              curl -s "http://localhost/?v=$TIMESTAMP" > /dev/null || true
+              curl -s "http://localhost/admin/?v=$TIMESTAMP" > /dev/null || true
+              
+              # 如果使用Cloudflare，可以通过API清理缓存（需要配置API密钥）
+              # curl -X POST "https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache" \
+              #   -H "Authorization: Bearer {api_token}" \
+              #   -H "Content-Type: application/json" \
+              #   --data '{"purge_everything":true}'
+              
+              echo "缓存清理完成"
+              
               # 清理旧备份（保留最近3个）
               cd ..
               echo "清理旧备份..."

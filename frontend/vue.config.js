@@ -1,6 +1,41 @@
 module.exports = {
-  // 其他 Uni-App 配置可能在此处
-  // ...
+  // 生产环境配置
+  configureWebpack: {
+    output: {
+      // 为静态资源添加hash值，确保更新时缓存失效
+      filename: process.env.NODE_ENV === 'production' ? 'js/[name].[contenthash:8].js' : 'js/[name].js',
+      chunkFilename: process.env.NODE_ENV === 'production' ? 'js/[name].[contenthash:8].js' : 'js/[name].js'
+    }
+  },
+
+  // CSS配置
+  css: {
+    extract: process.env.NODE_ENV === 'production' ? {
+      filename: 'css/[name].[contenthash:8].css',
+      chunkFilename: 'css/[name].[contenthash:8].css'
+    } : false
+  },
+
+  // 静态资源配置
+  chainWebpack: config => {
+    // 图片文件名添加hash
+    config.module
+      .rule('images')
+      .test(/\.(png|jpe?g|gif|svg)(\?.*)?$/)
+      .use('url-loader')
+      .loader('url-loader')
+      .options({
+        limit: 4096,
+        fallback: {
+          loader: 'file-loader',
+          options: {
+            name: process.env.NODE_ENV === 'production' 
+              ? 'img/[name].[contenthash:8].[ext]' 
+              : 'img/[name].[ext]'
+          }
+        }
+      })
+  },
 
   devServer: {
     // 启用轮询模式检测文件变化
