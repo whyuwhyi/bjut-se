@@ -465,9 +465,36 @@ export default {
 
 <style lang="scss" scoped>
 .detail-container {
-	background: #f5f5f5;
 	min-height: 100vh;
+	padding: 30rpx;
 	padding-bottom: 160rpx;
+	background: transparent !important;
+	
+	&::before {
+		content: '';
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: -1;
+		background-color: #FAEED1;
+		background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		background-size: 400% 400%;
+		animation: backgroundPan 15s ease infinite;
+	}
+}
+
+@keyframes backgroundPan {
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
 }
 
 .post-detail {
