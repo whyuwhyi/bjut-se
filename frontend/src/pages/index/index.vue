@@ -363,19 +363,21 @@
 
 			// 获取文件图标
 			getFileIcon(fileType) {
+				if (!fileType) return require('@/static/icons/resource.png')
 				const iconMap = {
-					'pdf': '📄',
-					'doc': '📝',
-					'docx': '📝',
-					'ppt': '📊',
-					'pptx': '📊',
-					'zip': '📦',
-					'rar': '📦',
-					'jpg': '🖼️',
-					'png': '🖼️',
-					'gif': '🖼️'
+					'pdf': require('@/static/icons/post.png'),
+					'doc': require('@/static/icons/post.png'),
+					'docx': require('@/static/icons/post.png'),
+					'ppt': require('@/static/icons/ppt.png'),
+					'pptx': require('@/static/icons/ppt.png'),
+					'xls': require('@/static/icons/post.png'),
+					'xlsx': require('@/static/icons/post.png'),
+					'zip': require('@/static/icons/post.png'),
+					'rar': require('@/static/icons/post.png'),
+					'video': require('@/static/icons/video.png'),
+					'image': require('@/static/icons/image.png')
 				}
-				return iconMap[fileType] || '📁'
+				return iconMap[fileType.toLowerCase()] || require('@/static/icons/resource.png')
 			},
 
 
@@ -530,7 +532,7 @@
 		justify-content: center;
 		flex-shrink: 0;
 	}
-
+	
 	.resource-icon-emoji {
 		font-size: 40rpx;
 	}

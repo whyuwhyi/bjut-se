@@ -52,7 +52,7 @@
 				<text class="btn-icon">{{ resource.isFavorited ? '❤️' : '🤍' }}</text>
 				<text class="btn-text">{{ resource.isFavorited ? '已收藏' : '收藏' }}</text>
 			</button>
-			<button class="action-btn" @click="shareResource">
+			<button class="action-btn" @click="showSharePopup">
 				<text class="btn-icon">📤</text>
 				<text class="btn-text">分享</text>
 			</button>
@@ -105,20 +105,24 @@
 				<text class="section-title">评论 ({{ comments.length }})</text>
 			</view>
 			
-			<!-- 发表评论 -->
-			<view class="comment-input-section">
+			<!-- 评论输入区域 -->
+			<view class="comment-input-area">
 				<textarea 
-					class="comment-input" 
-					placeholder="写下你的评论..." 
-					v-model="commentText"
-					:maxlength="500"
+					class="comment-textarea" 
+					v-model="commentText" 
+					:placeholder="replyTarget ? `回复 ${replyTarget.userName}：` : '写下你的评论...'"
+					:maxlength="200"
+					auto-height
 				></textarea>
-				<button class="comment-submit-btn" @click="submitComment">发表</button>
+				<button class="submit-btn" @click="handleSubmitComment">{{ sending ? '发送中...' : '发表' }}</button>
+				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
+					<text class="cancel-text">取消回复</text>
+				</view>
 			</view>
 			
 			<!-- 评论列表 -->
 			<view class="comment-list">
-				<view class="comment-item" v-for="(comment, index) in comments" :key="index">
+				<view class="comment-item" v-for="(comment, index) in comments" :key="comment.comment_id">
 					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'"></image>
 					<view class="comment-content">
 						<view class="comment-header">
@@ -126,14 +130,56 @@
 							<text class="comment-time">{{ formatTime(comment.createTime) }}</text>
 						</view>
 						<text class="comment-text">{{ comment.content }}</text>
+						<view class="comment-footer">
+							<view class="reply-btn" @click="replyToComment(comment)">
+								<text class="reply-text">回复</text>
+							</view>
+						</view>
+						<!-- 回复列表 -->
+						<view class="replies" v-if="comment.replies && comment.replies.length > 0">
+							<view class="reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
+								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" />
+								<view class="reply-content-wrap">
+									<view class="reply-header">
+										<view class="reply-info">
+											<text class="reply-author">
+												{{ reply.userName }}<template v-if="reply.replyToName"> 回复 {{ reply.replyToName }}</template>：
+											</text>
+											<text class="reply-time">{{ formatTime(reply.createTime) }}</text>
+										</view>
+									</view>
+									<view class="reply-content">
+										<text class="reply-text">{{ reply.content }}</text>
+									</view>
+								</view>
+							</view>
+						</view>
 					</view>
 				</view>
+			</view>
+		</view>
+
+		<view v-if="sharePopupVisible" class="share-popup-mask" @click.self="closeSharePopup">
+			<view class="share-popup-window">
+				<view class="share-popup-title">分享资源</view>
+				<view class="share-popup-options" v-if="!qrCodeVisible">
+					<button class="share-popup-btn" @click="shareToFriend">分享给好友</button>
+					<button class="share-popup-btn" @click="copyResourceLink">复制链接</button>
+					<button class="share-popup-btn" @click="showQrCode">保存二维码</button>
+				</view>
+				<view v-else class="qrcode-section">
+					<image :src="qrCodeDataUrl" class="qrcode-img" mode="aspectFit"/>
+					<view class="qrcode-tip">长按图片保存（移动端）或右键图片另存为（PC端）</view>
+					<button class="share-popup-close" @click="closeQrCode">关闭二维码</button>
+				</view>
+				<button v-if="!qrCodeVisible" class="share-popup-close" @click="closeSharePopup">取消</button>
 			</view>
 		</view>
 	</view>
 </template>
 
 <script>
+import QRCode from 'qrcode'
 export default {
 	data() {
 		return {
@@ -155,7 +201,12 @@ export default {
 			},
 			userRating: 0,
 			commentText: '',
-			comments: []
+			comments: [],
+			replyTarget: null,
+			sending: false,
+			sharePopupVisible: false,
+			qrCodeVisible: false,
+			qrCodeDataUrl: ''
 		}
 	},
 	
@@ -163,6 +214,7 @@ export default {
 		if (options.id) {
 			this.resourceId = options.id
 			this.loadResourceDetail()
+			this.loadComments()
 		}
 	},
 	
@@ -209,9 +261,6 @@ export default {
 				} else {
 					throw new Error('获取资源详情失败')
 				}
-				
-				// 加载评论
-				await this.loadComments()
 				
 				// 检查收藏状态
 				await this.checkCollectionStatus()
@@ -293,10 +342,10 @@ export default {
 						
 						// #ifdef H5
 						// H5环境使用带身份认证的下载
-						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const h5DownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
 						
 						// 使用fetch下载文件
-						fetch(downloadApiUrl, {
+						fetch(h5DownloadUrl, {
 							method: 'GET',
 							headers: {
 								'Authorization': `Bearer ${token}`,
@@ -328,10 +377,10 @@ export default {
 						
 						// #ifdef MP-WEIXIN
 						// 微信小程序使用下载API
-						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const wxDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
 						
 						uni.downloadFile({
-							url: downloadApiUrl,
+							url: wxDownloadUrl,
 							header: {
 								'Authorization': `Bearer ${token}`,
 								'Accept': 'application/octet-stream'
@@ -367,9 +416,9 @@ export default {
 						
 						// #ifdef APP-PLUS
 						// App环境使用plus下载
-						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const appDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
 						
-						const dtask = plus.downloader.createDownload(downloadApiUrl, {
+						const dtask = plus.downloader.createDownload(appDownloadUrl, {
 							filename: '_downloads/' + (response.data.data.fileName || 'download'),
 							headers: {
 								'Authorization': `Bearer ${token}`,
@@ -444,8 +493,10 @@ export default {
 					return
 				}
 				
-				// 记录当前状态，用于计算变化
-				const wasAlreadyFavorited = this.resource.isFavorited
+				// 立即更新UI状态，提供即时反馈
+				const newFavoritedState = !this.resource.isFavorited
+				this.resource.isFavorited = newFavoritedState
+				this.resource.favoriteCount += newFavoritedState ? 1 : -1
 				
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/favorite`,
@@ -460,32 +511,14 @@ export default {
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
-					const newFavoritedState = response.data.data.isCollected
-					this.resource.isFavorited = newFavoritedState
-					
 					uni.showToast({
-						title: response.data.message,
+						title: newFavoritedState ? '收藏成功' : '已取消收藏',
 						icon: 'success'
 					})
-					
-					// 重新加载资源详情以获取最新的收藏计数
-					// 但不显示loading，避免闪烁
-					setTimeout(async () => {
-						try {
-							const response = await uni.request({
-								url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}`,
-								method: 'GET'
-							})
-							
-							if (response.statusCode === 200 && response.data.success) {
-								const data = response.data.data
-								this.resource.favoriteCount = parseInt(data.collection_count) || 0
-							}
-						} catch (error) {
-							console.error('更新收藏计数失败:', error)
-						}
-					}, 100)
 				} else {
+					// 如果请求失败，恢复原始状态
+					this.resource.isFavorited = !newFavoritedState
+					this.resource.favoriteCount += newFavoritedState ? -1 : 1
 					throw new Error(response.data.message || '操作失败')
 				}
 			} catch (error) {
@@ -497,15 +530,42 @@ export default {
 			}
 		},
 		
-		shareResource() {
-			uni.showActionSheet({
-				itemList: ['分享给好友', '复制链接', '保存二维码'],
-				success: (res) => {
-					const actions = ['分享给好友', '复制链接', '保存二维码']
-					uni.showToast({
-						title: actions[res.tapIndex],
-						icon: 'none'
-					})
+		showSharePopup() {
+			this.sharePopupVisible = true
+		},
+		closeSharePopup() {
+			this.sharePopupVisible = false
+			this.qrCodeVisible = false
+		},
+		showQrCode() {
+			const url = window.location.origin + `/#/pages/resources/detail?id=${this.resourceId}`
+			QRCode.toDataURL(url, { width: 240, margin: 2 }, (err, url) => {
+				if (!err) {
+					this.qrCodeDataUrl = url
+					this.qrCodeVisible = true
+				} else {
+					uni.showToast({ title: '二维码生成失败', icon: 'none' })
+				}
+			})
+		},
+		closeQrCode() {
+			this.qrCodeVisible = false
+		},
+		shareToFriend() {
+			this.closeSharePopup()
+			uni.showModal({
+				title: '分享给好友',
+				content: '请点击"复制链接"并粘贴到微信/QQ等聊天工具发送给好友。',
+				showCancel: false
+			})
+		},
+		copyResourceLink() {
+			this.closeSharePopup()
+			const url = window.location.origin + `/#/pages/resources/detail?id=${this.resourceId}`
+			uni.setClipboardData({
+				data: url,
+				success: () => {
+					uni.showToast({ title: '链接已复制', icon: 'success' })
 				}
 			})
 		},
@@ -584,25 +644,63 @@ export default {
 			return ratingTexts[rating] || '点击评分'
 		},
 		
-		async submitComment() {
-			if (!this.commentText.trim()) {
+		async loadComments() {
+			try {
+				const response = await uni.request({
+					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
+					method: 'GET'
+				})
+				if (response.statusCode === 200 && response.data.success) {
+					this.comments = (response.data.data.comments || []).map(comment => ({
+						comment_id: comment.comment_id,
+						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
+						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
+						content: comment.content,
+						createTime: new Date(comment.created_at),
+						replies: (comment.replies || []).map(reply => ({
+							comment_id: reply.comment_id,
+							userName: reply.author?.nickname || reply.author?.name || '匿名用户',
+							userAvatar: reply.author?.avatar_url || '/static/images/default-avatar.png',
+							content: reply.content,
+							createTime: new Date(reply.created_at),
+							replyToName: reply.reply_to_name || ''
+						}))
+					}))
+				}
+			} catch (error) {
+				console.error('加载评论失败:', error)
 				uni.showToast({
-					title: '请输入评论内容',
+					title: '加载评论失败',
 					icon: 'none'
 				})
+			}
+		},
+		
+		replyToComment(comment) {
+			this.replyTarget = comment
+		},
+		cancelReply() {
+			this.replyTarget = null
+			this.commentText = ''
+		},
+		async handleSubmitComment() {
+			const token = uni.getStorageSync('token')
+			if (!token) {
+				uni.showToast({ title: '请先登录', icon: 'none' })
 				return
 			}
-			
+			if (!this.commentText || !this.commentText.trim()) {
+				uni.showToast({ title: '评论内容不能为空', icon: 'none' })
+				return
+			}
 			try {
-				const token = uni.getStorageSync('token')
-				if (!token) {
-					uni.showToast({
-						title: '请先登录',
-						icon: 'none'
-					})
-					return
+				this.sending = true
+				const data = {
+					comment_content: this.commentText.trim()
 				}
-				
+				if (this.replyTarget) {
+					data.parent_comment_id = this.replyTarget.comment_id
+				}
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'POST',
@@ -610,58 +708,20 @@ export default {
 						'Authorization': `Bearer ${token}`,
 						'Content-Type': 'application/json'
 					},
-					data: {
-						comment_content: this.commentText
-					}
+					data
 				})
-				
 				if (response.statusCode === 201 && response.data.success) {
-					// 重新加载评论列表
-					await this.loadComments()
 					this.commentText = ''
-					
-					uni.showToast({
-						title: '评论成功',
-						icon: 'success'
-					})
-				} else {
-					throw new Error(response.data.message || '评论失败')
+					this.replyTarget = null
+					this.loadComments()
+					uni.showToast({ title: '评论成功', icon: 'success' })
 				}
 			} catch (error) {
-				console.error('评论失败:', error)
-				uni.showToast({
-					title: error.message || '评论失败',
-					icon: 'none'
-				})
+				uni.showToast({ title: '评论失败', icon: 'none' })
+			} finally {
+				this.sending = false
 			}
 		},
-		
-
-		// 加载评论列表
-		async loadComments() {
-			try {
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
-					method: 'GET'
-				})
-				
-				console.log('评论API响应:', response.data)
-				
-				if (response.statusCode === 200 && response.data.success) {
-					this.comments = (response.data.data.comments || []).map(comment => ({
-						comment_id: comment.comment_id,
-						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
-						userAvatar: comment.author?.avatar_url || '',
-						content: comment.content,
-						createTime: new Date(comment.created_at)
-					}))
-					console.log('处理后的评论数据:', this.comments)
-				}
-			} catch (error) {
-				console.error('加载评论失败:', error)
-			}
-		},
-		
 		
 		getFileIcon(fileType) {
 			const iconMap = {
@@ -709,16 +769,34 @@ export default {
 
 <style lang="scss" scoped>
 .resource-detail-container {
-	background: #f5f5f5;
 	min-height: 100vh;
-	padding-bottom: 40rpx;
+	padding: 30rpx;
+	padding-bottom: 160rpx;
+	background: transparent !important;
+	
+	&::before {
+		content: '';
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: -1;
+		background-color: #FAEED1;
+		background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		background-size: 400% 400%;
+		animation: backgroundPan 15s ease infinite;
+	}
 }
 
 .resource-header {
 	background: white;
+	border-radius: 20rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	padding: 40rpx 30rpx;
 	display: flex;
-	align-items: flex-start;
+	flex-direction: column;
+	gap: 20rpx;
 	
 	.resource-icon-section {
 		margin-right: 30rpx;
@@ -805,10 +883,12 @@ export default {
 
 .stats-section {
 	background: white;
+	border-radius: 20rpx;
 	margin-top: 20rpx;
 	padding: 30rpx;
 	display: flex;
 	justify-content: space-around;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	
 	.stat-item {
 		text-align: center;
@@ -843,16 +923,29 @@ export default {
 		border: 2rpx solid #e0e0e0;
 		border-radius: 15rpx;
 		font-size: 26rpx;
+		transition: all 0.3s ease;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 		
 		&.primary {
-			background: #007aff;
-			color: white;
-			border-color: #007aff;
+			border-color: #e0e0e0;
+			color: #333;
+			
+			&:active {
+				border-color: #007aff;
+				color: #007aff;
+			}
 		}
 		
 		&.favorited {
+			background: #fff2f2;
 			border-color: #ff4757;
 			color: #ff4757;
+			transition: all 0.3s ease;
+			
+			.btn-icon {
+				transform: scale(1.2);
+				transition: transform 0.3s ease;
+			}
 		}
 		
 		.btn-icon {
@@ -868,8 +961,10 @@ export default {
 
 .description-section, .rating-section, .related-section, .comment-section {
 	background: white;
+	border-radius: 20rpx;
 	margin: 20rpx 0;
 	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	
 	.section-header {
 		margin-bottom: 20rpx;
@@ -915,77 +1010,230 @@ export default {
 	}
 }
 
-
-.comment-input-section {
-	display: flex;
-	margin-bottom: 30rpx;
-	
-	.comment-input {
-		flex: 1;
-		min-height: 100rpx;
-		padding: 20rpx;
-		background: #f8f8f8;
-		border-radius: 15rpx;
-		font-size: 26rpx;
-		margin-right: 20rpx;
-	}
-	
-	.comment-submit-btn {
-		width: 120rpx;
-		background: #007aff;
-		color: white;
-		border: none;
-		border-radius: 15rpx;
-		font-size: 26rpx;
+.comment-section {
+	background: white;
+	border-radius: 20rpx;
+	margin: 20rpx 0;
+	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+	.section-header {
+		margin-bottom: 20rpx;
+		.section-title {
+			font-size: 32rpx;
+			font-weight: bold;
+			color: #333;
+		}
 	}
 }
-
+.comment-input-area {
+	display: flex;
+	gap: 20rpx;
+	margin-bottom: 30rpx;
+	.comment-textarea {
+		flex: 1;
+		height: 72rpx;
+		max-height: 144rpx;
+		padding: 16rpx;
+		background: #fff;
+		border-radius: 12rpx;
+		font-size: 28rpx;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+	}
+	.submit-btn {
+		width: 120rpx;
+		height: 72rpx;
+		line-height: 72rpx;
+		text-align: center;
+		background: #6CB4EE;
+		color: white;
+		border-radius: 12rpx;
+		font-size: 28rpx;
+		padding: 0;
+		margin: 0;
+		box-shadow: 0 2rpx 8rpx rgba(108, 180, 238, 0.3);
+		transition: all 0.3s ease;
+		&:active {
+			transform: scale(0.95);
+			background: #5AA1DB;
+		}
+	}
+	.cancel-reply {
+		margin-left: 10rpx;
+		align-self: center;
+		.cancel-text {
+			color: #888;
+			font-size: 26rpx;
+		}
+	}
+}
 .comment-list {
 	.comment-item {
 		display: flex;
-		padding: 25rpx 0;
+		padding: 20rpx 0;
 		border-bottom: 1rpx solid #f0f0f0;
-		
 		&:last-child {
 			border-bottom: none;
+			padding-bottom: 0;
 		}
-		
 		.comment-avatar {
 			width: 60rpx;
 			height: 60rpx;
 			border-radius: 50%;
 			margin-right: 20rpx;
 		}
-		
 		.comment-content {
 			flex: 1;
-			
 			.comment-header {
 				display: flex;
 				align-items: center;
-				margin-bottom: 10rpx;
-				
+				margin-bottom: 8rpx;
 				.comment-username {
 					font-size: 26rpx;
 					font-weight: bold;
 					color: #333;
-					margin-right: 20rpx;
+					margin-right: 16rpx;
 				}
-				
 				.comment-time {
 					font-size: 22rpx;
 					color: #999;
 				}
 			}
-			
 			.comment-text {
 				font-size: 26rpx;
 				color: #333;
 				line-height: 1.5;
-				margin-bottom: 15rpx;
 			}
-			
+			.comment-footer {
+				display: flex;
+				justify-content: flex-end;
+				margin-top: 8rpx;
+				.reply-btn {
+					padding: 4rpx 12rpx;
+					background: #f5f5f5;
+					border-radius: 12rpx;
+					font-size: 24rpx;
+					color: #666;
+					margin-left: 10rpx;
+					&:active {
+						background: #e0e0e0;
+					}
+				}
+			}
+			.replies {
+				margin-top: 10rpx;
+				.reply-item {
+					display: flex;
+					flex-direction: row;
+					align-items: flex-start;
+					padding: 10rpx 0;
+					border-bottom: 1rpx solid #f0f0f0;
+					&:last-child {
+						border-bottom: none;
+						padding-bottom: 0;
+					}
+					.reply-avatar {
+						width: 40rpx;
+						height: 40rpx;
+						border-radius: 50%;
+						margin-right: 10rpx;
+					}
+					.reply-content-wrap {
+						flex: 1;
+						display: flex;
+						flex-direction: column;
+						.reply-header {
+							display: flex;
+							align-items: center;
+							margin-bottom: 6rpx;
+							.reply-info {
+								flex: 1;
+								.reply-author {
+									font-size: 24rpx;
+									font-weight: bold;
+									color: #333;
+									margin-right: 8rpx;
+								}
+								.reply-time {
+									font-size: 20rpx;
+									color: #999;
+								}
+							}
+						}
+						.reply-content {
+							.reply-text {
+								font-size: 24rpx;
+								color: #333;
+								line-height: 1.5;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
+}
+
+.share-popup-mask {
+	position: fixed;
+	left: 0; top: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.4);
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.share-popup-window {
+	background: #fff;
+	border-radius: 20rpx;
+	width: 80vw;
+	max-width: 600rpx;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.18);
+	padding: 40rpx 30rpx 30rpx 30rpx;
+}
+.share-popup-title {
+	font-size: 36rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	text-align: center;
+}
+.share-popup-options {
+	display: flex;
+	flex-direction: column;
+	gap: 20rpx;
+	margin-bottom: 30rpx;
+}
+.share-popup-btn {
+	width: 100%;
+	background: #f5f5f5;
+	color: #333;
+	border-radius: 12rpx;
+	font-size: 30rpx;
+	padding: 20rpx 0;
+}
+.share-popup-close {
+	width: 100%;
+	background: #667eea;
+	color: #fff;
+	border-radius: 12rpx;
+	font-size: 30rpx;
+	margin-top: 10rpx;
+}
+.qrcode-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+.qrcode-img {
+	width: 240rpx;
+	height: 240rpx;
+	margin: 20rpx 0;
+}
+.qrcode-tip {
+	font-size: 24rpx;
+	color: #888;
+	margin-bottom: 10rpx;
 }
 </style>

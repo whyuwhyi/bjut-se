@@ -160,7 +160,7 @@
 
 		<!-- 新建计划按钮 -->
 		<view class="create-btn" @click="createNewPlan">
-			<text class="create-icon">➕</text>
+			<image class="create-icon" src="/static/icons/create-plan.png" mode="aspectFit"></image>
 		</view>
 		
 		
@@ -539,9 +539,22 @@ export default {
 
 <style lang="scss" scoped>
 .learning-container {
-	background: #f5f5f5;
 	min-height: 100vh;
-	padding-bottom: 160rpx;
+	padding: 20rpx;
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+	}
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
 }
 
 /* 顶部操作栏 */
@@ -912,22 +925,27 @@ export default {
 /* 创建按钮 */
 .create-btn {
 	position: fixed;
-	right: 40rpx;
-	bottom: 160rpx;
-	width: 120rpx;
-	height: 120rpx;
-	background: linear-gradient(45deg, #667eea, #764ba2);
+	right: 30rpx;
+	bottom: 120rpx;
+	width: 100rpx;
+	height: 100rpx;
 	border-radius: 50%;
+	background: rgba(0, 122, 255, 0.1);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 8rpx 25rpx rgba(102, 126, 234, 0.4);
-	z-index: 100;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	transition: all 0.3s ease;
 	
-	.create-icon {
-		font-size: 40rpx;
-		color: white;
+	&:active {
+		transform: scale(0.95);
+		background: rgba(0, 122, 255, 0.15);
 	}
+}
+
+.create-icon {
+	width: 48rpx;
+	height: 48rpx;
 }
 
 </style>

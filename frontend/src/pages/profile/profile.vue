@@ -3,7 +3,7 @@
 		<!-- 个人信息卡片 -->
 		<view class="profile-card">
 			<view class="profile-header">
-				<image class="avatar" :src="userProfile.avatar || require('@/static/logo.png')" @click="changeAvatar"></image>
+				<image class="avatar" :src="userProfile.avatar || require('@/static/images/default-avatar.png')" @click="changeAvatar"></image>
 				<view class="user-info">
 					<text class="username">{{ userProfile.nickname || userProfile.name || '用户' }}</text>
 					<text class="user-title">{{ userProfile.bio || '暂无简介' }}</text>
@@ -280,9 +280,9 @@ export default {
 
 <style lang="scss" scoped>
 .profile-container {
-	background: #f5f5f5;
 	min-height: 100vh;
-	padding-bottom: 40rpx;
+	padding: 30rpx;
+	padding-bottom: 160rpx;
 }
 
 .profile-card {

@@ -91,9 +91,9 @@
 			</view>
 		</view>
 
-		<!-- 发帖按钮 -->
+		<!-- 发布按钮 -->
 		<view class="create-btn" @click="goToCreate">
-			<text class="create-icon">✏️</text>
+			<image class="create-icon" src="/static/icons/post.png" mode="aspectFit"></image>
 		</view>
 
 		<!-- 加载更多 -->
@@ -276,9 +276,36 @@ export default {
 
 <style lang="scss" scoped>
 .forum-container {
-	background: #f5f5f5;
 	min-height: 100vh;
+	padding: 30rpx;
 	padding-bottom: 160rpx;
+	background: transparent !important;
+	
+	&::before {
+		content: '';
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: -1;
+		background-color: #FAEED1;
+		background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		background-size: 400% 400%;
+		animation: backgroundPan 15s ease infinite;
+	}
+}
+
+@keyframes backgroundPan {
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
 }
 
 .top-section {
@@ -476,17 +503,23 @@ export default {
 	bottom: 160rpx;
 	width: 120rpx;
 	height: 120rpx;
-	background: linear-gradient(45deg, #667eea, #764ba2);
+	background: rgba(0, 122, 255, 0.1);
 	border-radius: 50%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 8rpx 25rpx rgba(102, 126, 234, 0.4);
+	box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.15);
 	z-index: 100;
+	transition: all 0.3s ease;
+	
+	&:active {
+		transform: scale(0.95);
+		background: rgba(0, 122, 255, 0.2);
+	}
 	
 	.create-icon {
-		font-size: 40rpx;
-		color: white;
+		width: 60rpx;
+		height: 60rpx;
 	}
 }
 

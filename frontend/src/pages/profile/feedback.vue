@@ -303,9 +303,16 @@ export default {
 
 <style lang="scss" scoped>
 .feedback-container {
-	background: #f5f5f5;
 	min-height: 100vh;
-	padding-bottom: 40rpx;
+	padding: 30rpx;
+	padding-bottom: 160rpx;
+}
+
+.feedback-form {
+	background: white;
+	border-radius: 20rpx;
+	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 }
 
 .section-title {

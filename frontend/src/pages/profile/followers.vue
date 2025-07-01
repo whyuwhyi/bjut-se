@@ -260,8 +260,9 @@ export default {
 
 <style lang="scss" scoped>
 .followers-container {
-	background: #f5f5f5;
 	min-height: 100vh;
+	padding: 30rpx;
+	padding-bottom: 160rpx;
 }
 
 .stats-header {
@@ -276,7 +277,10 @@ export default {
 }
 
 .followers-list {
-	padding: 20rpx;
+	background: white;
+	border-radius: 20rpx;
+	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 }
 
 .follower-item {

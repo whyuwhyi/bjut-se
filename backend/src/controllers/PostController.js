@@ -20,12 +20,17 @@ class PostController {
       const offset = (page - 1) * limit
 
       let whereClause = { status: 'active' }
+      let tagFilter = null
       
       if (search) {
         whereClause[Op.or] = [
           { title: { [Op.like]: `%${search}%` } },
           { content: { [Op.like]: `%${search}%` } }
         ]
+      }
+
+      if (tag) {
+        tagFilter = { tag_name: tag }
       }
 
       let orderClause = []
@@ -57,7 +62,8 @@ class PostController {
             model: PostTag,
             as: 'tags',
             attributes: ['tag_id', 'tag_name', 'tag_color'],
-            through: { attributes: [] }
+            through: { attributes: [] },
+            ...(tagFilter ? { where: tagFilter } : {})
           }
         ],
         order: orderClause,
@@ -253,12 +259,41 @@ class PostController {
             model: User,
             as: 'author',
             attributes: ['phone_number', 'name', 'nickname', 'avatar_url']
+          },
+          {
+            model: Comment,
+            as: 'replies',
+            include: [
+              {
+                model: User,
+                as: 'author',
+                attributes: ['phone_number', 'name', 'nickname', 'avatar_url']
+              }
+            ],
+            where: { status: 'active' },
+            required: false
           }
         ],
         order: [['created_at', 'DESC']],
         limit: parseInt(limit),
         offset: offset
       })
+
+      // 为每条回复补充 reply_to_name 字段
+      for (const comment of comments.rows) {
+        if (comment.replies && comment.replies.length > 0) {
+          for (const reply of comment.replies) {
+            if (reply.parent_comment_id) {
+              const parent = await Comment.findByPk(reply.parent_comment_id, {
+                include: [{ model: User, as: 'author', attributes: ['nickname', 'name'] }]
+              })
+              reply.dataValues.reply_to_name = parent && parent.author ? (parent.author.nickname || parent.author.name || '') : ''
+            } else {
+              reply.dataValues.reply_to_name = ''
+            }
+          }
+        }
+      }
 
       const totalPages = Math.ceil(comments.count / limit)
 

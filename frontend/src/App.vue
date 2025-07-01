@@ -5,11 +5,11 @@
         onLaunch() {
             console.log('App Launch')
             // 临时注释掉登录检查，直接进入首页
-            setTimeout(() => {
-                uni.reLaunch({
-                    url: '/pages/index/index'
-                })
-            }, 1000)
+            //setTimeout(() => {
+              //  uni.reLaunch({
+                //    url: '/pages/index/index'
+                //})
+            //}, 1000)
         },
         onShow() {
             console.log('App Show')
@@ -25,6 +25,28 @@
     
     /* 导入图标字体 */
     @import url('https://at.alicdn.com/t/c/font_4701891_qcugs7g3r5.css');
+    
+    /* 全局背景样式 */
+    page {
+        min-height: 100vh;
+        background-color: #FAEED1 !important;
+        background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%) !important;
+        background-size: 400% 400%;
+        animation: backgroundPan 15s ease infinite;
+    }
+    
+    @keyframes backgroundPan {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    /* 全局容器样式 */
+    .container {
+        min-height: 100vh;
+        padding: 30rpx;
+        background: transparent !important;
+    }
     
     /* tabBar样式调整 */
     .uni-tabbar {
