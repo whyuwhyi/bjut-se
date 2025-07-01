@@ -133,7 +133,129 @@
 - **版本控制**: Git
 - **包管理**: npm
 
-## 项目结构
+## 部署架构
+
+### 容器化部署架构
+
+本项目采用基于 Docker 的微服务容器化部署架构，实现了前后端分离和服务解耦。
+
+#### 架构图
+
+```
+Internet (HTTPS/HTTP)
+        ↓
+   Cloudflare CDN
+        ↓
+┌─────────────────────────────┐
+│     Nginx 主代理服务        │  ← 端口 80/443
+│   - 请求路由分发            │
+│   - SSL 终端               │
+│   - 静态文件缓存            │
+│   - 负载均衡               │
+└─────────────┬───────────────┘
+              │
+    ┌─────────┴─────────┐
+    │                   │
+    ▼                   ▼
+┌─────────────┐   ┌─────────────┐
+│ Frontend    │   │ Admin       │
+│ Container   │   │ Container   │
+│ (Nginx)     │   │ (Nginx)     │
+│ 端口: 80    │   │ 端口: 80    │
+└─────────────┘   └─────────────┘
+              │
+              ▼
+    ┌─────────────────┐
+    │ Backend         │
+    │ Container       │
+    │ (Node.js)       │
+    │ 端口: 3000      │
+    └─────────┬───────┘
+              │
+    ┌─────────┴─────────┐
+    │                   │
+    ▼                   ▼
+┌─────────────┐   ┌─────────────┐
+│ MySQL       │   │ Redis       │
+│ Container   │   │ Container   │
+│ 端口: 3306  │   │ 端口: 6379  │
+└─────────────┘   └─────────────┘
+```
+
+#### 请求路由规则
+
+```
+用户请求路由分发:
+├── https://domain.com/admin/*    → Admin Container (管理后台)
+├── https://domain.com/api/*      → Backend Container (API服务)
+├── https://domain.com/uploads/*  → 静态文件服务
+├── https://domain.com/health     → 健康检查
+└── https://domain.com/*          → Frontend Container (用户端)
+```
+
+#### 容器职责划分
+
+| 容器名称 | 基础镜像 | 端口 | 职责 | 健康检查 |
+|---------|---------|------|------|----------|
+| **nginx** | nginx:alpine | 80/443 | 主代理、路由分发、SSL终端 | `/health` |
+| **frontend** | nginx:alpine | 80 | 用户端静态文件服务 | `wget http://localhost/` |
+| **admin-frontend** | nginx:alpine | 80 | 管理后台静态文件服务 | `wget http://localhost/health` |
+| **backend** | node:18-alpine | 3000 | API服务、业务逻辑 | `http://localhost:3000/api/v1/health` |
+| **mysql** | mysql:8.0 | 3306 | 数据持久化 | `mysqladmin ping` |
+| **redis** | redis:7-alpine | 6379 | 缓存、会话存储 | `redis-cli ping` |
+
+### CI/CD 部署流程
+
+#### GitHub Actions 自动化部署
+
+```mermaid
+graph TD
+    A[代码推送到 main] --> B[触发 GitHub Actions]
+    B --> C[环境准备与依赖安装]
+    C --> D[运行测试套件]
+    D --> E{测试是否通过?}
+    E -->|失败| F[停止部署, 发送通知]
+    E -->|成功| G[构建前端应用]
+    G --> H[构建管理后台]
+    H --> I[构建 Docker 镜像]
+    I --> J[推送镜像到注册表]
+    J --> K[部署到生产服务器]
+    K --> L[健康检查验证]
+    L --> M{部署是否成功?}
+    M -->|失败| N[自动回滚到上一版本]
+    M -->|成功| O[部署完成, 发送通知]
+    N --> P[回滚验证]
+```
+
+#### 部署阶段详细说明
+
+1. **测试阶段** (test)
+   - 环境: Ubuntu Latest + MySQL 8.0 + Redis 7
+   - 执行单元测试和集成测试
+   - 代码质量检查 (ESLint)
+
+2. **构建阶段** (build) 
+   - 并行构建用户前端和管理后台
+   - 生成生产优化的静态文件
+   - 上传构建产物作为 artifact
+
+3. **Docker 镜像构建** (docker-build)
+   - 多阶段构建优化镜像大小
+   - 使用 GitHub Container Registry
+   - 镜像缓存加速构建过程
+
+4. **生产部署** (deploy)
+   - 备份当前运行版本
+   - 使用 Git 拉取最新代码
+   - Docker Compose 重新构建和启动
+   - 综合健康检查验证
+
+5. **回滚机制** (rollback)
+   - 自动检测部署失败
+   - 回滚到最近的可用备份版本
+   - 确保服务可用性
+
+### 项目结构
 
 ```
 wechat_software/
@@ -203,16 +325,64 @@ wechat_software/
 │   └── package.json      # 后端依赖
 ├── docker/               # Docker配置
 │   ├── frontend/         # 前端镜像配置
+│   │   └── Dockerfile    # 用户端构建配置
+│   ├── admin-frontend/   # 管理后台镜像配置
+│   │   └── Dockerfile    # 管理端构建配置
 │   ├── backend/          # 后端镜像配置
+│   │   └── Dockerfile    # API服务构建配置
 │   ├── nginx/            # Nginx配置
-│   └── docker-compose.yml # Docker编排
+│   │   ├── nginx.conf    # 主配置文件
+│   │   └── conf.d/       # 虚拟主机配置
+│   │       └── default.conf # 路由规则配置
+│   ├── docker-compose.yml     # 开发环境编排
+│   └── docker-compose.prod.yml # 生产环境编排
+├── .github/              # GitHub Actions CI/CD
+│   └── workflows/
+│       └── ci-cd.yml     # 自动化部署流程
 ├── database/             # 数据库相关
 │   └── init/            # 初始化脚本
+│       └── 01-init-database.sql # 数据库结构和测试数据
 ├── scripts/              # 开发脚本
 │   └── dev.sh           # 统一开发管理脚本
 ├── package.json          # 根目录统一管理
 └── README.md            # 项目说明
 ```
+
+### 环境配置
+
+#### 开发环境配置 (docker-compose.yml)
+- 所有容器互联，便于调试
+- 数据库和Redis端口暴露到主机
+- 热重载支持
+- 日志输出到控制台
+
+#### 生产环境配置 (docker-compose.prod.yml)  
+- 仅Nginx暴露到外网
+- 服务间网络隔离
+- 健康检查和自动重启
+- 日志持久化存储
+
+### 部署优势
+
+1. **高可用性**
+   - 容器级健康检查
+   - 自动故障恢复
+   - 零停机更新
+
+2. **可扩展性**
+   - 水平扩展支持
+   - 负载均衡
+   - 微服务架构
+
+3. **安全性**
+   - 网络隔离
+   - 最小权限原则
+   - SSL/TLS 加密
+
+4. **监控运维**
+   - 实时日志聚合
+   - 性能指标监控
+   - 自动化部署和回滚
 
 ## 快速开始
 
