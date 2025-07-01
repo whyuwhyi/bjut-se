@@ -170,32 +170,32 @@
             {
                 "pagePath": "pages/index/index",
                 "text": "首页",
-                "iconPath": "static/icons/home.png",
-                "selectedIconPath": "static/icons/home-active.png"
+                "iconPath": "static/icons/home-active.png",
+                "selectedIconPath": "static/icons/home.png"
             },
             {
                 "pagePath": "pages/resources/resources",
                 "text": "资源",
-                "iconPath": "static/icons/resource.png",
-                "selectedIconPath": "static/icons/resource-active.png"
+                "iconPath": "static/icons/resource-active.png",
+                "selectedIconPath": "static/icons/resource.png"
             },
             {
                 "pagePath": "pages/forum/forum",
                 "text": "论坛",
-                "iconPath": "static/icons/forum.png",
-                "selectedIconPath": "static/icons/forum-active.png"
+                "iconPath": "static/icons/forum-active.png",
+                "selectedIconPath": "static/icons/forum.png"
             },
             {
                 "pagePath": "pages/learning/learning",
                 "text": "学习",
-                "iconPath": "static/icons/learning.png",
-                "selectedIconPath": "static/icons/learning-active.png"
+                "iconPath": "static/icons/learning-active.png",
+                "selectedIconPath": "static/icons/learning.png"
             },
             {
                 "pagePath": "pages/profile/profile",
                 "text": "我的",
-                "iconPath": "static/icons/profile.png",
-                "selectedIconPath": "static/icons/profile-active.png"
+                "iconPath": "static/icons/profile-active.png",
+                "selectedIconPath": "static/icons/profile.png"
             }
         ]
     }
