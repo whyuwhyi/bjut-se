@@ -258,12 +258,16 @@ export default {
 				const result = await this.register()
 				
 				if (result.success) {
+					// 注册成功后保存手机号和密码到localStorage
+					uni.setStorageSync('autoLoginPhone', this.registerForm.phone_number)
+					uni.setStorageSync('autoLoginPassword', this.registerForm.password)
 					uni.showModal({
 						title: '注册成功',
 						content: '欢迎加入日新智链学习社区！请使用手机号登录。',
 						showCancel: false,
 						success: () => {
-							uni.navigateBack()
+							// 跳转到登录页
+							uni.redirectTo({ url: '../login/login' })
 						}
 					})
 				} else {
