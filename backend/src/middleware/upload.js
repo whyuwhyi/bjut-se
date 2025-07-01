@@ -102,6 +102,26 @@ const uploadResource = multer({
   }
 }).single('file') // 单个文件上传
 
+// 图片上传配置
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/images')
+    createUploadDir(uploadDir)
+    cb(null, uploadDir)
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname)
+    const filename = `${Date.now()}_${Math.floor(Math.random()*10000)}${ext}`
+    cb(null, filename)
+  }
+})
+
+const uploadImage = multer({
+  storage: imageStorage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }
+}).single('file')
+
 // 错误处理中间件
 const handleUploadError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
@@ -133,5 +153,6 @@ module.exports = {
   uploadAvatar,
   uploadResource,
   handleUploadError,
-  resourceFileFilter
+  resourceFileFilter,
+  uploadImage
 }

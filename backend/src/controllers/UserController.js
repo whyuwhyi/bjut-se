@@ -7,6 +7,7 @@ const path = require('path')
 const fs = require('fs').promises
 const twilio = require('twilio');
 const { VerificationCode } = require('../models');
+const { Op } = require('sequelize');
 
 
 class UserController {
@@ -402,11 +403,16 @@ class UserController {
       const phone_number = req.user.phone_number
       const offset = (page - 1) * limit
 
+      // 修正：status 为空或 all 时查所有非 deleted 帖子
+      const where = { author_phone: phone_number }
+      if (status && status !== '' && status !== 'all') {
+        where.status = status
+      } else {
+        where.status = { [Op.in]: ['active', 'hidden'] }
+      }
+
       const posts = await Post.findAndCountAll({
-        where: {
-          author_phone: phone_number,
-          status
-        },
+        where,
         order: [['created_at', 'DESC']],
         offset,
         limit: parseInt(limit)

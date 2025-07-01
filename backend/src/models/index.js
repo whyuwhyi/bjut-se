@@ -20,6 +20,7 @@ const StudyRecord = require('./StudyRecord')
 const UserFollow = require('./UserFollow')
 // 通知模块
 const Notification = require('./Notification')
+const Feedback = require('./Feedback')
 
 // 设置模型关系
 // 用户 - 资源关系
@@ -336,6 +337,7 @@ const models = {
   UserFollow,
   // 通知模块
   Notification,
+  Feedback,
   sequelize
 }
 

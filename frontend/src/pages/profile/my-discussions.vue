@@ -14,6 +14,10 @@
 				<text class="stat-number">{{ totalViews }}</text>
 				<text class="stat-label">获得浏览</text>
 			</view>
+			<view class="stat-item">
+				<text class="stat-number">{{ totalCollections }}</text>
+				<text class="stat-label">获得收藏</text>
+			</view>
 		</view>
 		
 		<!-- 筛选标签 -->
@@ -116,6 +120,7 @@ export default {
 			totalPosts: 0,
 			totalComments: 0,
 			totalViews: 0,
+			totalCollections: 0,
 			loading: false,
 			page: 1,
 			hasMore: true
@@ -200,6 +205,7 @@ export default {
 				// 从posts数据中计算统计
 				this.totalComments = this.posts.reduce((sum, post) => sum + (post.comment_count || 0), 0)
 				this.totalViews = this.posts.reduce((sum, post) => sum + (post.view_count || 0), 0)
+				this.totalCollections = this.posts.reduce((sum, post) => sum + (post.collection_count || 0), 0)
 			} catch (error) {
 				console.error('加载统计数据失败:', error)
 			}

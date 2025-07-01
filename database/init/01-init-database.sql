@@ -327,6 +327,20 @@ CREATE TABLE verification_codes (
     status ENUM('valid', 'used', 'expired') DEFAULT 'valid' COMMENT '状态'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='验证码表';
 
+-- 22. 用户反馈表
+CREATE TABLE feedbacks (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
+  type VARCHAR(32) NOT NULL COMMENT '反馈类型（bug/feature/ui/performance/content/other）',
+  content TEXT NOT NULL COMMENT '反馈内容',
+  contact VARCHAR(64) DEFAULT NULL COMMENT '联系方式（可选）',
+  images TEXT DEFAULT NULL COMMENT '图片URL数组，JSON字符串',
+  status VARCHAR(16) DEFAULT 'pending' COMMENT '处理状态（pending/processing/resolved/closed）',
+  reply TEXT DEFAULT NULL COMMENT '管理员回复内容',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户反馈表';
+
 -- ================================================================
 -- 第三部分：测试数据插入 - 严格控制数量匹配
 -- ================================================================
