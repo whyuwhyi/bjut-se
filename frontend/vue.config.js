@@ -16,16 +16,12 @@ module.exports = {
     } : false,
     loaderOptions: {
       sass: {
-        // 抑制sass弃用警告 - 兼容老版本
-        sassOptions: {
-          silenceDeprecations: ['legacy-js-api', 'import']
-        }
+        // 抑制sass弃用警告
+        silenceDeprecations: ['legacy-js-api', 'import']
       },
       scss: {
-        // 抑制sass弃用警告 - 兼容老版本
-        sassOptions: {
-          silenceDeprecations: ['legacy-js-api', 'import']
-        }
+        // 抑制sass弃用警告  
+        silenceDeprecations: ['legacy-js-api', 'import']
       }
     }
   },
