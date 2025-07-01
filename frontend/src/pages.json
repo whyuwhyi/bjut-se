@@ -165,29 +165,37 @@
         "selectedColor": "#007aff",
         "borderStyle": "black",
         "backgroundColor": "#ffffff",
-        "fontSize": "20px",
-        "iconWidth": "40px",
-        "height": "80px",
+        "fontSize": "24rpx",
         "list": [
             {
                 "pagePath": "pages/index/index",
-                "text": "🏠"
+                "text": "首页",
+                "iconPath": "static/icons/home.png",
+                "selectedIconPath": "static/icons/home-active.png"
             },
             {
                 "pagePath": "pages/resources/resources",
-                "text": "📚"
+                "text": "资源",
+                "iconPath": "static/icons/resource.png",
+                "selectedIconPath": "static/icons/resource-active.png"
             },
             {
                 "pagePath": "pages/forum/forum",
-                "text": "💬"
+                "text": "论坛",
+                "iconPath": "static/icons/forum.png",
+                "selectedIconPath": "static/icons/forum-active.png"
             },
             {
                 "pagePath": "pages/learning/learning",
-                "text": "📖"
+                "text": "学习",
+                "iconPath": "static/icons/learning.png",
+                "selectedIconPath": "static/icons/learning-active.png"
             },
             {
                 "pagePath": "pages/profile/profile",
-                "text": "👤"
+                "text": "我的",
+                "iconPath": "static/icons/profile.png",
+                "selectedIconPath": "static/icons/profile-active.png"
             }
         ]
     }
