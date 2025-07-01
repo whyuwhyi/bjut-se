@@ -24,7 +24,6 @@
 				<button class="select-btn" @click="toggleSelectMode">
 					{{ isSelectMode ? '取消' : '选择' }}
 				</button>
-				<text class="select-text" v-if="isSelectMode">长按选择多个项目</text>
 			</view>
 		</view>
 
@@ -455,55 +454,6 @@
 		padding-bottom: 160rpx;
 	}
 
-	/* 操作栏 */
-	.action-bar {
-		background: white;
-		padding: 20rpx 30rpx;
-		border-bottom: 1rpx solid #f0f0f0;
-	}
-	
-	.select-controls {
-		display: flex;
-		align-items: center;
-		gap: 20rpx;
-	}
-	
-	.select-btn {
-		background: #007aff;
-		color: white;
-		border: none;
-		border-radius: 20rpx;
-		padding: 12rpx 24rpx;
-		font-size: 26rpx;
-	}
-	
-	.select-text {
-		font-size: 24rpx;
-		color: #666;
-	}
-
-	/* 收藏项选择模式 */
-	.favorite-item.select-mode {
-		padding-left: 60rpx;
-	}
-	
-	.favorite-item.selected {
-		background-color: #f0f8ff;
-		border-left: 4rpx solid #007aff;
-	}
-	
-	.select-checkbox {
-		position: absolute;
-		left: 20rpx;
-		top: 50%;
-		transform: translateY(-50%);
-		z-index: 10;
-	}
-	
-	.checkbox-icon {
-		font-size: 32rpx;
-	}
-
 	/* 筛选栏 */
 	.filter-section {
 		background-color: #ffffff;
@@ -544,6 +494,61 @@
 	.filter-count {
 		font-size: 22rpx;
 		opacity: 0.8;
+	}
+
+	/* 操作栏 */
+	.action-bar {
+		background: white;
+		padding: 20rpx 30rpx;
+		border-bottom: 1rpx solid #f0f0f0;
+		position: relative;
+	}
+	
+	.select-controls {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+	}
+	
+	.select-btn {
+		position: absolute;
+		right: 30rpx;
+		background: #007aff;
+		color: white;
+		border: none;
+		border-radius: 8rpx;
+		padding: 12rpx 32rpx;
+		font-size: 28rpx;
+		min-width: 120rpx;
+		text-align: center;
+	}
+	
+	.select-text {
+		font-size: 24rpx;
+		color: #666;
+		margin-right: 20rpx;
+	}
+
+	/* 收藏项选择模式 */
+	.favorite-item.select-mode {
+		padding-left: 60rpx;
+	}
+	
+	.favorite-item.selected {
+		background-color: #f0f8ff;
+		border-left: 4rpx solid #007aff;
+	}
+	
+	.select-checkbox {
+		position: absolute;
+		left: 20rpx;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 10;
+	}
+	
+	.checkbox-icon {
+		font-size: 32rpx;
 	}
 
 	/* 收藏列表 */

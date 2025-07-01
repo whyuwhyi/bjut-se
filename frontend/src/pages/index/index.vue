@@ -47,11 +47,19 @@
 			</view>
 			<view class="resource-list">
 				<view class="resource-item" v-for="(item, index) in hotResources" :key="index" @click="viewResource(item)">
-					<text class="resource-title">{{ item.title }}</text>
+					<view class="resource-icon">
+						<text class="resource-icon-emoji">📚</text>
+					</view>
+					<view class="resource-content">
+						<text class="resource-title">{{ item.title }}</text>
+						<view class="resource-meta">
+							<text class="resource-author">{{ item.author }}</text>
+							<text class="resource-downloads">{{ item.downloads || 0 }}次下载</text>
+						</view>
+					</view>
 				</view>
 			</view>
 		</view>
-
 
 		<!-- 热门帖子 -->
 		<view class="forum-section card">
@@ -61,9 +69,13 @@
 			</view>
 			<view class="forum-list">
 				<view class="forum-item" v-for="(item, index) in hotPosts" :key="index" @click="viewPost(item)">
-					<view class="forum-header">
+					<view class="forum-content">
 						<text class="forum-title">{{ item.title }}</text>
-						<view class="forum-tag" v-if="item.isHot">热门</view>
+						<view class="forum-meta">
+							<text class="forum-author">{{ item.author }}</text>
+							<text class="forum-views">{{ item.views || 0 }}次浏览</text>
+							<view class="forum-tag" v-if="item.isHot">热门</view>
+						</view>
 					</view>
 				</view>
 			</view>
@@ -82,11 +94,6 @@
 				],
 				quickAccess: [
 					{
-						icon: require('@/static/icons/learning.png'),
-						text: '我的学习',
-						url: '/pages/learning/learning'
-					},
-					{
 						icon: require('@/static/icons/post.png'),
 						text: '发布帖子',
 						url: '/pages/forum/create'
@@ -95,11 +102,6 @@
 						icon: require('@/static/icons/upload.png'),
 						text: '上传资源',
 						url: '/pages/resources/upload'
-					},
-					{
-						icon: require('@/static/icons/profile.png'),
-						text: '个人中心',
-						url: '/pages/profile/profile'
 					}
 				],
 				notices: [],
@@ -481,108 +483,114 @@
 .notice-list,
 .resource-list,
 .forum-list {
-	display: grid;
-	grid-template-columns: repeat(2, 1fr); /* 两列平均分布 */
-	gap: 20rpx; /* 项目间距 */
-	margin-top: 20rpx; /* 与section header的间距 */
-}
-
-.notice-item,
-.resource-item,
-.forum-item {
-	background-color: rgba(255, 255, 255, 0.7); /* 半透明白色背景 */
-	border-radius: 20rpx; /* 圆角 */
-	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05); /* 轻微阴影 */
-	padding: 20rpx;
-	box-sizing: border-box;
-	aspect-ratio: 1 / 1; /* 保持正方形比例 */
 	display: flex;
 	flex-direction: column;
-	justify-content: center; /* 垂直居中内容 */
-	align-items: center;   /* 水平居中内容 */
-	text-align: center;    /* 文本居中 */
-	overflow: hidden;      /* 隐藏溢出内容 */
-	transition: transform 0.2s ease; /* 添加过渡效果 */
+	gap: 20rpx;
+	margin-top: 20rpx;
+}
+
+.notice-item {
+	background-color: rgba(255, 255, 255, 0.7);
+	border-radius: 20rpx;
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+	padding: 20rpx;
+	box-sizing: border-box;
+	transition: transform 0.2s ease;
 
 	&:active {
-		transform: scale(0.95); /* 点击时缩小 */
+		transform: scale(0.98);
+	}
+}
+
+.resource-item,
+.forum-item {
+	background-color: #fff;
+	border-radius: 16rpx;
+	padding: 24rpx;
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+	display: flex;
+	align-items: center;
+	gap: 20rpx;
+	transition: all 0.3s ease;
+
+	&:active {
+		transform: scale(0.98);
+		background-color: #f8f8f8;
+	}
+}
+
+.resource-item {
+	.resource-icon {
+		width: 80rpx;
+		height: 80rpx;
+		border-radius: 16rpx;
+		background-color: #f0f7ff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
 	}
 
-	// Common title styling for truncation
-	.notice-title,
-	.resource-title,
+	.resource-icon-emoji {
+		font-size: 40rpx;
+	}
+
+	.resource-content {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.resource-title {
+		font-size: 28rpx;
+		color: #333;
+		font-weight: 500;
+		margin-bottom: 8rpx;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 1;
+		overflow: hidden;
+	}
+
+	.resource-meta {
+		display: flex;
+		align-items: center;
+		gap: 16rpx;
+		font-size: 24rpx;
+		color: #999;
+	}
+}
+
+.forum-item {
+	.forum-content {
+		flex: 1;
+		min-width: 0;
+	}
+
 	.forum-title {
 		font-size: 28rpx;
 		color: #333;
-		white-space: normal; /* 允许换行 */
-		display: -webkit-box; /* 启用多行文本截断 */
+		font-weight: 500;
+		margin-bottom: 8rpx;
+		display: -webkit-box;
 		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2; /* 最多显示2行 */
+		-webkit-line-clamp: 1;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		font-weight: bold;
-		margin: 0; // 重置任何之前的margin
 	}
-}
 
-.notice-list {
-	.notice-item {
-		.notice-header {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			width: 100%;
-			margin-bottom: 8rpx;
-		}
-		.notice-tag {
-			font-size: 20rpx;
-			padding: 4rpx 8rpx;
-			border-radius: 6rpx;
-			flex-shrink: 0;
-			margin-right: 8rpx;
-		}
-		.notice-time {
-			font-size: 18rpx;
-			color: #999;
-			flex-shrink: 0;
-			text-align: right;
-		}
+	.forum-meta {
+		display: flex;
+		align-items: center;
+		gap: 16rpx;
+		font-size: 24rpx;
+		color: #999;
 	}
-}
 
-.resource-list {
-	.resource-item {
-		.resource-icon-emoji {
-			font-size: 80rpx;
-			margin-bottom: 10rpx;
-		}
-		.resource-info, .resource-meta {
-			display: none;
-		}
-	}
-}
-
-.forum-list {
-	.forum-item {
-		.forum-header {
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			width: 100%;
-			margin-bottom: 8rpx;
-		}
-		.forum-title {
-			margin-right: 8rpx;
-		}
-		.forum-tag {
-			font-size: 20rpx;
-			padding: 4rpx 8rpx;
-			border-radius: 6rpx;
-			flex-shrink: 0;
-		}
-		.forum-meta {
-			display: none;
-		}
+	.forum-tag {
+		background-color: #ff6b6b;
+		color: white;
+		padding: 4rpx 12rpx;
+		border-radius: 8rpx;
+		font-size: 20rpx;
 	}
 }
 </style>
