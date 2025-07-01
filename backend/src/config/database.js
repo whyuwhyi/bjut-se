@@ -10,10 +10,9 @@ const config = {
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     dialectOptions: {
-      charset: 'utf8mb4',
-      collation: 'utf8mb4_0900_ai_ci',
-      timezone: '+08:00'
+      charset: 'utf8mb4'
     },
+    timezone: '+08:00',
     logging: false, // 开发环境不显示SQL日志
     pool: {
       max: 10,
@@ -52,10 +51,9 @@ const config = {
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     dialectOptions: {
-      charset: 'utf8mb4',
-      collation: 'utf8mb4_0900_ai_ci',
-      timezone: '+08:00'
+      charset: 'utf8mb4'
     },
+    timezone: '+08:00',
     logging: false, // 生产环境不显示SQL日志
     pool: {
       max: 20,

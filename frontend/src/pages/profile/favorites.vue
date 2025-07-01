@@ -449,12 +449,25 @@
 
 <style scoped>
 	.favorites-container {
-		background-color: #f8f8f8;
 		min-height: 100vh;
-		padding-bottom: 160rpx;
+		padding: 20rpx;
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		animation: gradientBG 15s ease infinite;
 	}
 
-	/* 筛选栏 */
+	@keyframes gradientBG {
+		0% {
+			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		}
+		50% {
+			background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+		}
+		100% {
+			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		}
+	}
+
+	/* 顶部筛选栏 */
 	.filter-section {
 		background-color: #ffffff;
 		padding: 20rpx;

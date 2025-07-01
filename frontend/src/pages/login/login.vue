@@ -196,7 +196,7 @@ export default {
 		forgotPassword() {
 			uni.showModal({
 				title: '找回密码',
-				content: '请联系管理员重置密码，或通过注册邮箱找回密码',
+				content: '请联系管理员重置密码',
 				showCancel: false
 			})
 		},
@@ -358,13 +358,8 @@ export default {
 	}
 	
 	.forgot-password {
-		color: rgba(255, 255, 255, 0.9); /* 调整颜色 */
-		font-size: 30rpx; /* 调整字体大小 */
-		transition: color 0.2s ease; /* 添加过渡效果 */
-		
-		&:active {
-			color: rgba(255, 255, 255, 0.6); /* 点击时颜色变暗 */
-		}
+		color: #666;  /* 改为深灰色，确保可见性 */
+		font-size: 28rpx;
 	}
 }
 

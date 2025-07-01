@@ -1,4 +1,4 @@
-const { User, Resource, Post, Notification } = require('../models');
+const { User, Resource, Post, Notification, Comment, Collection, StudyRecord, UserFollow } = require('../models');
 const { Op } = require('sequelize');
 
 class AdminController {
@@ -94,11 +94,19 @@ class AdminController {
         });
       }
 
-      // 不能修改管理员状态
-      if (user.role === 'admin' && req.user.phone_number !== phone) {
+      // 不能修改自己的状态
+      if (req.user.phone_number === phone) {
         return res.status(403).json({
           success: false,
-          message: '不能修改其他管理员的状态'
+          message: '不能修改自己的状态'
+        });
+      }
+
+      // 不能修改其他管理员的状态
+      if (user.role === 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: '不能修改管理员的状态'
         });
       }
 
@@ -113,6 +121,286 @@ class AdminController {
       res.status(500).json({
         success: false,
         message: '更新用户状态失败'
+      });
+    }
+  }
+
+  // 删除用户
+  static async deleteUser(req, res) {
+    try {
+      const { phone } = req.params;
+
+      const user = await User.findByPk(phone);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        });
+      }
+
+      // 不能删除管理员账户
+      if (user.role === 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: '不能删除管理员账户'
+        });
+      }
+
+      // 不能删除自己
+      if (req.user.phone_number === phone) {
+        return res.status(403).json({
+          success: false,
+          message: '不能删除自己的账户'
+        });
+      }
+
+      // 记录删除操作
+      console.log(`Admin ${req.user.phone_number} permanently deleted user ${phone} (${user.name})`);
+
+      // 开始级联删除用户相关的所有数据
+      console.log(`Starting cascade deletion for user ${phone}...`);
+
+      // 1. 删除用户的资源
+      const resources = await Resource.findAll({ where: { publisher_phone: phone } });
+      for (const resource of resources) {
+        await resource.destroy();
+      }
+      console.log(`Deleted ${resources.length} resources`);
+
+      // 2. 删除用户的帖子
+      const posts = await Post.findAll({ where: { author_phone: phone } });
+      for (const post of posts) {
+        await post.destroy();
+      }
+      console.log(`Deleted ${posts.length} posts`);
+
+      // 3. 删除用户的评论
+      const comments = await Comment.findAll({ where: { author_phone: phone } });
+      for (const comment of comments) {
+        await comment.destroy();
+      }
+      console.log(`Deleted ${comments.length} comments`);
+
+      // 4. 删除用户的收藏
+      const collections = await Collection.findAll({ where: { user_phone: phone } });
+      for (const collection of collections) {
+        await collection.destroy();
+      }
+      console.log(`Deleted ${collections.length} collections`);
+
+      // 5. 删除用户的学习记录
+      const studyRecords = await StudyRecord.findAll({ where: { user_phone: phone } });
+      for (const studyRecord of studyRecords) {
+        await studyRecord.destroy();
+      }
+      console.log(`Deleted ${studyRecords.length} study records`);
+
+      // 6. 删除关注关系（作为关注者）
+      const followings = await UserFollow.findAll({ where: { follower_phone: phone } });
+      for (const follow of followings) {
+        await follow.destroy();
+      }
+      console.log(`Deleted ${followings.length} following relationships`);
+
+      // 7. 删除关注关系（作为被关注者）
+      const followers = await UserFollow.findAll({ where: { following_phone: phone } });
+      for (const follow of followers) {
+        await follow.destroy();
+      }
+      console.log(`Deleted ${followers.length} follower relationships`);
+
+      // 8. 删除用户的通知（作为接收者）
+      const receivedNotifications = await Notification.findAll({ where: { receiver_phone: phone } });
+      for (const notification of receivedNotifications) {
+        await notification.destroy();
+      }
+      console.log(`Deleted ${receivedNotifications.length} received notifications`);
+
+      // 9. 删除用户发送的通知（作为发送者，如果存在）
+      const sentNotifications = await Notification.findAll({ where: { sender_phone: phone } });
+      for (const notification of sentNotifications) {
+        await notification.destroy();
+      }
+      console.log(`Deleted ${sentNotifications.length} sent notifications`);
+
+      // 10. 最后删除用户记录
+      await user.destroy();
+      console.log(`User ${phone} and all associated data deleted successfully`);
+
+      res.json({
+        success: true,
+        message: '用户及其所有相关数据删除成功'
+      });
+    } catch (error) {
+      console.error('Delete user error:', error);
+      res.status(500).json({
+        success: false,
+        message: '删除用户失败'
+      });
+    }
+  }
+
+  // 更新用户角色
+  static async updateUserRole(req, res) {
+    try {
+      const { phone } = req.params;
+      const { role } = req.body;
+
+      if (!['user', 'admin'].includes(role)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的用户角色'
+        });
+      }
+
+      const user = await User.findByPk(phone);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        });
+      }
+
+      // 不能修改自己的角色
+      if (req.user.phone_number === phone) {
+        return res.status(403).json({
+          success: false,
+          message: '不能修改自己的角色'
+        });
+      }
+
+      // 如果要设置为管理员，需要额外验证
+      if (role === 'admin') {
+        // 验证用户状态必须是active
+        if (user.status !== 'active') {
+          return res.status(400).json({
+            success: false,
+            message: '只有状态正常的用户才能设置为管理员'
+          });
+        }
+      }
+
+      await user.update({ role });
+
+      // 记录操作日志（可选）
+      console.log(`Admin ${req.user.phone_number} changed user ${phone} role to ${role}`);
+
+      res.json({
+        success: true,
+        message: `用户角色已更新为${role === 'admin' ? '管理员' : '普通用户'}`
+      });
+    } catch (error) {
+      console.error('Update user role error:', error);
+      res.status(500).json({
+        success: false,
+        message: '更新用户角色失败'
+      });
+    }
+  }
+
+  // 重置用户密码
+  static async resetUserPassword(req, res) {
+    try {
+      const { phone } = req.params;
+      const { newPassword } = req.body;
+
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: '新密码至少6位'
+        });
+      }
+
+      const user = await User.findByPk(phone);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        });
+      }
+
+      // 不能重置其他管理员的密码
+      if (user.role === 'admin' && req.user.phone_number !== phone) {
+        return res.status(403).json({
+          success: false,
+          message: '不能重置其他管理员的密码'
+        });
+      }
+
+      await user.update({ password: newPassword });
+
+      // 记录操作日志
+      console.log(`Admin ${req.user.phone_number} reset password for user ${phone}`);
+
+      res.json({
+        success: true,
+        message: '密码重置成功'
+      });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({
+        success: false,
+        message: '重置密码失败'
+      });
+    }
+  }
+
+  // 获取用户详细信息
+  static async getUserDetail(req, res) {
+    try {
+      const { phone } = req.params;
+
+      const user = await User.findByPk(phone, {
+        attributes: { exclude: ['password'] },
+        include: [
+          {
+            model: Resource,
+            as: 'publishedResources',
+            attributes: ['resource_id', 'resource_name', 'status', 'created_at'],
+            limit: 5,
+            order: [['created_at', 'DESC']]
+          },
+          {
+            model: Post,
+            as: 'posts',
+            attributes: ['post_id', 'title', 'status', 'created_at'],
+            limit: 5,
+            order: [['created_at', 'DESC']]
+          }
+        ]
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        });
+      }
+
+      // 获取用户统计信息
+      const stats = {
+        resourceCount: await Resource.count({ where: { publisher_phone: phone } }),
+        postCount: await Post.count({ where: { author_phone: phone } }),
+        publishedResourceCount: await Resource.count({ 
+          where: { publisher_phone: phone, status: 'published' } 
+        }),
+        activePostCount: await Post.count({ 
+          where: { author_phone: phone, status: 'active' } 
+        })
+      };
+
+      res.json({
+        success: true,
+        data: {
+          user: user.toSafeJSON(),
+          stats
+        }
+      });
+    } catch (error) {
+      console.error('Get user detail error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取用户详情失败'
       });
     }
   }

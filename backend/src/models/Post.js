@@ -58,8 +58,7 @@ const Post = sequelize.define('Post', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  charset: 'utf8mb4',
-  collation: 'utf8mb4_0900_ai_ci'
+  charset: 'utf8mb4'
 })
 
 module.exports = Post

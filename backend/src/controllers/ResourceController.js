@@ -1,4 +1,4 @@
-const { Resource, User, File, Collection, Comment, Rating, ResourceType, Category } = require('../models')
+const { Resource, User, File, Collection, Comment, Rating, Category } = require('../models')
 const { Op } = require('sequelize')
 
 class ResourceController {

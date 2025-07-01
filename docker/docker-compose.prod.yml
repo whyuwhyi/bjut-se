@@ -42,9 +42,7 @@ services:
 
   # 后端API服务 - 仅内部访问
   backend:
-    build:
-      context: ../backend
-      dockerfile: ../docker/backend/Dockerfile
+    image: ${BACKEND_IMAGE:-ghcr.io/whyuwhyi/bjut-se-backend:main}
     container_name: wechat-education-backend
     restart: unless-stopped
     environment:
@@ -80,9 +78,7 @@ services:
 
   # 前端H5服务
   frontend:
-    build:
-      context: ..
-      dockerfile: docker/frontend/Dockerfile
+    image: ${FRONTEND_IMAGE:-ghcr.io/whyuwhyi/bjut-se-frontend:main}
     container_name: wechat-education-frontend
     restart: unless-stopped
     networks:
@@ -95,9 +91,7 @@ services:
 
   # 管理后台服务
   admin-frontend:
-    build:
-      context: ../admin-frontend
-      dockerfile: ../docker/admin-frontend/Dockerfile
+    image: ${ADMIN_IMAGE:-ghcr.io/whyuwhyi/bjut-se-admin:main}
     container_name: wechat-education-admin
     restart: unless-stopped
     networks:
