@@ -6,18 +6,20 @@ const router = express.Router()
 
 // 公开路由
 router.get('/', ResourceController.getResources)
-router.get('/:id', ResourceController.getResourceById)
+
+// 管理员路由（需要管理员权限） - 具体路由必须在参数路由之前
+router.get('/pending', auth, ResourceController.getPendingResources)
 
 // 需要认证的路由
 router.post('/', auth, ResourceController.createResource)
 router.post('/:resourceId/favorite', auth, ResourceController.toggleFavorite)
 router.post('/:resourceId/submit-review', auth, ResourceController.submitForReview)
+router.post('/:resourceId/review', auth, ResourceController.reviewResource)
 
-// 下载路由
+// 下载路由 - 参数路由放在最后
 router.get('/:resourceId/files/:fileId/download', auth, ResourceController.downloadResource)
 
-// 管理员路由（需要管理员权限）
-router.get('/pending', auth, ResourceController.getPendingResources)
-router.post('/:resourceId/review', auth, ResourceController.reviewResource)
+// 资源详情路由 - 放在最后避免与其他路由冲突
+router.get('/:id', ResourceController.getResourceById)
 
 module.exports = router
