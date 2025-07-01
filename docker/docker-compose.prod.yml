@@ -89,16 +89,20 @@ services:
     networks:
       - app-network
 
-  # 管理后台构建
+  # 管理后台服务
   admin-frontend:
     build:
       context: ../admin-frontend
       dockerfile: ../docker/admin-frontend/Dockerfile
     container_name: wechat-education-admin
-    volumes:
-      - admin_dist:/app/dist
+    restart: unless-stopped
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # Nginx反向代理 - 唯一对外暴露的服务
   nginx:
@@ -109,9 +113,8 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - frontend_dist:/var/www/html:ro
-      - admin_dist:/var/www/admin:ro
       - backend_uploads:/var/www/uploads:ro
     networks:
       - app-network
@@ -135,8 +138,6 @@ volumes:
   backend_logs:
     driver: local
   frontend_dist:
-    driver: local
-  admin_dist:
     driver: local
 
 networks:

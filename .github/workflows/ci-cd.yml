@@ -306,6 +306,7 @@ jobs:
           # 只删除应用镜像，保留MySQL、Redis、Nginx等基础镜像
           docker rmi $(docker images | grep "docker.*backend" | awk '{print $3}') 2>/dev/null || true
           docker rmi $(docker images | grep "docker.*frontend" | awk '{print $3}') 2>/dev/null || true
+          docker rmi $(docker images | grep "docker.*admin" | awk '{print $3}') 2>/dev/null || true
           
           # 停止旧服务
           docker-compose -f docker/docker-compose.prod.yml down 2>/dev/null || true
@@ -331,12 +332,18 @@ jobs:
           while [ $attempt -le $max_attempts ]; do
             # 检查所有服务是否健康
             if docker-compose -f docker/docker-compose.prod.yml ps | grep -q "backend.*Up (healthy)" && \
+               docker-compose -f docker/docker-compose.prod.yml ps | grep -q "admin.*Up (healthy)" && \
                docker-compose -f docker/docker-compose.prod.yml ps | grep -q "nginx.*Up (healthy)"; then
               echo "✅ 所有容器服务正常"
               
               # 尝试访问Nginx（对外服务）
               if curl -f http://localhost/ --connect-timeout 5 2>/dev/null; then
                 echo "✅ 前端服务可访问"
+              fi
+              
+              # 尝试访问管理后台
+              if curl -f http://localhost/admin/ --connect-timeout 5 2>/dev/null; then
+                echo "✅ 管理后台可访问"
               fi
               
               echo "✅ 部署成功！"
@@ -358,17 +365,21 @@ jobs:
           docker-compose -f docker/docker-compose.prod.yml down
           
           # 回滚到最新的备份版本
-          LATEST_BACKUP=$(ls -t ../backup-* 2>/dev/null | head -n 1)
+          cd ..
+          LATEST_BACKUP=$(ls -t backup-* 2>/dev/null | head -n 1)
           if [ -n "$LATEST_BACKUP" ] && [ -d "$LATEST_BACKUP" ]; then
-            echo "回滚到备份版本: $(basename $LATEST_BACKUP)"
-            cd ..
+            echo "回滚到备份版本: $LATEST_BACKUP"
             rm -rf current
-            cp -r "$(basename $LATEST_BACKUP)" current
+            cp -r "$LATEST_BACKUP" current
             cd current
             docker-compose -f docker/docker-compose.prod.yml up -d
-            echo "🔄 已回滚到备份版本: $(basename $LATEST_BACKUP)"
+            echo "🔄 已回滚到备份版本: $LATEST_BACKUP"
           else
             echo "❌ 没有可用的备份版本进行回滚"
+            # 如果没有备份，至少尝试重新克隆代码
+            echo "尝试重新获取代码..."
+            git clone https://github.com/${{ github.repository }}.git current || true
+            cd current
           fi
           exit 1
 
