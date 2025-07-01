@@ -1,10 +1,10 @@
 module.exports = {
-  // 生产环境配置
-  configureWebpack: {
-    output: {
-      // 为静态资源添加hash值，确保更新时缓存失效
-      filename: process.env.NODE_ENV === 'production' ? 'js/[name].[contenthash:8].js' : 'js/[name].js',
-      chunkFilename: process.env.NODE_ENV === 'production' ? 'js/[name].[contenthash:8].js' : 'js/[name].js'
+  // 生产环境配置 - 为静态资源添加hash值
+  configureWebpack: config => {
+    if (process.env.NODE_ENV === 'production') {
+      // 为JS文件添加hash
+      config.output.filename = 'js/[name].[contenthash:8].js'
+      config.output.chunkFilename = 'js/[name].[contenthash:8].js'
     }
   },
 
@@ -13,28 +13,21 @@ module.exports = {
     extract: process.env.NODE_ENV === 'production' ? {
       filename: 'css/[name].[contenthash:8].css',
       chunkFilename: 'css/[name].[contenthash:8].css'
-    } : false
-  },
-
-  // 静态资源配置
-  chainWebpack: config => {
-    // 图片文件名添加hash
-    config.module
-      .rule('images')
-      .test(/\.(png|jpe?g|gif|svg)(\?.*)?$/)
-      .use('url-loader')
-      .loader('url-loader')
-      .options({
-        limit: 4096,
-        fallback: {
-          loader: 'file-loader',
-          options: {
-            name: process.env.NODE_ENV === 'production' 
-              ? 'img/[name].[contenthash:8].[ext]' 
-              : 'img/[name].[ext]'
-          }
+    } : false,
+    loaderOptions: {
+      sass: {
+        // 抑制sass弃用警告 - 兼容老版本
+        sassOptions: {
+          silenceDeprecations: ['legacy-js-api', 'import']
         }
-      })
+      },
+      scss: {
+        // 抑制sass弃用警告 - 兼容老版本
+        sassOptions: {
+          silenceDeprecations: ['legacy-js-api', 'import']
+        }
+      }
+    }
   },
 
   devServer: {
