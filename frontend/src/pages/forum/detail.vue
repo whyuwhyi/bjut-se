@@ -141,18 +141,24 @@
 		<view v-if="sharePopupVisible" class="share-popup-mask" @click.self="closeSharePopup">
 			<view class="share-popup-window">
 				<view class="share-popup-title">分享帖子</view>
-				<view class="share-popup-options">
+				<view class="share-popup-options" v-if="!postQrCodeVisible">
 					<button class="share-popup-btn" @click="shareToFriend">分享给好友</button>
 					<button class="share-popup-btn" @click="copyPostLink">复制链接</button>
-					<button class="share-popup-btn" @click="savePostQr">保存二维码</button>
+					<button class="share-popup-btn" @click="showPostQrCode">保存二维码</button>
 				</view>
-				<button class="share-popup-close" @click="closeSharePopup">取消</button>
+				<view v-else class="qrcode-section">
+					<image :src="postQrCodeDataUrl" class="qrcode-img" mode="aspectFit"/>
+					<view class="qrcode-tip">长按图片保存（移动端）或右键图片另存为（PC端）</view>
+					<button class="share-popup-close" @click="closePostQrCode">关闭二维码</button>
+				</view>
+				<button v-if="!postQrCodeVisible" class="share-popup-close" @click="closeSharePopup">取消</button>
 			</view>
 		</view>
 	</view>
 </template>
 
 <script>
+import QRCode from 'qrcode'
 export default {
 	data() {
 		return {
@@ -167,7 +173,9 @@ export default {
 			loadingComments: false,
 			sending: false,
 			isCollected: false,
-			sharePopupVisible: false
+			sharePopupVisible: false,
+			postQrCodeVisible: false,
+			postQrCodeDataUrl: ''
 		}
 	},
 	
@@ -412,6 +420,7 @@ export default {
 		},
 		closeSharePopup() {
 			this.sharePopupVisible = false
+			this.postQrCodeVisible = false
 		},
 		shareToFriend() {
 			this.closeSharePopup()
@@ -427,9 +436,19 @@ export default {
 				}
 			})
 		},
-		savePostQr() {
-			this.closeSharePopup()
-			uni.showToast({ title: '二维码保存功能开发中', icon: 'none' })
+		showPostQrCode() {
+			const url = window.location.origin + `/#/pages/forum/detail?id=${this.postId}`
+			QRCode.toDataURL(url, { width: 240, margin: 2 }, (err, url) => {
+				if (!err) {
+					this.postQrCodeDataUrl = url
+					this.postQrCodeVisible = true
+				} else {
+					uni.showToast({ title: '二维码生成失败', icon: 'none' })
+				}
+			})
+		},
+		closePostQrCode() {
+			this.postQrCodeVisible = false
 		},
 		
 		renderMarkdown(content) {
@@ -834,5 +853,22 @@ export default {
 	border-radius: 12rpx;
 	font-size: 30rpx;
 	margin-top: 10rpx;
+}
+
+.qrcode-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+.qrcode-img {
+	width: 240rpx;
+	height: 240rpx;
+	margin: 20rpx 0;
+}
+.qrcode-tip {
+	font-size: 24rpx;
+	color: #888;
+	margin-bottom: 10rpx;
 }
 </style>

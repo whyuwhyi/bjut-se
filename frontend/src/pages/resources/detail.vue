@@ -128,17 +128,17 @@
 		<view v-if="sharePopupVisible" class="share-popup-mask" @click.self="closeSharePopup">
 			<view class="share-popup-window">
 				<view class="share-popup-title">分享资源</view>
-				<view class="share-popup-options">
+				<view class="share-popup-options" v-if="!qrCodeVisible">
 					<button class="share-popup-btn" @click="shareToFriend">分享给好友</button>
 					<button class="share-popup-btn" @click="copyResourceLink">复制链接</button>
 					<button class="share-popup-btn" @click="showQrCode">保存二维码</button>
 				</view>
-				<view v-if="qrCodeVisible" class="qrcode-section">
+				<view v-else class="qrcode-section">
 					<image :src="qrCodeDataUrl" class="qrcode-img" mode="aspectFit"/>
 					<view class="qrcode-tip">长按图片保存（移动端）或右键图片另存为（PC端）</view>
 					<button class="share-popup-close" @click="closeQrCode">关闭二维码</button>
 				</view>
-				<button v-else class="share-popup-close" @click="closeSharePopup">取消</button>
+				<button v-if="!qrCodeVisible" class="share-popup-close" @click="closeSharePopup">取消</button>
 			</view>
 		</view>
 	</view>
@@ -501,6 +501,7 @@ export default {
 		},
 		closeSharePopup() {
 			this.sharePopupVisible = false
+			this.qrCodeVisible = false
 		},
 		showQrCode() {
 			const url = window.location.origin + `/#/pages/resources/detail?id=${this.resourceId}`

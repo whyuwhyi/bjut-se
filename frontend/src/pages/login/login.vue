@@ -80,12 +80,12 @@ export default {
 			uni.removeStorageSync('autoLoginPhone')
 			uni.removeStorageSync('autoLoginPassword')
 		} else {
-			// 检查是否有保存的登录信息
-			const savedInfo = uni.getStorageSync('savedLoginInfo')
-			if (savedInfo) {
-				this.loginForm.phone_number = savedInfo.phone_number
-				this.loginForm.password = savedInfo.password
-				this.rememberMe = true
+		// 检查是否有保存的登录信息
+		const savedInfo = uni.getStorageSync('savedLoginInfo')
+		if (savedInfo) {
+			this.loginForm.phone_number = savedInfo.phone_number
+			this.loginForm.password = savedInfo.password
+			this.rememberMe = true
 			}
 		}
 	},
