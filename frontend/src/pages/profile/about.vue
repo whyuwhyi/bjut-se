@@ -78,15 +78,15 @@
 		<view class="legal-info">
 			<text class="section-title">法律信息</text>
 			<view class="legal-list">
-				<view class="legal-item" @click="openPrivacyPolicy()">
+				<view class="legal-item" @click="showPopup('privacy')">
 					<text class="legal-text">隐私政策</text>
 					<text class="legal-arrow">></text>
 				</view>
-				<view class="legal-item" @click="openUserAgreement()">
+				<view class="legal-item" @click="showPopup('user')">
 					<text class="legal-text">用户协议</text>
 					<text class="legal-arrow">></text>
 				</view>
-				<view class="legal-item" @click="openOpenSource()">
+				<view class="legal-item" @click="showPopup('open')">
 					<text class="legal-text">开源许可</text>
 					<text class="legal-arrow">></text>
 				</view>
@@ -102,6 +102,17 @@
 		<!-- 彩蛋区域 -->
 		<view class="easter-egg" @click="handleEasterEgg">
 			<text class="egg-text">🥚</text>
+		</view>
+
+		<!-- 弹窗popup -->
+		<view v-if="popupVisible" class="popup-mask" @click.self="closePopup">
+			<view class="popup-window">
+				<view class="popup-title">{{ popupTitle }}</view>
+				<scroll-view scroll-y class="popup-content">
+					<text>{{ popupContent }}</text>
+				</scroll-view>
+				<button class="popup-close" @click="closePopup">关闭</button>
+			</view>
 		</view>
 	</view>
 </template>
@@ -151,7 +162,10 @@ export default {
 				{ name: '李桉弛', role: '系统架构' },
 				{ name: '姚忠宝', role: '数据库设计' },
 				{ name: '江依山', role: '测试工程师' }
-			]
+			],
+			popupVisible: false,
+			popupTitle: '',
+			popupContent: ''
 		}
 	},
 	
@@ -209,22 +223,22 @@ export default {
 			})
 		},
 		
-		openPrivacyPolicy() {
-			uni.navigateTo({
-				url: './privacy-policy'
-			})
+		showPopup(type) {
+			if (type === 'privacy') {
+				this.popupTitle = '隐私政策';
+				this.popupContent = '这里是隐私政策的示例内容。您的数据安全对我们至关重要，我们承诺不会泄露您的个人信息。';
+			} else if (type === 'user') {
+				this.popupTitle = '用户协议';
+				this.popupContent = '这里是用户协议的示例内容。请您遵守平台规则，文明发言，尊重他人。';
+			} else if (type === 'open') {
+				this.popupTitle = '开源许可';
+				this.popupContent = '这里是开源许可的示例内容。本项目部分代码基于MIT协议开源，欢迎学习和贡献。';
+			}
+			this.popupVisible = true;
 		},
 		
-		openUserAgreement() {
-			uni.navigateTo({
-				url: './user-agreement'
-			})
-		},
-		
-		openOpenSource() {
-			uni.navigateTo({
-				url: './open-source'
-			})
+		closePopup() {
+			this.popupVisible = false;
 		},
 		
 		handleEasterEgg() {
@@ -518,5 +532,49 @@ export default {
 		font-size: 32rpx;
 		opacity: 0.3;
 	}
+}
+
+.popup-mask {
+	position: fixed;
+	left: 0; top: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.4);
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.popup-window {
+	background: #fff;
+	border-radius: 20rpx;
+	width: 80vw;
+	max-width: 600rpx;
+	max-height: 70vh;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.18);
+	padding: 40rpx 30rpx 30rpx 30rpx;
+}
+.popup-title {
+	font-size: 36rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	text-align: center;
+}
+.popup-content {
+	flex: 1;
+	font-size: 28rpx;
+	color: #333;
+	line-height: 1.7;
+	margin-bottom: 30rpx;
+	overflow-y: auto;
+	max-height: 40vh;
+}
+.popup-close {
+	width: 100%;
+	background: #667eea;
+	color: #fff;
+	border-radius: 12rpx;
+	font-size: 30rpx;
+	margin-top: 10rpx;
 }
 </style>

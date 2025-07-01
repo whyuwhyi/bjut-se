@@ -20,12 +20,17 @@ class PostController {
       const offset = (page - 1) * limit
 
       let whereClause = { status: 'active' }
+      let tagFilter = null
       
       if (search) {
         whereClause[Op.or] = [
           { title: { [Op.like]: `%${search}%` } },
           { content: { [Op.like]: `%${search}%` } }
         ]
+      }
+
+      if (tag) {
+        tagFilter = { tag_name: tag }
       }
 
       let orderClause = []
@@ -57,7 +62,8 @@ class PostController {
             model: PostTag,
             as: 'tags',
             attributes: ['tag_id', 'tag_name', 'tag_color'],
-            through: { attributes: [] }
+            through: { attributes: [] },
+            ...(tagFilter ? { where: tagFilter } : {})
           }
         ],
         order: orderClause,
