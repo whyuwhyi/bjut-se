@@ -105,15 +105,9 @@
 				<text class="section-title">评论 ({{ comments.length }})</text>
 			</view>
 			
-			<!-- 发表评论 -->
-			<view class="comment-input-section">
-				<textarea 
-					class="comment-input" 
-					placeholder="写下你的评论..." 
-					v-model="commentText"
-					:maxlength="500"
-				></textarea>
-				<button class="comment-submit-btn" @click="submitComment">发表</button>
+			<!-- 评论输入触发器 -->
+			<view class="comment-input" @click="handleCommentClick">
+				<text class="comment-placeholder">写下你的评论...</text>
 			</view>
 			
 			<!-- 评论列表 -->
@@ -155,7 +149,7 @@ export default {
 			},
 			userRating: 0,
 			commentText: '',
-			comments: []
+			comments: [],
 		}
 	},
 	
@@ -444,8 +438,10 @@ export default {
 					return
 				}
 				
-				// 记录当前状态，用于计算变化
-				const wasAlreadyFavorited = this.resource.isFavorited
+				// 立即更新UI状态，提供即时反馈
+				const newFavoritedState = !this.resource.isFavorited
+				this.resource.isFavorited = newFavoritedState
+				this.resource.favoriteCount += newFavoritedState ? 1 : -1
 				
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/favorite`,
@@ -460,32 +456,14 @@ export default {
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
-					const newFavoritedState = response.data.data.isCollected
-					this.resource.isFavorited = newFavoritedState
-					
 					uni.showToast({
-						title: response.data.message,
+						title: newFavoritedState ? '收藏成功' : '已取消收藏',
 						icon: 'success'
 					})
-					
-					// 重新加载资源详情以获取最新的收藏计数
-					// 但不显示loading，避免闪烁
-					setTimeout(async () => {
-						try {
-							const response = await uni.request({
-								url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}`,
-								method: 'GET'
-							})
-							
-							if (response.statusCode === 200 && response.data.success) {
-								const data = response.data.data
-								this.resource.favoriteCount = parseInt(data.collection_count) || 0
-							}
-						} catch (error) {
-							console.error('更新收藏计数失败:', error)
-						}
-					}, 100)
 				} else {
+					// 如果请求失败，恢复原始状态
+					this.resource.isFavorited = !newFavoritedState
+					this.resource.favoriteCount += newFavoritedState ? -1 : 1
 					throw new Error(response.data.message || '操作失败')
 				}
 			} catch (error) {
@@ -584,25 +562,42 @@ export default {
 			return ratingTexts[rating] || '点击评分'
 		},
 		
-		async submitComment() {
-			if (!this.commentText.trim()) {
+		handleCommentClick() {
+			// 检查登录状态
+			const token = uni.getStorageSync('token')
+			if (!token) {
 				uni.showToast({
-					title: '请输入评论内容',
+					title: '请先登录',
 					icon: 'none'
 				})
 				return
 			}
 			
+			// 直接显示输入框
+			uni.showModal({
+				title: '发表评论',
+				editable: true,
+				placeholderText: '写下你的评论...',
+				confirmColor: '#333333',
+				success: async (res) => {
+					if (res.confirm && res.content) {
+						await this.submitComment(res.content)
+					}
+				}
+			})
+		},
+		
+		async submitComment(content) {
 			try {
-				const token = uni.getStorageSync('token')
-				if (!token) {
+				if (!content.trim()) {
 					uni.showToast({
-						title: '请先登录',
+						title: '评论内容不能为空',
 						icon: 'none'
 					})
 					return
 				}
 				
+				const token = uni.getStorageSync('token')
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'POST',
@@ -611,14 +606,12 @@ export default {
 						'Content-Type': 'application/json'
 					},
 					data: {
-						comment_content: this.commentText
+						content: content.trim()
 					}
 				})
 				
-				if (response.statusCode === 201 && response.data.success) {
-					// 重新加载评论列表
+				if (response.statusCode === 200 && response.data.success) {
 					await this.loadComments()
-					this.commentText = ''
 					
 					uni.showToast({
 						title: '评论成功',
@@ -628,7 +621,7 @@ export default {
 					throw new Error(response.data.message || '评论失败')
 				}
 			} catch (error) {
-				console.error('评论失败:', error)
+				console.error('发表评论失败:', error)
 				uni.showToast({
 					title: error.message || '评论失败',
 					icon: 'none'
@@ -636,7 +629,6 @@ export default {
 			}
 		},
 		
-
 		// 加载评论列表
 		async loadComments() {
 			try {
@@ -661,7 +653,6 @@ export default {
 				console.error('加载评论失败:', error)
 			}
 		},
-		
 		
 		getFileIcon(fileType) {
 			const iconMap = {
@@ -709,13 +700,14 @@ export default {
 
 <style lang="scss" scoped>
 .resource-detail-container {
-	background: #f5f5f5;
 	min-height: 100vh;
-	padding-bottom: 40rpx;
+	padding: 30rpx;
+	padding-bottom: 160rpx;
 }
 
 .resource-header {
 	background: white;
+	border-radius: 20rpx;
 	padding: 40rpx 30rpx;
 	display: flex;
 	align-items: flex-start;
@@ -805,6 +797,7 @@ export default {
 
 .stats-section {
 	background: white;
+	border-radius: 20rpx;
 	margin-top: 20rpx;
 	padding: 30rpx;
 	display: flex;
@@ -843,16 +836,28 @@ export default {
 		border: 2rpx solid #e0e0e0;
 		border-radius: 15rpx;
 		font-size: 26rpx;
+		transition: all 0.3s ease;
 		
 		&.primary {
-			background: #007aff;
-			color: white;
-			border-color: #007aff;
+			border-color: #e0e0e0;
+			color: #333;
+			
+			&:active {
+				border-color: #007aff;
+				color: #007aff;
+			}
 		}
 		
 		&.favorited {
+			background: #fff2f2;
 			border-color: #ff4757;
 			color: #ff4757;
+			transition: all 0.3s ease;
+			
+			.btn-icon {
+				transform: scale(1.2);
+				transition: transform 0.3s ease;
+			}
 		}
 		
 		.btn-icon {
@@ -868,6 +873,7 @@ export default {
 
 .description-section, .rating-section, .related-section, .comment-section {
 	background: white;
+	border-radius: 20rpx;
 	margin: 20rpx 0;
 	padding: 30rpx;
 	
@@ -915,28 +921,31 @@ export default {
 	}
 }
 
-
-.comment-input-section {
+.comment-input {
+	margin: 20rpx 0 30rpx;
+	padding: 24rpx 30rpx;
+	background: #f8f8f8;
+	border-radius: 15rpx;
 	display: flex;
-	margin-bottom: 30rpx;
+	align-items: center;
+	transition: all 0.3s ease;
+	border: 2rpx solid transparent;
+	min-height: 88rpx;
 	
-	.comment-input {
-		flex: 1;
-		min-height: 100rpx;
-		padding: 20rpx;
-		background: #f8f8f8;
-		border-radius: 15rpx;
-		font-size: 26rpx;
-		margin-right: 20rpx;
+	&:active {
+		background: #f0f0f0;
+		border-color: #e0e0e0;
 	}
 	
-	.comment-submit-btn {
-		width: 120rpx;
-		background: #007aff;
-		color: white;
-		border: none;
-		border-radius: 15rpx;
-		font-size: 26rpx;
+	.comment-placeholder {
+		font-size: 28rpx;
+		color: #999;
+		margin-left: 16rpx;
+	}
+	
+	&::before {
+		content: "💭";
+		font-size: 36rpx;
 	}
 }
 

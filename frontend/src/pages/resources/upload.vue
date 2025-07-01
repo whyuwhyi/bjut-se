@@ -352,19 +352,18 @@ export default {
 
 <style lang="scss" scoped>
 .upload-container {
-	background: #f5f5f5;
 	min-height: 100vh;
-	padding: 20rpx;
-	padding-bottom: 140rpx;
+	padding: 30rpx;
+	padding-bottom: 160rpx;
 }
 
 .upload-form {
-	.form-section {
 		background: white;
 		border-radius: 20rpx;
 		padding: 30rpx;
-		margin-bottom: 20rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 		
+	.form-section {
 		.section-title {
 			display: block;
 			font-size: 32rpx;
