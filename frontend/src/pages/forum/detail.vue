@@ -15,7 +15,7 @@
 						<text class="action-icon" :class="{ collected: isCollected }">{{ isCollected ? '❤️' : '🤍' }}</text>
 						<text class="action-text">{{ isCollected ? '已收藏' : '收藏' }}</text>
 					</view>
-					<view class="action-btn" @click="sharePost">
+					<view class="action-btn" @click="showSharePopup">
 						<text class="action-icon">📤</text>
 						<text class="action-text">分享</text>
 					</view>
@@ -137,6 +137,18 @@
 				</view>
 			</view>
 		</view>
+		
+		<view v-if="sharePopupVisible" class="share-popup-mask" @click.self="closeSharePopup">
+			<view class="share-popup-window">
+				<view class="share-popup-title">分享帖子</view>
+				<view class="share-popup-options">
+					<button class="share-popup-btn" @click="shareToFriend">分享给好友</button>
+					<button class="share-popup-btn" @click="copyPostLink">复制链接</button>
+					<button class="share-popup-btn" @click="savePostQr">保存二维码</button>
+				</view>
+				<button class="share-popup-close" @click="closeSharePopup">取消</button>
+			</view>
+		</view>
 	</view>
 </template>
 
@@ -154,7 +166,8 @@ export default {
 			hasMoreComments: true,
 			loadingComments: false,
 			sending: false,
-			isCollected: false
+			isCollected: false,
+			sharePopupVisible: false
 		}
 	},
 	
@@ -394,42 +407,29 @@ export default {
 			}
 		},
 		
-		sharePost() {
-			if (!this.post) return
-			
-			uni.share({
-				provider: 'weixin',
-				type: 0,
-				title: this.post.title,
-				summary: this.post.content.substring(0, 100) + '...',
-				href: `pages/forum/detail?id=${this.postId}`,
+		showSharePopup() {
+			this.sharePopupVisible = true
+		},
+		closeSharePopup() {
+			this.sharePopupVisible = false
+		},
+		shareToFriend() {
+			this.closeSharePopup()
+			uni.showToast({ title: '请在微信内使用原生分享功能', icon: 'none' })
+		},
+		copyPostLink() {
+			this.closeSharePopup()
+			const url = window.location.origin + `/#/pages/forum/detail?id=${this.postId}`
+			uni.setClipboardData({
+				data: url,
 				success: () => {
-					uni.showToast({
-						title: '分享成功',
-						icon: 'success'
-					})
-				},
-				fail: (error) => {
-					console.error('分享失败:', error)
-					// 如果微信分享失败，使用系统分享
-					uni.showActionSheet({
-						itemList: ['复制链接', '保存到相册'],
-						success: (res) => {
-							if (res.tapIndex === 0) {
-								uni.setClipboardData({
-									data: `${this.post.title} - 查看详情: pages/forum/detail?id=${this.postId}`,
-									success: () => {
-										uni.showToast({
-											title: '链接已复制',
-											icon: 'success'
-										})
-									}
-								})
-							}
-						}
-					})
+					uni.showToast({ title: '链接已复制', icon: 'success' })
 				}
 			})
+		},
+		savePostQr() {
+			this.closeSharePopup()
+			uni.showToast({ title: '二维码保存功能开发中', icon: 'none' })
 		},
 		
 		renderMarkdown(content) {
@@ -786,5 +786,53 @@ export default {
 			}
 		}
 	}
+}
+
+.share-popup-mask {
+	position: fixed;
+	left: 0; top: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.4);
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.share-popup-window {
+	background: #fff;
+	border-radius: 20rpx;
+	width: 80vw;
+	max-width: 600rpx;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.18);
+	padding: 40rpx 30rpx 30rpx 30rpx;
+}
+.share-popup-title {
+	font-size: 36rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	text-align: center;
+}
+.share-popup-options {
+	display: flex;
+	flex-direction: column;
+	gap: 20rpx;
+	margin-bottom: 30rpx;
+}
+.share-popup-btn {
+	width: 100%;
+	background: #f5f5f5;
+	color: #333;
+	border-radius: 12rpx;
+	font-size: 30rpx;
+	padding: 20rpx 0;
+}
+.share-popup-close {
+	width: 100%;
+	background: #667eea;
+	color: #fff;
+	border-radius: 12rpx;
+	font-size: 30rpx;
+	margin-top: 10rpx;
 }
 </style>

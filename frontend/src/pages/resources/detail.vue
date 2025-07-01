@@ -52,7 +52,7 @@
 				<text class="btn-icon">{{ resource.isFavorited ? '❤️' : '🤍' }}</text>
 				<text class="btn-text">{{ resource.isFavorited ? '已收藏' : '收藏' }}</text>
 			</button>
-			<button class="action-btn" @click="shareResource">
+			<button class="action-btn" @click="showSharePopup">
 				<text class="btn-icon">📤</text>
 				<text class="btn-text">分享</text>
 			</button>
@@ -124,10 +124,28 @@
 				</view>
 			</view>
 		</view>
+
+		<view v-if="sharePopupVisible" class="share-popup-mask" @click.self="closeSharePopup">
+			<view class="share-popup-window">
+				<view class="share-popup-title">分享资源</view>
+				<view class="share-popup-options">
+					<button class="share-popup-btn" @click="shareToFriend">分享给好友</button>
+					<button class="share-popup-btn" @click="copyResourceLink">复制链接</button>
+					<button class="share-popup-btn" @click="showQrCode">保存二维码</button>
+				</view>
+				<view v-if="qrCodeVisible" class="qrcode-section">
+					<image :src="qrCodeDataUrl" class="qrcode-img" mode="aspectFit"/>
+					<view class="qrcode-tip">长按图片保存（移动端）或右键图片另存为（PC端）</view>
+					<button class="share-popup-close" @click="closeQrCode">关闭二维码</button>
+				</view>
+				<button v-else class="share-popup-close" @click="closeSharePopup">取消</button>
+			</view>
+		</view>
 	</view>
 </template>
 
 <script>
+import QRCode from 'qrcode'
 export default {
 	data() {
 		return {
@@ -150,6 +168,9 @@ export default {
 			userRating: 0,
 			commentText: '',
 			comments: [],
+			sharePopupVisible: false,
+			qrCodeVisible: false,
+			qrCodeDataUrl: ''
 		}
 	},
 	
@@ -475,15 +496,41 @@ export default {
 			}
 		},
 		
-		shareResource() {
-			uni.showActionSheet({
-				itemList: ['分享给好友', '复制链接', '保存二维码'],
-				success: (res) => {
-					const actions = ['分享给好友', '复制链接', '保存二维码']
-					uni.showToast({
-						title: actions[res.tapIndex],
-						icon: 'none'
-					})
+		showSharePopup() {
+			this.sharePopupVisible = true
+		},
+		closeSharePopup() {
+			this.sharePopupVisible = false
+		},
+		showQrCode() {
+			const url = window.location.origin + `/#/pages/resources/detail?id=${this.resourceId}`
+			QRCode.toDataURL(url, { width: 240, margin: 2 }, (err, url) => {
+				if (!err) {
+					this.qrCodeDataUrl = url
+					this.qrCodeVisible = true
+				} else {
+					uni.showToast({ title: '二维码生成失败', icon: 'none' })
+				}
+			})
+		},
+		closeQrCode() {
+			this.qrCodeVisible = false
+		},
+		shareToFriend() {
+			this.closeSharePopup()
+			uni.showModal({
+				title: '分享给好友',
+				content: '请点击"复制链接"并粘贴到微信/QQ等聊天工具发送给好友。',
+				showCancel: false
+			})
+		},
+		copyResourceLink() {
+			this.closeSharePopup()
+			const url = window.location.origin + `/#/pages/resources/detail?id=${this.resourceId}`
+			uni.setClipboardData({
+				data: url,
+				success: () => {
+					uni.showToast({ title: '链接已复制', icon: 'success' })
 				}
 			})
 		},
@@ -996,5 +1043,69 @@ export default {
 			
 		}
 	}
+}
+
+.share-popup-mask {
+	position: fixed;
+	left: 0; top: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.4);
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.share-popup-window {
+	background: #fff;
+	border-radius: 20rpx;
+	width: 80vw;
+	max-width: 600rpx;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.18);
+	padding: 40rpx 30rpx 30rpx 30rpx;
+}
+.share-popup-title {
+	font-size: 36rpx;
+	font-weight: bold;
+	margin-bottom: 20rpx;
+	text-align: center;
+}
+.share-popup-options {
+	display: flex;
+	flex-direction: column;
+	gap: 20rpx;
+	margin-bottom: 30rpx;
+}
+.share-popup-btn {
+	width: 100%;
+	background: #f5f5f5;
+	color: #333;
+	border-radius: 12rpx;
+	font-size: 30rpx;
+	padding: 20rpx 0;
+}
+.share-popup-close {
+	width: 100%;
+	background: #667eea;
+	color: #fff;
+	border-radius: 12rpx;
+	font-size: 30rpx;
+	margin-top: 10rpx;
+}
+.qrcode-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+.qrcode-img {
+	width: 240rpx;
+	height: 240rpx;
+	margin: 20rpx 0;
+}
+.qrcode-tip {
+	font-size: 24rpx;
+	color: #888;
+	margin-bottom: 10rpx;
 }
 </style>
