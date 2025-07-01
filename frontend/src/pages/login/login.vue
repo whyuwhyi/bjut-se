@@ -71,12 +71,22 @@ export default {
 	},
 	
 	onLoad() {
-		// 检查是否有保存的登录信息
-		const savedInfo = uni.getStorageSync('savedLoginInfo')
-		if (savedInfo) {
-			this.loginForm.phone_number = savedInfo.phone_number
-			this.loginForm.password = savedInfo.password
-			this.rememberMe = true
+		// 检查是否有注册自动填充信息
+		const autoPhone = uni.getStorageSync('autoLoginPhone')
+		const autoPassword = uni.getStorageSync('autoLoginPassword')
+		if (autoPhone && autoPassword) {
+			this.loginForm.phone_number = autoPhone
+			this.loginForm.password = autoPassword
+			uni.removeStorageSync('autoLoginPhone')
+			uni.removeStorageSync('autoLoginPassword')
+		} else {
+			// 检查是否有保存的登录信息
+			const savedInfo = uni.getStorageSync('savedLoginInfo')
+			if (savedInfo) {
+				this.loginForm.phone_number = savedInfo.phone_number
+				this.loginForm.password = savedInfo.password
+				this.rememberMe = true
+			}
 		}
 	},
 	
