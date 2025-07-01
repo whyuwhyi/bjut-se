@@ -277,12 +277,16 @@ jobs:
           
           # 使用git获取最新代码
           echo "获取最新代码..."
+          if [ -d "current" ]; then
+            rm -rf current
+          fi
           if git clone https://github.com/${{ github.repository }}.git current; then
             echo "✅ 代码获取成功"
           else
-            if [ -d "backup-$(ls -t backup-* 2>/dev/null | head -n 1)" ]; then
-              cp -r backup-$(ls -t backup-* | head -n 1) current
-              echo "⚠️ Git克隆失败，使用最新备份"
+            LATEST_BACKUP=$(ls -t backup-* 2>/dev/null | head -n 1)
+            if [ -n "$LATEST_BACKUP" ] && [ -d "$LATEST_BACKUP" ]; then
+              cp -r "$LATEST_BACKUP" current
+              echo "⚠️ Git克隆失败，使用最新备份: $LATEST_BACKUP"
             else
               echo "❌ Git克隆失败且无备份可用"
               exit 1
@@ -378,8 +382,15 @@ jobs:
             echo "❌ 没有可用的备份版本进行回滚"
             # 如果没有备份，至少尝试重新克隆代码
             echo "尝试重新获取代码..."
-            git clone https://github.com/${{ github.repository }}.git current || true
-            cd current
+            if [ -d "current" ]; then
+              rm -rf current
+            fi
+            if git clone https://github.com/${{ github.repository }}.git current; then
+              echo "✅ 重新获取代码成功"
+              cd current
+            else
+              echo "❌ 重新获取代码失败"
+            fi
           fi
           exit 1
 
