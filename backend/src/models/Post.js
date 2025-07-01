@@ -38,6 +38,11 @@ const Post = sequelize.define('Post', {
     defaultValue: 0,
     comment: '评论数量'
   },
+  report_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: '举报次数'
+  },
   status: {
     type: DataTypes.ENUM('active', 'hidden', 'deleted'),
     defaultValue: 'active',

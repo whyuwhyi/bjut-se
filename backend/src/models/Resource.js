@@ -67,6 +67,22 @@ const Resource = sequelize.define('Resource', {
     },
     comment: '浏览次数'
   },
+  download_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    validate: {
+      min: 0
+    },
+    comment: '下载次数'
+  },
+  report_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    validate: {
+      min: 0
+    },
+    comment: '举报次数'
+  },
   status: {
     type: DataTypes.ENUM('draft', 'pending', 'published', 'rejected', 'archived'),
     defaultValue: 'draft',

@@ -1,4 +1,4 @@
-const { User, Resource, Post, Notification, Comment, Collection, StudyRecord, UserFollow } = require('../models');
+const { User, Resource, Post, Notification, Comment, Collection, StudyRecord, UserFollow, ResourceReport, PostReport } = require('../models');
 const { Op } = require('sequelize');
 
 class AdminController {
@@ -614,6 +614,446 @@ class AdminController {
       res.status(500).json({
         success: false,
         message: '获取举报帖子失败'
+      });
+    }
+  }
+
+  // 获取所有资源（支持多状态筛选）
+  static async getAllResources(req, res) {
+    try {
+      const { page = 1, limit = 20, status, category, search } = req.query;
+      const offset = (page - 1) * limit;
+
+      const where = {};
+      if (status) {
+        if (status.includes(',')) {
+          where.status = { [Op.in]: status.split(',') };
+        } else {
+          where.status = status;
+        }
+      }
+      if (category) {
+        where.category_id = category;
+      }
+      if (search) {
+        where[Op.or] = [
+          { resource_name: { [Op.like]: `%${search}%` } },
+          { description: { [Op.like]: `%${search}%` } }
+        ];
+      }
+
+      const resources = await Resource.findAndCountAll({
+        where,
+        include: [
+          {
+            model: User,
+            as: 'publisher',
+            attributes: ['name', 'phone_number']
+          },
+          {
+            model: User,
+            as: 'reviewer',
+            attributes: ['name', 'phone_number']
+          }
+        ],
+        limit: parseInt(limit),
+        offset,
+        order: [['created_at', 'DESC']]
+      });
+
+      res.json({
+        success: true,
+        data: {
+          resources: resources.rows,
+          total: resources.count,
+          page: parseInt(page),
+          limit: parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Get all resources error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取资源列表失败'
+      });
+    }
+  }
+
+  // 删除资源（设为archived状态）
+  static async deleteResource(req, res) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      const resource = await Resource.findByPk(id, {
+        include: [{ model: User, as: 'publisher', attributes: ['name', 'phone_number'] }]
+      });
+      
+      if (!resource) {
+        return res.status(404).json({
+          success: false,
+          message: '资源不存在'
+        });
+      }
+
+      await resource.update({ 
+        status: 'archived',
+        review_comment: reason || '管理员删除',
+        reviewer_phone: req.user.phone_number,
+        reviewed_at: new Date()
+      });
+
+      // 发送通知给资源发布者
+      await Notification.create({
+        notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+        receiver_phone: resource.publisher_phone,
+        sender_phone: null,
+        type: 'resource',
+        priority: 'medium',
+        title: '资源被删除',
+        content: `您的资源「${resource.resource_name}」已被管理员删除。${reason ? `原因：${reason}` : ''}`,
+        action_type: 'none',
+        is_read: false
+      });
+
+      res.json({
+        success: true,
+        message: '资源删除成功'
+      });
+    } catch (error) {
+      console.error('Delete resource error:', error);
+      res.status(500).json({
+        success: false,
+        message: '删除资源失败'
+      });
+    }
+  }
+
+  // 获取资源举报列表
+  static async getResourceReports(req, res) {
+    try {
+      const { page = 1, limit = 20, status = 'pending' } = req.query;
+      const offset = (page - 1) * limit;
+
+      const reports = await ResourceReport.findAndCountAll({
+        where: { status },
+        include: [
+          {
+            model: Resource,
+            as: 'resource',
+            attributes: ['resource_id', 'resource_name', 'publisher_phone'],
+            include: [{
+              model: User,
+              as: 'publisher',
+              attributes: ['name', 'phone_number']
+            }]
+          },
+          {
+            model: User,
+            as: 'reporter',
+            attributes: ['name', 'phone_number']
+          }
+        ],
+        limit: parseInt(limit),
+        offset,
+        order: [['created_at', 'DESC']]
+      });
+
+      res.json({
+        success: true,
+        data: {
+          reports: reports.rows,
+          total: reports.count,
+          page: parseInt(page),
+          limit: parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Get resource reports error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取资源举报列表失败'
+      });
+    }
+  }
+
+  // 处理资源举报
+  static async handleResourceReport(req, res) {
+    try {
+      const { reportId } = req.params;
+      const { action, result } = req.body; // action: 'accept' | 'reject'
+
+      const report = await ResourceReport.findByPk(reportId, {
+        include: [
+          { model: Resource, as: 'resource' },
+          { model: User, as: 'reporter', attributes: ['name', 'phone_number'] }
+        ]
+      });
+
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: '举报记录不存在'
+        });
+      }
+
+      await report.update({
+        status: 'processed',
+        processed_by: req.user.phone_number,
+        process_result: result,
+        processed_at: new Date()
+      });
+
+      // 如果接受举报，则删除资源
+      if (action === 'accept' && report.resource) {
+        await report.resource.update({
+          status: 'archived',
+          review_comment: `因举报被删除：${result}`,
+          reviewer_phone: req.user.phone_number,
+          reviewed_at: new Date()
+        });
+      }
+
+      // 发送通知给举报者
+      await Notification.create({
+        notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+        receiver_phone: report.reporter_phone,
+        sender_phone: null,
+        type: 'system',
+        priority: 'low',
+        title: '举报处理完成',
+        content: `您举报的资源已处理完成。处理结果：${result}`,
+        action_type: 'none',
+        is_read: false
+      });
+
+      res.json({
+        success: true,
+        message: '举报处理完成'
+      });
+    } catch (error) {
+      console.error('Handle resource report error:', error);
+      res.status(500).json({
+        success: false,
+        message: '处理举报失败'
+      });
+    }
+  }
+
+  // 获取所有帖子
+  static async getAllPosts(req, res) {
+    try {
+      const { page = 1, limit = 20, status, search } = req.query;
+      const offset = (page - 1) * limit;
+
+      const where = {};
+      if (status) {
+        if (status.includes(',')) {
+          where.status = { [Op.in]: status.split(',') };
+        } else {
+          where.status = status;
+        }
+      }
+      if (search) {
+        where[Op.or] = [
+          { title: { [Op.like]: `%${search}%` } },
+          { content: { [Op.like]: `%${search}%` } }
+        ];
+      }
+
+      const posts = await Post.findAndCountAll({
+        where,
+        include: [
+          {
+            model: User,
+            as: 'author',
+            attributes: ['name', 'phone_number']
+          }
+        ],
+        limit: parseInt(limit),
+        offset,
+        order: [['created_at', 'DESC']]
+      });
+
+      res.json({
+        success: true,
+        data: {
+          posts: posts.rows,
+          total: posts.count,
+          page: parseInt(page),
+          limit: parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Get all posts error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取帖子列表失败'
+      });
+    }
+  }
+
+  // 更新帖子状态
+  static async updatePostStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status, reason } = req.body;
+
+      if (!['active', 'hidden', 'deleted'].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的帖子状态'
+        });
+      }
+
+      const post = await Post.findByPk(id, {
+        include: [{ model: User, as: 'author', attributes: ['name', 'phone_number'] }]
+      });
+
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: '帖子不存在'
+        });
+      }
+
+      await post.update({ status });
+
+      // 如果隐藏或删除帖子，发送通知给作者
+      if (status !== 'active') {
+        const actionText = status === 'hidden' ? '隐藏' : '删除';
+        await Notification.create({
+          notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+          receiver_phone: post.author_phone,
+          sender_phone: null,
+          type: 'system',
+          priority: 'medium',
+          title: `帖子被${actionText}`,
+          content: `您的帖子「${post.title}」已被管理员${actionText}。${reason ? `原因：${reason}` : ''}`,
+          action_type: 'none',
+          is_read: false
+        });
+      }
+
+      res.json({
+        success: true,
+        message: '帖子状态更新成功'
+      });
+    } catch (error) {
+      console.error('Update post status error:', error);
+      res.status(500).json({
+        success: false,
+        message: '更新帖子状态失败'
+      });
+    }
+  }
+
+  // 获取帖子举报列表
+  static async getPostReports(req, res) {
+    try {
+      const { page = 1, limit = 20, status = 'pending' } = req.query;
+      const offset = (page - 1) * limit;
+
+      const reports = await PostReport.findAndCountAll({
+        where: { status },
+        include: [
+          {
+            model: Post,
+            as: 'post',
+            attributes: ['post_id', 'title', 'author_phone'],
+            include: [{
+              model: User,
+              as: 'author',
+              attributes: ['name', 'phone_number']
+            }]
+          },
+          {
+            model: User,
+            as: 'reporter',
+            attributes: ['name', 'phone_number']
+          }
+        ],
+        limit: parseInt(limit),
+        offset,
+        order: [['created_at', 'DESC']]
+      });
+
+      res.json({
+        success: true,
+        data: {
+          reports: reports.rows,
+          total: reports.count,
+          page: parseInt(page),
+          limit: parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Get post reports error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取帖子举报列表失败'
+      });
+    }
+  }
+
+  // 处理帖子举报
+  static async handlePostReport(req, res) {
+    try {
+      const { reportId } = req.params;
+      const { action, result } = req.body; // action: 'hide_post' | 'delete_post' | 'ignore'
+
+      const report = await PostReport.findByPk(reportId, {
+        include: [
+          { model: Post, as: 'post' },
+          { model: User, as: 'reporter', attributes: ['name', 'phone_number'] }
+        ]
+      });
+
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: '举报记录不存在'
+        });
+      }
+
+      await report.update({
+        status: 'processed',
+        processed_by: req.user.phone_number,
+        process_result: result,
+        processed_at: new Date()
+      });
+
+      // 根据处理动作更新帖子状态
+      if (report.post) {
+        if (action === 'hide_post') {
+          await report.post.update({ status: 'hidden' });
+        } else if (action === 'delete_post') {
+          await report.post.update({ status: 'deleted' });
+        }
+      }
+
+      // 发送通知给举报者
+      await Notification.create({
+        notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+        receiver_phone: report.reporter_phone,
+        sender_phone: null,
+        type: 'system',
+        priority: 'low',
+        title: '举报处理完成',
+        content: `您举报的帖子已处理完成。处理结果：${result}`,
+        action_type: 'none',
+        is_read: false
+      });
+
+      res.json({
+        success: true,
+        message: '举报处理完成'
+      });
+    } catch (error) {
+      console.error('Handle post report error:', error);
+      res.status(500).json({
+        success: false,
+        message: '处理举报失败'
       });
     }
   }

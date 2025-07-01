@@ -35,14 +35,43 @@ router.delete('/users/:phone', [
 ], AdminController.deleteUser);
 
 // 资源管理
+router.get('/resources', AdminController.getAllResources);
 router.get('/resources/pending', AdminController.getPendingResources);
 router.post('/resources/:id/review', [
   param('id').isLength({ min: 9, max: 9 }).withMessage('资源ID格式不正确'),
   body('action').isIn(['approve', 'reject']).withMessage('操作类型无效'),
   body('comment').optional().isLength({ max: 500 }).withMessage('审核意见不能超过500字符')
 ], AdminController.reviewResource);
+router.delete('/resources/:id', [
+  param('id').isLength({ min: 9, max: 9 }).withMessage('资源ID格式不正确'),
+  body('reason').optional().isLength({ max: 500 }).withMessage('删除原因不能超过500字符')
+], AdminController.deleteResource);
 
-// 帖子管理
+// 资源举报管理
+router.get('/resources/reports', AdminController.getResourceReports);
+router.post('/resources/reports/:reportId/handle', [
+  param('reportId').isLength({ min: 9, max: 9 }).withMessage('举报ID格式不正确'),
+  body('action').isIn(['accept', 'reject']).withMessage('处理动作无效'),
+  body('result').isLength({ min: 1, max: 500 }).withMessage('处理结果必须在1-500字符之间')
+], AdminController.handleResourceReport);
+
+// 论坛管理
+router.get('/posts', AdminController.getAllPosts);
+router.put('/posts/:id/status', [
+  param('id').isLength({ min: 9, max: 9 }).withMessage('帖子ID格式不正确'),
+  body('status').isIn(['active', 'hidden', 'deleted']).withMessage('帖子状态无效'),
+  body('reason').optional().isLength({ max: 500 }).withMessage('操作原因不能超过500字符')
+], AdminController.updatePostStatus);
+
+// 帖子举报管理
+router.get('/posts/reports', AdminController.getPostReports);
+router.post('/posts/reports/:reportId/handle', [
+  param('reportId').isLength({ min: 9, max: 9 }).withMessage('举报ID格式不正确'),
+  body('action').isIn(['hide_post', 'delete_post', 'ignore']).withMessage('处理动作无效'),
+  body('result').isLength({ min: 1, max: 500 }).withMessage('处理结果必须在1-500字符之间')
+], AdminController.handlePostReport);
+
+// 旧路由兼容性（可能被其他地方使用）
 router.get('/posts/reported', AdminController.getReportedPosts);
 router.post('/posts/:id/hide', [
   param('id').isLength({ min: 9, max: 9 }).withMessage('帖子ID格式不正确')

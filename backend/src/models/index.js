@@ -20,6 +20,9 @@ const StudyRecord = require('./StudyRecord')
 const UserFollow = require('./UserFollow')
 // 通知模块
 const Notification = require('./Notification')
+// 举报模块
+const ResourceReport = require('./ResourceReport')
+const PostReport = require('./PostReport')
 
 // 设置模型关系
 // 用户 - 资源关系
@@ -316,6 +319,62 @@ Collection.belongsTo(Post, {
   }
 })
 
+// 资源举报关系
+User.hasMany(ResourceReport, {
+  foreignKey: 'reporter_phone',
+  sourceKey: 'phone_number',
+  as: 'resourceReports'
+})
+ResourceReport.belongsTo(User, {
+  foreignKey: 'reporter_phone',
+  targetKey: 'phone_number',
+  as: 'reporter'
+})
+
+Resource.hasMany(ResourceReport, {
+  foreignKey: 'resource_id',
+  as: 'reports'
+})
+ResourceReport.belongsTo(Resource, {
+  foreignKey: 'resource_id',
+  as: 'resource'
+})
+
+// 资源举报处理者关系
+ResourceReport.belongsTo(User, {
+  foreignKey: 'processed_by',
+  targetKey: 'phone_number',
+  as: 'processor'
+})
+
+// 帖子举报关系
+User.hasMany(PostReport, {
+  foreignKey: 'reporter_phone',
+  sourceKey: 'phone_number',
+  as: 'postReports'
+})
+PostReport.belongsTo(User, {
+  foreignKey: 'reporter_phone',
+  targetKey: 'phone_number',
+  as: 'reporter'
+})
+
+Post.hasMany(PostReport, {
+  foreignKey: 'post_id',
+  as: 'reports'
+})
+PostReport.belongsTo(Post, {
+  foreignKey: 'post_id',
+  as: 'post'
+})
+
+// 帖子举报处理者关系
+PostReport.belongsTo(User, {
+  foreignKey: 'processed_by',
+  targetKey: 'phone_number',
+  as: 'processor'
+})
+
 const models = {
   User,
   Resource,
@@ -336,6 +395,9 @@ const models = {
   UserFollow,
   // 通知模块
   Notification,
+  // 举报模块
+  ResourceReport,
+  PostReport,
   sequelize
 }
 

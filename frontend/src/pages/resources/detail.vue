@@ -56,6 +56,10 @@
 				<text class="btn-icon">📤</text>
 				<text class="btn-text">分享</text>
 			</button>
+			<button class="action-btn report-btn" @click="showReportModal">
+				<text class="btn-icon">🚨</text>
+				<text class="btn-text">举报</text>
+			</button>
 		</view>
 
 		<!-- 资源描述 -->
@@ -175,12 +179,26 @@
 				<button v-if="!qrCodeVisible" class="share-popup-close" @click="closeSharePopup">取消</button>
 			</view>
 		</view>
+
+		<!-- 举报弹窗 -->
+		<ReportModal 
+			ref="reportModal"
+			content-type="resource"
+			:content-id="resourceId"
+			:content-title="resource.title"
+			@reported="onReported"
+		/>
 	</view>
 </template>
 
 <script>
 import QRCode from 'qrcode'
+import ReportModal from '@/components/ReportModal.vue'
+
 export default {
+	components: {
+		ReportModal
+	},
 	data() {
 		return {
 			resourceId: '',
@@ -762,6 +780,28 @@ export default {
 			} else {
 				return time.toLocaleDateString()
 			}
+		},
+
+		// 显示举报弹窗
+		showReportModal() {
+			const token = uni.getStorageSync('token')
+			if (!token) {
+				uni.showToast({
+					title: '请先登录',
+					icon: 'none'
+				})
+				return
+			}
+			this.$refs.reportModal.show()
+		},
+
+		// 举报成功回调
+		onReported() {
+			uni.showToast({
+				title: '举报已提交，感谢您的反馈',
+				icon: 'success',
+				duration: 3000
+			})
 		}
 	}
 }
@@ -945,6 +985,14 @@ export default {
 			.btn-icon {
 				transform: scale(1.2);
 				transition: transform 0.3s ease;
+			}
+		}
+
+		&.report-btn {
+			&:active {
+				border-color: #ff6b6b;
+				color: #ff6b6b;
+				background: #fff5f5;
 			}
 		}
 		

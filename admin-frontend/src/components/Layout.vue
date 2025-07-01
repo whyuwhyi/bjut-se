@@ -20,9 +20,13 @@
           <el-icon><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
-        <el-menu-item index="/content-review">
+        <el-menu-item index="/resources">
           <el-icon><Document /></el-icon>
-          <span>内容审核</span>
+          <span>资源管理</span>
+        </el-menu-item>
+        <el-menu-item index="/forum">
+          <el-icon><ChatLineRound /></el-icon>
+          <span>论坛管理</span>
         </el-menu-item>
         <el-menu-item index="/notifications">
           <el-icon><Bell /></el-icon>
@@ -78,7 +82,8 @@ import {
   Document,
   Bell,
   PieChart,
-  ArrowDown
+  ArrowDown,
+  ChatLineRound
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

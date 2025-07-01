@@ -90,6 +90,7 @@
 | review_comment | TEXT | | 审核意见 |
 | reviewed_at | DATETIME | | 审核时间 |
 | download_count | INT | DEFAULT 0 | 下载次数 |
+| report_count | INT | DEFAULT 0 | 举报次数 |
 | category_id | VARCHAR(20) | FOREIGN KEY | 资源分类ID（外键到categories表） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
@@ -123,6 +124,7 @@
 | content | LONGTEXT | | 文件内容（用于文本文件） |
 | download_count | INT | DEFAULT 0 | 下载次数 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 **文件存储架构：**
 - **本地存储**: 文件保存在Docker容器的持久化卷中
@@ -228,6 +230,7 @@
 | experience_gained | INT | DEFAULT 0 | 获得经验值 |
 | study_date | DATE | NOT NULL | 学习日期 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 **业务特点：**
 - 自动记录用户学习行为，包括资源浏览、下载、任务完成等
@@ -254,6 +257,8 @@
 | content | TEXT | NOT NULL | 帖子内容（支持Markdown格式） |
 | view_count | INT | DEFAULT 0 | 浏览次数 |
 | comment_count | INT | DEFAULT 0 | 评论数量 |
+| collection_count | INT | DEFAULT 0 | 收藏次数 |
+| report_count | INT | DEFAULT 0 | 举报次数 |
 | status | ENUM('active','hidden','deleted') | DEFAULT 'active' | 帖子状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
@@ -376,7 +381,68 @@
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
+---
 
+## 7. 举报管理模块
+
+### 7.1 资源举报表 (resource_reports)
+
+处理用户对资源的举报投诉。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| report_id | VARCHAR(9) | PRIMARY KEY | 9位数字的举报记录唯一标识符 |
+| resource_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 被举报资源ID |
+| reporter_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 举报者手机号 |
+| reason | ENUM('inappropriate','copyright','spam','offensive','other') | NOT NULL | 举报原因 |
+| description | TEXT | | 详细描述 |
+| status | ENUM('pending','processed','rejected') | DEFAULT 'pending' | 处理状态 |
+| processed_by | VARCHAR(11) | FOREIGN KEY | 处理人手机号 |
+| process_result | TEXT | | 处理结果说明 |
+| processed_at | TIMESTAMP | | 处理时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**举报原因说明：**
+- **inappropriate**: 内容不当
+- **copyright**: 版权问题
+- **spam**: 垃圾信息
+- **offensive**: 攻击性内容
+- **other**: 其他原因
+
+### 7.2 帖子举报表 (post_reports)
+
+处理用户对帖子的举报投诉。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| report_id | VARCHAR(9) | PRIMARY KEY | 9位数字的举报记录唯一标识符 |
+| post_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 被举报帖子ID |
+| reporter_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 举报者手机号 |
+| reason | ENUM('inappropriate','spam','offensive','harassment','false_info','other') | NOT NULL | 举报原因 |
+| description | TEXT | | 详细描述 |
+| status | ENUM('pending','processed','rejected') | DEFAULT 'pending' | 处理状态 |
+| processed_by | VARCHAR(11) | FOREIGN KEY | 处理人手机号 |
+| process_result | TEXT | | 处理结果说明 |
+| processed_at | TIMESTAMP | | 处理时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**举报原因说明：**
+- **inappropriate**: 内容不当
+- **spam**: 垃圾信息
+- **offensive**: 攻击性内容
+- **harassment**: 骚扰行为
+- **false_info**: 虚假信息
+- **other**: 其他原因
+
+**举报处理流程：**
+1. 用户提交举报 → `pending` 状态
+2. 管理员审核举报 → 更新 `processed_by` 和 `process_result`
+3. 处理完成 → `processed` 状态，记录处理时间
+4. 若举报无效 → `rejected` 状态
+
+---
 
 ## 数据库关系设计
 
@@ -649,4 +715,156 @@ CREATE INDEX idx_collections_created_at ON collections(created_at DESC);
 - **读写分离**: 统计查询可分发到只读实例
 
 个人中心功能通过完善的数据库设计和 API 接口，为用户提供了完整的个人数据管理功能，支持资源管理、社交互动、内容收藏等核心需求，具备良好的扩展性和性能表现。
+
+---
+
+## 8. 举报管理模块
+
+举报管理模块提供了完整的用户举报和管理员审核功能，支持对不当资源和帖子内容的举报处理流程。
+
+### 8.1 资源举报表 (resource_reports)
+
+用户对资源内容进行举报的记录表，支持多种举报原因和完整的处理流程。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| report_id | VARCHAR(9) | PRIMARY KEY | 举报记录ID，9位数字（以7开头） |
+| resource_id | VARCHAR(9) | NOT NULL | 被举报资源ID（外键） |
+| reporter_phone | VARCHAR(11) | NOT NULL | 举报者手机号（外键） |
+| reason | ENUM | NOT NULL | 举报原因：inappropriate, copyright, spam, offensive, other |
+| description | TEXT | | 详细描述 |
+| status | ENUM | DEFAULT 'pending' | 处理状态：pending-待处理，processed-已处理，rejected-已驳回 |
+| processed_by | VARCHAR(11) | | 处理人手机号（外键） |
+| process_result | TEXT | | 处理结果说明 |
+| processed_at | TIMESTAMP | | 处理时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**举报原因说明**:
+- **inappropriate**: 内容不当
+- **copyright**: 版权问题
+- **spam**: 垃圾信息
+- **offensive**: 冒犯性内容
+- **other**: 其他
+
+**外键关系**:
+- `resource_id` → `resources.resource_id`
+- `reporter_phone` → `users.phone_number`
+- `processed_by` → `users.phone_number`
+
+### 8.2 帖子举报表 (post_reports)
+
+用户对帖子内容进行举报的记录表，支持针对论坛内容的举报管理。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| report_id | VARCHAR(9) | PRIMARY KEY | 举报记录ID，9位数字（以7开头） |
+| post_id | VARCHAR(9) | NOT NULL | 被举报帖子ID（外键） |
+| reporter_phone | VARCHAR(11) | NOT NULL | 举报者手机号（外键） |
+| reason | ENUM | NOT NULL | 举报原因：inappropriate, spam, offensive, harassment, false_info, other |
+| description | TEXT | | 详细描述 |
+| status | ENUM | DEFAULT 'pending' | 处理状态：pending-待处理，processed-已处理，rejected-已驳回 |
+| processed_by | VARCHAR(11) | | 处理人手机号（外键） |
+| process_result | TEXT | | 处理结果说明 |
+| processed_at | TIMESTAMP | | 处理时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**帖子举报原因说明**:
+- **inappropriate**: 内容不当
+- **spam**: 垃圾信息
+- **offensive**: 冒犯性内容
+- **harassment**: 骚扰他人
+- **false_info**: 虚假信息
+- **other**: 其他
+
+**外键关系**:
+- `post_id` → `posts.post_id`
+- `reporter_phone` → `users.phone_number`
+- `processed_by` → `users.phone_number`
+
+### 8.3 举报处理流程
+
+#### 用户举报流程
+1. **提交举报**: 用户选择举报原因，填写详细描述
+2. **重复检查**: 系统检查是否重复举报（同一用户对同一内容的待处理举报）
+3. **记录创建**: 创建举报记录，状态为 'pending'
+4. **统计更新**: 增加被举报内容的 report_count 计数
+
+#### 管理员处理流程
+1. **查看列表**: 管理员查看待处理的举报列表
+2. **详细审核**: 查看举报详情和被举报内容
+3. **处理决定**: 
+   - **接受举报**: 删除/隐藏被举报内容，更新举报状态为 'processed'
+   - **拒绝举报**: 保留内容，更新举报状态为 'rejected'
+4. **通知发送**: 向举报者发送处理结果通知
+5. **记录更新**: 记录处理人、处理时间和处理结果
+
+### 8.4 API 接口设计
+
+#### 用户举报接口
+```http
+POST /api/v1/reports/resources/{resourceId}
+POST /api/v1/reports/posts/{postId}
+GET /api/v1/reports/my-reports?type={type}&page={page}&limit={limit}
+GET /api/v1/reports/reasons?type={type}
+DELETE /api/v1/reports/{reportId}?type={type}
+Authorization: Bearer {token}
+```
+
+#### 管理员处理接口
+```http
+GET /api/v1/admin/resources/reports?status={status}&page={page}&limit={limit}
+POST /api/v1/admin/resources/reports/{reportId}/handle
+GET /api/v1/admin/posts/reports?status={status}&page={page}&limit={limit}
+POST /api/v1/admin/posts/reports/{reportId}/handle
+Authorization: Bearer {admin_token}
+```
+
+### 8.5 业务规则
+
+#### 举报限制
+- **重复举报**: 同一用户对同一内容只能有一个待处理的举报
+- **自举报**: 用户不能举报自己发布的内容
+- **频率限制**: 可设置用户举报频率限制，防止恶意举报
+
+#### 处理规则
+- **管理员权限**: 只有管理员可以处理举报
+- **处理记录**: 所有处理操作都会记录处理人和处理时间
+- **通知机制**: 处理完成后自动向举报者发送通知
+- **内容管理**: 接受举报时自动更新被举报内容状态
+
+#### 数据统计
+- **举报统计**: 资源和帖子表中的 report_count 字段实时统计举报次数
+- **处理统计**: 可统计管理员处理举报的效率和结果分布
+- **趋势分析**: 支持举报数据的时间趋势分析
+
+### 8.6 技术实现
+
+#### 后端模型
+- **ResourceReport**: 资源举报模型，包含ID生成和关联关系
+- **PostReport**: 帖子举报模型，支持扩展的举报原因
+- **AdminController**: 管理员处理举报的控制器方法
+- **ReportController**: 用户举报功能的控制器方法
+
+#### 前端界面
+- **举报按钮**: 在资源和帖子页面添加举报功能入口
+- **举报表单**: 选择举报原因和填写详细描述的表单
+- **我的举报**: 用户查看自己的举报记录和处理状态
+- **管理界面**: 管理员查看和处理举报的后台界面
+
+#### 数据库优化
+```sql
+-- 举报查询优化索引
+CREATE INDEX idx_resource_reports_status ON resource_reports(status, created_at DESC);
+CREATE INDEX idx_post_reports_status ON post_reports(status, created_at DESC);
+CREATE INDEX idx_resource_reports_reporter ON resource_reports(reporter_phone, status);
+CREATE INDEX idx_post_reports_reporter ON post_reports(reporter_phone, status);
+
+-- 防止重复举报的唯一约束
+CREATE UNIQUE INDEX idx_resource_reports_unique ON resource_reports(resource_id, reporter_phone, status) WHERE status = 'pending';
+CREATE UNIQUE INDEX idx_post_reports_unique ON post_reports(post_id, reporter_phone, status) WHERE status = 'pending';
+```
+
+举报管理模块通过完善的数据库设计和业务流程，为平台提供了有效的内容治理机制，保障了平台内容质量和用户体验。
 

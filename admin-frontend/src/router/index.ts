@@ -32,10 +32,16 @@ const router = createRouter({
           meta: { title: '用户管理' }
         },
         {
-          path: 'content-review',
-          name: 'ContentReview',
-          component: () => import('@/views/ContentReview.vue'),
-          meta: { title: '内容审核' }
+          path: 'resources',
+          name: 'ResourceManagement',
+          component: () => import('@/views/ResourceManagement.vue'),
+          meta: { title: '资源管理' }
+        },
+        {
+          path: 'forum',
+          name: 'ForumManagement',
+          component: () => import('@/views/ForumManagement.vue'),
+          meta: { title: '论坛管理' }
         },
         {
           path: 'notifications',

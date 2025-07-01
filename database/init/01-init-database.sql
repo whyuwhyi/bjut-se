@@ -71,6 +71,7 @@ CREATE TABLE resources (
     rating DECIMAL(4,2) DEFAULT 0 COMMENT '资源评分(1-5分)',
     view_count INT DEFAULT 0 COMMENT '浏览次数',
     download_count INT DEFAULT 0 COMMENT '下载次数',
+    report_count INT DEFAULT 0 COMMENT '举报次数',
     status ENUM('draft', 'pending', 'published', 'rejected', 'archived') DEFAULT 'draft' COMMENT '资源状态',
     reviewer_phone VARCHAR(11) COMMENT '审核者手机号',
     review_comment TEXT COMMENT '审核意见',
@@ -95,6 +96,7 @@ CREATE TABLE files (
     content LONGTEXT COMMENT '文件内容(文本文件)',
     download_count INT DEFAULT 0 COMMENT '下载次数',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='文件表';
 
@@ -115,6 +117,7 @@ CREATE TABLE resource_tags (
     resource_id VARCHAR(9) NOT NULL COMMENT '资源ID',
     tag_id VARCHAR(9) NOT NULL COMMENT '标签ID',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源标签关联表';
@@ -128,6 +131,7 @@ CREATE TABLE posts (
     view_count INT DEFAULT 0 COMMENT '浏览次数',
     comment_count INT DEFAULT 0 COMMENT '评论数量',
     collection_count INT DEFAULT 0 COMMENT '收藏次数',
+    report_count INT DEFAULT 0 COMMENT '举报次数',
     status ENUM('active', 'hidden', 'deleted') DEFAULT 'active' COMMENT '帖子状态',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -151,6 +155,7 @@ CREATE TABLE post_tag_relations (
     post_id VARCHAR(9) NOT NULL COMMENT '帖子ID',
     tag_id VARCHAR(9) NOT NULL COMMENT '标签ID',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES post_tags(tag_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子标签关联表';
@@ -272,6 +277,7 @@ CREATE TABLE study_records (
     experience_gained INT DEFAULT 0 COMMENT '获得经验值',
     study_date DATE NOT NULL COMMENT '学习日期',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
     FOREIGN KEY (plan_id) REFERENCES study_plans(plan_id) ON DELETE SET NULL,
     FOREIGN KEY (task_id) REFERENCES study_tasks(task_id) ON DELETE SET NULL,
@@ -323,9 +329,46 @@ CREATE TABLE verification_codes (
     phone_number VARCHAR(11) NOT NULL COMMENT '手机号',
     code VARCHAR(6) NOT NULL COMMENT '验证码',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     expires_at TIMESTAMP NOT NULL COMMENT '过期时间',
     status ENUM('valid', 'used', 'expired') DEFAULT 'valid' COMMENT '状态'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='验证码表';
+
+-- 22. 资源举报表
+CREATE TABLE resource_reports (
+    report_id VARCHAR(9) PRIMARY KEY COMMENT '举报记录ID',
+    resource_id VARCHAR(9) NOT NULL COMMENT '被举报资源ID',
+    reporter_phone VARCHAR(11) NOT NULL COMMENT '举报者手机号',
+    reason ENUM('inappropriate', 'copyright', 'spam', 'offensive', 'other') NOT NULL COMMENT '举报原因',
+    description TEXT COMMENT '详细描述',
+    status ENUM('pending', 'processed', 'rejected') DEFAULT 'pending' COMMENT '处理状态',
+    processed_by VARCHAR(11) COMMENT '处理人手机号',
+    process_result TEXT COMMENT '处理结果说明',
+    processed_at TIMESTAMP NULL COMMENT '处理时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE,
+    FOREIGN KEY (reporter_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
+    FOREIGN KEY (processed_by) REFERENCES users(phone_number) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源举报表';
+
+-- 23. 帖子举报表
+CREATE TABLE post_reports (
+    report_id VARCHAR(9) PRIMARY KEY COMMENT '举报记录ID',
+    post_id VARCHAR(9) NOT NULL COMMENT '被举报帖子ID',
+    reporter_phone VARCHAR(11) NOT NULL COMMENT '举报者手机号',
+    reason ENUM('inappropriate', 'spam', 'offensive', 'harassment', 'false_info', 'other') NOT NULL COMMENT '举报原因',
+    description TEXT COMMENT '详细描述',
+    status ENUM('pending', 'processed', 'rejected') DEFAULT 'pending' COMMENT '处理状态',
+    processed_by VARCHAR(11) COMMENT '处理人手机号',
+    process_result TEXT COMMENT '处理结果说明',
+    processed_at TIMESTAMP NULL COMMENT '处理时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (reporter_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
+    FOREIGN KEY (processed_by) REFERENCES users(phone_number) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子举报表';
 
 -- ================================================================
 -- 第三部分：测试数据插入 - 严格控制数量匹配
@@ -428,6 +471,14 @@ INSERT INTO notifications (notification_id, receiver_phone, sender_phone, type, 
 ('600000001', '13800138002', NULL, 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', false, NOW(), NOW()),
 ('600000002', '13800138003', '13800138002', 'interaction', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', false, NOW(), NOW());
 
+-- 插入测试举报数据
+INSERT INTO resource_reports (report_id, resource_id, reporter_phone, reason, description, status, created_at, updated_at) VALUES
+('700000001', '123456790', '13800138003', 'inappropriate', '资源内容不当，包含不适合的内容', 'pending', NOW(), NOW()),
+('700000002', '123456791', '13800138002', 'copyright', '疑似侵犯版权', 'pending', NOW(), NOW());
+
+INSERT INTO post_reports (report_id, post_id, reporter_phone, reason, description, status, created_at, updated_at) VALUES
+('700000003', '100000002', '13800138003', 'spam', '帖子内容涉嫌灌水', 'pending', NOW(), NOW());
+
 -- ================================================================
 -- 第四部分：数据一致性更新 - 确保评论数和收藏数正确
 -- ================================================================
@@ -460,6 +511,18 @@ UPDATE posts SET collection_count = (
     AND collections.status = 'active'
 );
 
+-- 更新资源举报数量
+UPDATE resources SET report_count = (
+    SELECT COUNT(*) FROM resource_reports 
+    WHERE resource_reports.resource_id = resources.resource_id
+);
+
+-- 更新帖子举报数量
+UPDATE posts SET report_count = (
+    SELECT COUNT(*) FROM post_reports 
+    WHERE post_reports.post_id = posts.post_id
+);
+
 -- ================================================================
 -- 第五部分：数据验证
 -- ================================================================
@@ -471,7 +534,9 @@ SELECT
     (SELECT COUNT(*) FROM resources) as resources_count,
     (SELECT COUNT(*) FROM posts) as posts_count,
     (SELECT COUNT(*) FROM comments) as comments_count,
-    (SELECT COUNT(*) FROM collections) as collections_count;
+    (SELECT COUNT(*) FROM collections) as collections_count,
+    (SELECT COUNT(*) FROM resource_reports) as resource_reports_count,
+    (SELECT COUNT(*) FROM post_reports) as post_reports_count;
 
 -- 验证具体的评论数匹配
 SELECT 
@@ -486,4 +551,19 @@ SELECT
     post_id,
     comment_count as declared_count,
     (SELECT COUNT(*) FROM comments WHERE post_id = posts.post_id AND status = 'active') as actual_count
+FROM posts;
+
+-- 验证具体的举报数匹配
+SELECT 
+    'resources' as table_name,
+    resource_id,
+    report_count as declared_count,
+    (SELECT COUNT(*) FROM resource_reports WHERE resource_id = resources.resource_id) as actual_count
+FROM resources;
+
+SELECT 
+    'posts' as table_name,
+    post_id,
+    report_count as declared_count,
+    (SELECT COUNT(*) FROM post_reports WHERE post_id = posts.post_id) as actual_count
 FROM posts;

@@ -58,6 +58,16 @@ export const deleteUser = (phone: string) => {
 }
 
 // 资源管理
+export const getAllResources = (params?: {
+  page?: number
+  limit?: number
+  status?: string
+  category?: string
+  search?: string
+}) => {
+  return request.get<PaginatedResponse<Resource>>('/admin/resources', { params })
+}
+
 export const getPendingResources = () => {
   return request.get<ApiResponse<Resource[]>>('/admin/resources/pending')
 }
@@ -69,7 +79,62 @@ export const reviewResource = (id: string, action: 'approve' | 'reject', comment
   })
 }
 
-// 帖子管理
+export const deleteResource = (id: string, reason?: string) => {
+  return request.delete<ApiResponse>(`/admin/resources/${id}`, {
+    data: { reason }
+  })
+}
+
+// 资源举报管理
+export const getResourceReports = (params?: {
+  page?: number
+  limit?: number
+  status?: string
+}) => {
+  return request.get<PaginatedResponse<any>>('/admin/resources/reports', { params })
+}
+
+export const handleResourceReport = (reportId: string, action: string, result: string) => {
+  return request.post<ApiResponse>(`/admin/resources/reports/${reportId}/handle`, {
+    action,
+    result
+  })
+}
+
+// 论坛管理
+export const getAllPosts = (params?: {
+  page?: number
+  limit?: number
+  status?: string
+  search?: string
+}) => {
+  return request.get<PaginatedResponse<Post>>('/admin/posts', { params })
+}
+
+export const updatePostStatus = (id: string, status: string, reason?: string) => {
+  return request.put<ApiResponse>(`/admin/posts/${id}/status`, {
+    status,
+    reason
+  })
+}
+
+// 帖子举报管理
+export const getPostReports = (params?: {
+  page?: number
+  limit?: number
+  status?: string
+}) => {
+  return request.get<PaginatedResponse<any>>('/admin/posts/reports', { params })
+}
+
+export const handlePostReport = (reportId: string, action: string, result: string) => {
+  return request.post<ApiResponse>(`/admin/posts/reports/${reportId}/handle`, {
+    action,
+    result
+  })
+}
+
+// 旧API兼容性
 export const getReportedPosts = () => {
   return request.get<ApiResponse<Post[]>>('/admin/posts/reported')
 }
