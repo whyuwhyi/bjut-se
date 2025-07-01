@@ -89,7 +89,7 @@
 
 		<!-- 上传按钮 -->
 		<view class="upload-btn" @click="goToUpload">
-			<text class="upload-icon">📤</text>
+			<image class="upload-icon" src="/static/icons/upload.png" mode="aspectFit"></image>
 		</view>
 
 	</view>
@@ -329,15 +329,18 @@ export default {
 
 <style lang="scss" scoped>
 .resources-container {
-	background: #f5f5f5;
 	min-height: 100vh;
 	padding-bottom: 160rpx;
+	padding: 30rpx;
 }
 
 .top-section {
 	background: white;
 	padding: 20rpx;
 	border-bottom: 1rpx solid #f0f0f0;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+	border-radius: 20rpx;
+	margin-bottom: 30rpx;
 	
 	.search-bar {
 		display: flex;
@@ -364,17 +367,18 @@ export default {
 		margin-top: 20rpx;
 		
 		.category-scroll {
-			
 			.category-list {
 				display: flex;
 				gap: 12rpx;
+				padding: 0 20rpx;
 				
 				.category-item {
 					padding: 12rpx 24rpx;
-					background: #f8f8f8;
+					background: rgba(0, 122, 255, 0.1);
 					border-radius: 30rpx;
 					white-space: nowrap;
 					flex-shrink: 0;
+					transition: all 0.3s ease;
 					
 					&.active {
 						background: #007aff;
@@ -386,7 +390,7 @@ export default {
 					
 					.category-text {
 						font-size: 26rpx;
-						color: #666;
+						color: #007aff;
 					}
 				}
 			}
@@ -400,18 +404,18 @@ export default {
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			background: #f8f8f8;
+			background: rgba(0, 122, 255, 0.1);
 			border-radius: 8rpx;
 			padding: 15rpx 20rpx;
 			
 			.sort-text {
 				font-size: 26rpx;
-				color: #333;
+				color: #007aff;
 			}
 			
 			.sort-icon {
 				font-size: 20rpx;
-				color: #999;
+				color: #007aff;
 			}
 		}
 	}
@@ -578,7 +582,13 @@ export default {
 		border-radius: 20rpx;
 		padding: 30rpx;
 		margin-bottom: 20rpx;
-		box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+		transition: all 0.3s ease;
+		
+		&:active {
+			transform: scale(0.98);
+			background: #f8f8f8;
+		}
 		
 		.resource-header {
 			display: flex;
@@ -592,6 +602,7 @@ export default {
 				margin-right: 20rpx;
 				border-radius: 12rpx;
 				overflow: hidden;
+				background: rgba(0, 122, 255, 0.1);
 				
 				.thumbnail-image {
 					width: 100%;
@@ -626,32 +637,14 @@ export default {
 				.resource-tags {
 					display: flex;
 					flex-wrap: wrap;
+					gap: 10rpx;
 					
 					.tag {
 						padding: 8rpx 16rpx;
-						background: #e3f2fd;
-						color: #1976d2;
+						background: rgba(0, 122, 255, 0.1);
+						color: #007aff;
 						border-radius: 20rpx;
 						font-size: 22rpx;
-						margin-right: 15rpx;
-						margin-bottom: 10rpx;
-						
-						&.difficulty {
-							&.level-1 {
-								background: #e8f5e8;
-								color: #4caf50;
-							}
-							
-							&.level-2 {
-								background: #fff3e0;
-								color: #ff9800;
-							}
-							
-							&.level-3 {
-								background: #ffebee;
-								color: #f44336;
-							}
-						}
 					}
 				}
 			}
@@ -680,21 +673,21 @@ export default {
 			.meta-info {
 				display: flex;
 				flex-direction: column;
+				gap: 8rpx;
 				
 				.author, .upload-time {
 					font-size: 24rpx;
 					color: #666;
-					margin-bottom: 8rpx;
 				}
 			}
 			
 			.resource-stats {
 				display: flex;
+				gap: 20rpx;
 				
 				.stat-item {
 					font-size: 24rpx;
 					color: #999;
-					margin-left: 30rpx;
 				}
 			}
 		}
@@ -715,17 +708,23 @@ export default {
 	bottom: 160rpx;
 	width: 120rpx;
 	height: 120rpx;
-	background: linear-gradient(45deg, #667eea, #764ba2);
+	background: rgba(0, 122, 255, 0.1);
 	border-radius: 50%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 8rpx 25rpx rgba(102, 126, 234, 0.4);
+	box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.15);
 	z-index: 100;
+	transition: all 0.3s ease;
+	
+	&:active {
+		transform: scale(0.95);
+		background: rgba(0, 122, 255, 0.2);
+	}
 	
 	.upload-icon {
-		font-size: 40rpx;
-		color: white;
+		width: 60rpx;
+		height: 60rpx;
 	}
 }
 

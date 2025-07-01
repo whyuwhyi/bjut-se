@@ -105,9 +105,16 @@
 				<text class="section-title">评论 ({{ comments.length }})</text>
 			</view>
 			
-			<!-- 评论输入触发器 -->
-			<view class="comment-input" @click="handleCommentClick">
-				<text class="comment-placeholder">写下你的评论...</text>
+			<!-- 评论输入区域 -->
+			<view class="comment-input-area">
+				<textarea 
+					class="comment-textarea" 
+					v-model="commentText" 
+					placeholder="写下你的评论..."
+					:maxlength="200"
+					auto-height
+				></textarea>
+				<button class="submit-btn" @click="handleSubmitComment">发表</button>
 			</view>
 			
 			<!-- 评论列表 -->
@@ -308,10 +315,10 @@ export default {
 						
 						// #ifdef H5
 						// H5环境使用带身份认证的下载
-						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const h5DownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
 						
 						// 使用fetch下载文件
-						fetch(downloadApiUrl, {
+						fetch(h5DownloadUrl, {
 							method: 'GET',
 							headers: {
 								'Authorization': `Bearer ${token}`,
@@ -343,10 +350,10 @@ export default {
 						
 						// #ifdef MP-WEIXIN
 						// 微信小程序使用下载API
-						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const wxDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
 						
 						uni.downloadFile({
-							url: downloadApiUrl,
+							url: wxDownloadUrl,
 							header: {
 								'Authorization': `Bearer ${token}`,
 								'Accept': 'application/octet-stream'
@@ -382,9 +389,9 @@ export default {
 						
 						// #ifdef APP-PLUS
 						// App环境使用plus下载
-						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const appDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
 						
-						const dtask = plus.downloader.createDownload(downloadApiUrl, {
+						const dtask = plus.downloader.createDownload(appDownloadUrl, {
 							filename: '_downloads/' + (response.data.data.fileName || 'download'),
 							headers: {
 								'Authorization': `Bearer ${token}`,
@@ -610,7 +617,7 @@ export default {
 			return ratingTexts[rating] || '点击评分'
 		},
 		
-		handleCommentClick() {
+		handleSubmitComment() {
 			// 检查登录状态
 			const token = uni.getStorageSync('token')
 			if (!token) {
@@ -621,23 +628,22 @@ export default {
 				return
 			}
 			
-			// 直接显示输入框
-			uni.showModal({
-				title: '发表评论',
-				editable: true,
-				placeholderText: '写下你的评论...',
-				confirmColor: '#333333',
-				success: async (res) => {
-					if (res.confirm && res.content) {
-						await this.submitComment(res.content)
-					}
-				}
-			})
+			// 检查评论内容
+			if (!this.commentText || !this.commentText.trim()) {
+				uni.showToast({
+					title: '评论内容不能为空',
+					icon: 'none'
+				})
+				return
+			}
+			
+			// 提交评论
+			this.submitComment(this.commentText)
 		},
 		
 		async submitComment(content) {
 			try {
-				if (!content.trim()) {
+				if (!content || !content.trim()) {
 					uni.showToast({
 						title: '评论内容不能为空',
 						icon: 'none'
@@ -654,12 +660,23 @@ export default {
 						'Content-Type': 'application/json'
 					},
 					data: {
-						content: content.trim()
+						comment_content: content.trim()
 					}
 				})
 				
-				if (response.statusCode === 200 && response.data.success) {
-					await this.loadComments()
+				if (response.statusCode === 201 && response.data.success) {
+					const commentData = response.data.data
+					
+					// 使用后端返回的完整评论数据
+					this.comments.unshift({
+						comment_id: commentData.comment_id,
+						userName: commentData.author?.nickname || commentData.author?.name || '我',
+						userAvatar: commentData.author?.avatar_url || '/static/images/default-avatar.png',
+						content: commentData.content,
+						createTime: new Date(commentData.created_at)
+					})
+					
+					this.commentText = '' // 清空输入框
 					
 					uni.showToast({
 						title: '评论成功',
@@ -685,20 +702,21 @@ export default {
 					method: 'GET'
 				})
 				
-				console.log('评论API响应:', response.data)
-				
 				if (response.statusCode === 200 && response.data.success) {
 					this.comments = (response.data.data.comments || []).map(comment => ({
 						comment_id: comment.comment_id,
 						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
-						userAvatar: comment.author?.avatar_url || '',
+						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
 						content: comment.content,
 						createTime: new Date(comment.created_at)
 					}))
-					console.log('处理后的评论数据:', this.comments)
 				}
 			} catch (error) {
 				console.error('加载评论失败:', error)
+				uni.showToast({
+					title: '加载评论失败',
+					icon: 'none'
+				})
 			}
 		},
 		
@@ -751,14 +769,31 @@ export default {
 	min-height: 100vh;
 	padding: 30rpx;
 	padding-bottom: 160rpx;
+	background: transparent !important;
+	
+	&::before {
+		content: '';
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: -1;
+		background-color: #FAEED1;
+		background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+		background-size: 400% 400%;
+		animation: backgroundPan 15s ease infinite;
+	}
 }
 
 .resource-header {
 	background: white;
 	border-radius: 20rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	padding: 40rpx 30rpx;
 	display: flex;
-	align-items: flex-start;
+	flex-direction: column;
+	gap: 20rpx;
 	
 	.resource-icon-section {
 		margin-right: 30rpx;
@@ -850,6 +885,7 @@ export default {
 	padding: 30rpx;
 	display: flex;
 	justify-content: space-around;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	
 	.stat-item {
 		text-align: center;
@@ -885,6 +921,7 @@ export default {
 		border-radius: 15rpx;
 		font-size: 26rpx;
 		transition: all 0.3s ease;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 		
 		&.primary {
 			border-color: #e0e0e0;
@@ -924,6 +961,7 @@ export default {
 	border-radius: 20rpx;
 	margin: 20rpx 0;
 	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	
 	.section-header {
 		margin-bottom: 20rpx;
@@ -969,42 +1007,52 @@ export default {
 	}
 }
 
-.comment-input {
-	margin: 20rpx 0 30rpx;
-	padding: 24rpx 30rpx;
-	background: #f8f8f8;
-	border-radius: 15rpx;
+.comment-input-area {
 	display: flex;
-	align-items: center;
-	transition: all 0.3s ease;
-	border: 2rpx solid transparent;
-	min-height: 88rpx;
+	gap: 20rpx;
+	margin-bottom: 30rpx;
 	
-	&:active {
-		background: #f0f0f0;
-		border-color: #e0e0e0;
-	}
-	
-	.comment-placeholder {
+	.comment-textarea {
+		flex: 1;
+		height: 72rpx;
+		max-height: 144rpx;
+		padding: 16rpx;
+		background: #fff;
+		border-radius: 12rpx;
 		font-size: 28rpx;
-		color: #999;
-		margin-left: 16rpx;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
 	}
 	
-	&::before {
-		content: "💭";
-		font-size: 36rpx;
+	.submit-btn {
+		width: 120rpx;
+		height: 72rpx;
+		line-height: 72rpx;
+		text-align: center;
+		background: #6CB4EE;  /* 浅蓝色 */
+		color: white;
+		border-radius: 12rpx;
+		font-size: 28rpx;
+		padding: 0;
+		margin: 0;
+		box-shadow: 0 2rpx 8rpx rgba(108, 180, 238, 0.3);  /* 添加浅蓝色阴影 */
+		transition: all 0.3s ease;
+		
+		&:active {
+			transform: scale(0.95);
+			background: #5AA1DB;  /* 点击时稍微深一点的蓝色 */
+		}
 	}
 }
 
 .comment-list {
 	.comment-item {
 		display: flex;
-		padding: 25rpx 0;
+		padding: 20rpx 0;
 		border-bottom: 1rpx solid #f0f0f0;
 		
 		&:last-child {
 			border-bottom: none;
+			padding-bottom: 0;
 		}
 		
 		.comment-avatar {
@@ -1020,13 +1068,13 @@ export default {
 			.comment-header {
 				display: flex;
 				align-items: center;
-				margin-bottom: 10rpx;
+				margin-bottom: 8rpx;
 				
 				.comment-username {
 					font-size: 26rpx;
 					font-weight: bold;
 					color: #333;
-					margin-right: 20rpx;
+					margin-right: 16rpx;
 				}
 				
 				.comment-time {
@@ -1039,9 +1087,7 @@ export default {
 				font-size: 26rpx;
 				color: #333;
 				line-height: 1.5;
-				margin-bottom: 15rpx;
 			}
-			
 		}
 	}
 }

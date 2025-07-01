@@ -438,8 +438,8 @@
 
 <style scoped>
 	.my-resources-container {
-		background-color: #f8f8f8;
 		min-height: 100vh;
+		padding: 30rpx;
 		padding-bottom: 160rpx;
 	}
 
@@ -533,7 +533,10 @@
 
 	/* 资源列表 */
 	.resources-list {
-		padding: 16rpx 32rpx;
+		background-color: #ffffff;
+		border-radius: 20rpx;
+		padding: 30rpx;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 	}
 
 	.resource-item {
