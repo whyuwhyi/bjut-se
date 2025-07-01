@@ -259,6 +259,19 @@ class PostController {
             model: User,
             as: 'author',
             attributes: ['phone_number', 'name', 'nickname', 'avatar_url']
+          },
+          {
+            model: Comment,
+            as: 'replies',
+            include: [
+              {
+                model: User,
+                as: 'author',
+                attributes: ['phone_number', 'name', 'nickname', 'avatar_url']
+              }
+            ],
+            where: { status: 'active' },
+            required: false
           }
         ],
         order: [['created_at', 'DESC']],
