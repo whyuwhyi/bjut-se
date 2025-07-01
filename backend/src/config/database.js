@@ -14,7 +14,7 @@ const config = {
       collation: 'utf8mb4_0900_ai_ci',
       timezone: '+08:00'
     },
-    logging: console.log, // 开发环境显示SQL日志
+    logging: false, // 开发环境不显示SQL日志
     pool: {
       max: 10,
       min: 0,

@@ -455,6 +455,9 @@ class ResourceController {
 
   // 下载资源文件
   async downloadResource(req, res) {
+    const path = require('path')
+    const fs = require('fs')
+    
     try {
       const { resourceId, fileId } = req.params
       const userPhone = req.user?.phone_number
@@ -498,15 +501,50 @@ class ResourceController {
 
       // 根据存储方式返回文件
       if (file.storage_method === 'local') {
-        // 返回文件下载链接或直接返回文件
-        res.json({
-          success: true,
-          data: {
-            downloadUrl: `/uploads/${file.storage_path}`,
-            fileName: file.file_name,
-            fileSize: file.file_size
+        // 检查请求头，如果是API请求则返回下载信息，如果是直接访问则返回文件流
+        const acceptHeader = req.headers.accept || ''
+        
+        if (acceptHeader.includes('application/json')) {
+          // API请求，返回下载信息
+          res.json({
+            success: true,
+            data: {
+              downloadUrl: `/uploads/${file.storage_path}`,
+              fileName: file.file_name,
+              fileSize: file.file_size
+            }
+          })
+        } else {
+          // 直接文件访问，返回文件流
+          const filePath = path.join(process.cwd(), 'uploads', file.storage_path)
+          
+          // 检查文件是否存在
+          if (!fs.existsSync(filePath)) {
+            return res.status(404).json({
+              success: false,
+              message: '文件不存在'
+            })
           }
-        })
+          
+          // 设置响应头
+          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.file_name)}"`)
+          res.setHeader('Content-Type', file.file_type || 'application/octet-stream')
+          res.setHeader('Content-Length', file.file_size)
+          
+          // 创建文件流并发送
+          const fileStream = fs.createReadStream(filePath)
+          fileStream.pipe(res)
+          
+          fileStream.on('error', (error) => {
+            console.error('文件流错误:', error)
+            if (!res.headersSent) {
+              res.status(500).json({
+                success: false,
+                message: '文件读取失败'
+              })
+            }
+          })
+        }
       } else if (file.storage_method === 'table' && file.content) {
         // 直接返回文件内容
         res.json({
@@ -525,11 +563,13 @@ class ResourceController {
       }
     } catch (error) {
       console.error('下载资源错误:', error)
-      res.status(500).json({
-        success: false,
-        message: '下载失败',
-        error: error.message
-      })
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: '下载失败',
+          error: error.message
+        })
+      }
     }
   }
 

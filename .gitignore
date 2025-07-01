@@ -37,6 +37,7 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw*
+CLAUDE.md
 
 # 临时文件
 *.tmp

@@ -233,12 +233,140 @@
 				console.log('预览附件:', attachment);
 			},
 			
-			downloadAttachment(attachment) {
-				// 下载附件逻辑
-				uni.showToast({
-					title: '开始下载',
-					icon: 'success'
-				});
+			async downloadAttachment(attachment) {
+				try {
+					const token = uni.getStorageSync('token')
+					if (!token) {
+						uni.showToast({
+							title: '请先登录',
+							icon: 'none'
+						})
+						return
+					}
+					
+					uni.showLoading({ title: '准备下载...' })
+					
+					// 构造下载URL
+					const downloadUrl = attachment.url || attachment.downloadUrl
+					if (!downloadUrl) {
+						uni.hideLoading()
+						uni.showToast({
+							title: '下载链接不可用',
+							icon: 'none'
+						})
+						return
+					}
+					
+					// 构造完整的下载URL
+					const fullDownloadUrl = downloadUrl.startsWith('http') 
+						? downloadUrl 
+						: `${this.$config.apiBaseUrl.replace('/api/v1', '')}${downloadUrl}`
+					
+					uni.hideLoading()
+					
+					// #ifdef H5
+					// H5环境使用fetch下载（支持身份认证）
+					fetch(fullDownloadUrl, {
+						method: 'GET',
+						headers: {
+							'Authorization': `Bearer ${token}`
+						}
+					}).then(response => {
+						if (!response.ok) {
+							throw new Error('下载失败')
+						}
+						return response.blob()
+					}).then(blob => {
+						// 创建下载链接
+						const url = window.URL.createObjectURL(blob)
+						const link = document.createElement('a')
+						link.href = url
+						link.download = attachment.name || attachment.fileName || 'attachment'
+						document.body.appendChild(link)
+						link.click()
+						document.body.removeChild(link)
+						window.URL.revokeObjectURL(url)
+					}).catch(error => {
+						console.error('下载失败:', error)
+						uni.showToast({
+							title: '下载失败',
+							icon: 'none'
+						})
+					})
+					// #endif
+					
+					// #ifdef MP-WEIXIN
+					// 微信小程序使用下载API
+					uni.downloadFile({
+						url: fullDownloadUrl,
+						header: {
+							'Authorization': `Bearer ${token}`
+						},
+						success: (downloadRes) => {
+							if (downloadRes.statusCode === 200) {
+								// 在微信小程序中，可以打开文档
+								uni.openDocument({
+									filePath: downloadRes.tempFilePath,
+									success: () => {
+										uni.showToast({
+											title: '文件已打开',
+											icon: 'success'
+										})
+									},
+									fail: () => {
+										uni.showToast({
+											title: '文件下载完成',
+											icon: 'success'
+										})
+									}
+								})
+							}
+						},
+						fail: () => {
+							uni.showToast({
+								title: '下载失败',
+								icon: 'none'
+							})
+						}
+					})
+					// #endif
+					
+					// #ifdef APP-PLUS
+					// App环境使用plus下载
+					const dtask = plus.downloader.createDownload(fullDownloadUrl, {
+						filename: '_downloads/' + (attachment.name || attachment.fileName || 'attachment'),
+						headers: {
+							'Authorization': `Bearer ${token}`
+						}
+					}, (download, status) => {
+						if (status == 200) {
+							uni.showToast({
+								title: '下载完成',
+								icon: 'success'
+							})
+							plus.runtime.openFile(download.filename)
+						} else {
+							uni.showToast({
+								title: '下载失败',
+								icon: 'none'
+							})
+						}
+					})
+					dtask.start()
+					// #endif
+					
+					uni.showToast({
+						title: '开始下载',
+						icon: 'success'
+					})
+				} catch (error) {
+					console.error('下载附件失败:', error)
+					uni.hideLoading()
+					uni.showToast({
+						title: '下载失败',
+						icon: 'none'
+					})
+				}
 			},
 			
 			openLink() {

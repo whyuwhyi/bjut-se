@@ -268,21 +268,134 @@ export default {
 						uni.hideLoading()
 						uni.showModal({
 							title: '文件内容',
-							content: response.data.data.content.substring(0, 200) + '...',
-							showCancel: false
+							content: response.data.data.content.substring(0, 200) + (response.data.data.content.length > 200 ? '...' : ''),
+							showCancel: true,
+							cancelText: '关闭',
+							confirmText: '复制全部',
+							success: (res) => {
+								if (res.confirm) {
+									// 复制完整内容到剪贴板
+									uni.setClipboardData({
+										data: response.data.data.content,
+										success: () => {
+											uni.showToast({
+												title: '已复制到剪贴板',
+												icon: 'success'
+											})
+										}
+									})
+								}
+							}
 						})
 					} else if (response.data.data.downloadUrl) {
-						// 其他文件显示下载链接
+						// 其他文件进行真实下载
 						uni.hideLoading()
-						uni.showModal({
-							title: '下载地址',
-							content: '文件准备完成，实际项目中这里会触发文件下载',
-							showCancel: false
+						
+						// #ifdef H5
+						// H5环境使用带身份认证的下载
+						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						
+						// 使用fetch下载文件
+						fetch(downloadApiUrl, {
+							method: 'GET',
+							headers: {
+								'Authorization': `Bearer ${token}`,
+								'Accept': 'application/octet-stream'
+							}
+						}).then(response => {
+							if (!response.ok) {
+								throw new Error('下载失败')
+							}
+							return response.blob()
+						}).then(blob => {
+							// 创建下载链接
+							const url = window.URL.createObjectURL(blob)
+							const link = document.createElement('a')
+							link.href = url
+							link.download = response.data.data.fileName || 'download'
+							document.body.appendChild(link)
+							link.click()
+							document.body.removeChild(link)
+							window.URL.revokeObjectURL(url)
+						}).catch(error => {
+							console.error('下载失败:', error)
+							uni.showToast({
+								title: '下载失败',
+								icon: 'none'
+							})
 						})
+						// #endif
+						
+						// #ifdef MP-WEIXIN
+						// 微信小程序使用下载API
+						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						
+						uni.downloadFile({
+							url: downloadApiUrl,
+							header: {
+								'Authorization': `Bearer ${token}`,
+								'Accept': 'application/octet-stream'
+							},
+							success: (downloadRes) => {
+								if (downloadRes.statusCode === 200) {
+									// 在微信小程序中，可以打开文档或保存到相册
+									uni.openDocument({
+										filePath: downloadRes.tempFilePath,
+										success: () => {
+											uni.showToast({
+												title: '文件已打开',
+												icon: 'success'
+											})
+										},
+										fail: () => {
+											uni.showToast({
+												title: '文件下载完成',
+												icon: 'success'
+											})
+										}
+									})
+								}
+							},
+							fail: () => {
+								uni.showToast({
+									title: '下载失败',
+									icon: 'none'
+								})
+							}
+						})
+						// #endif
+						
+						// #ifdef APP-PLUS
+						// App环境使用plus下载
+						const downloadApiUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						
+						const dtask = plus.downloader.createDownload(downloadApiUrl, {
+							filename: '_downloads/' + (response.data.data.fileName || 'download'),
+							headers: {
+								'Authorization': `Bearer ${token}`,
+								'Accept': 'application/octet-stream'
+							}
+						}, (download, status) => {
+							if (status == 200) {
+								uni.showToast({
+									title: '下载完成',
+									icon: 'success'
+								})
+								// 可以选择打开文件
+								plus.runtime.openFile(download.filename)
+							} else {
+								uni.showToast({
+									title: '下载失败',
+									icon: 'none'
+								})
+							}
+						})
+						dtask.start()
+						// #endif
 					}
 					
 					uni.showToast({
-						title: '下载成功',
+						title: '操作成功',
 						icon: 'success'
 					})
 				} else {
