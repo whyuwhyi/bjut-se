@@ -98,10 +98,8 @@ const startServer = async () => {
 
     // 同步数据库模型（开发环境）
     if (config.server.env === 'development') {
-      // 暂时禁用自动同步以避免索引数量超限错误
-      // await sequelize.sync({ alter: true })
+      // 数据库模型同步已禁用，请使用SQL脚本初始化数据库
       console.log('数据库模型同步已禁用，请使用SQL脚本初始化数据库')
-      console.log('数据库和测试数据已合并到database/init/01-init-database.sql文件中')
     }
 
     // 启动服务器

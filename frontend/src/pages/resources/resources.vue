@@ -343,23 +343,42 @@ export default {
 <style lang="scss" scoped>
 .resources-container {
 	min-height: 100vh;
-	padding-bottom: 160rpx;
-	padding: 30rpx;
+	padding: 20rpx;
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 1024rpx;
+	margin: 0 auto;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+	}
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
 }
 
 .top-section {
 	background: white;
-	padding: 20rpx;
-	border-bottom: 1rpx solid #f0f0f0;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-	border-radius: 20rpx;
-	margin-bottom: 30rpx;
+	padding: 32rpx;
+	border-radius: 24rpx;
+	margin-bottom: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 	
 	.search-bar {
 		display: flex;
 		align-items: center;
 		background: #f8f8f8;
-		border-radius: 50rpx;
+		border-radius: 24rpx;
 		padding: 0 30rpx;
 		margin-bottom: 20rpx;
 		
@@ -588,14 +607,16 @@ export default {
 }
 
 .resources-list {
-	padding: 20rpx;
+	padding: 0;
+	width: 100%;
+	box-sizing: border-box;
 	
 	.resource-item {
 		background: white;
-		border-radius: 20rpx;
-		padding: 30rpx;
-		margin-bottom: 20rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+		border-radius: 24rpx;
+		padding: 32rpx;
+		margin-bottom: 32rpx;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 		transition: all 0.3s ease;
 		
 		&:active {

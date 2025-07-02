@@ -543,6 +543,11 @@ export default {
 	padding: 20rpx;
 	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 1024rpx;
+	margin: 0 auto;
 }
 
 @keyframes gradientBG {
@@ -564,7 +569,11 @@ export default {
 	align-items: center;
 	padding: 32rpx;
 	background-color: #ffffff;
-	border-bottom: 1rpx solid #e0e0e0;
+	border-radius: 24rpx;
+	margin-bottom: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .plan-selector .selector-trigger {
@@ -606,11 +615,13 @@ export default {
 
 /* 当前计划概览 */
 .current-plan-overview {
-	margin: 32rpx;
+	margin: 0 0 32rpx 0;
 	background-color: #ffffff;
-	border-radius: 16rpx;
+	border-radius: 24rpx;
 	padding: 32rpx;
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .plan-header {
@@ -706,10 +717,13 @@ export default {
 
 /* 任务部分 */
 .tasks-section {
-	margin: 16rpx 32rpx;
+	margin: 0 0 32rpx 0;
 	background-color: #ffffff;
-	border-radius: 16rpx;
+	border-radius: 24rpx;
 	padding: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .section-header {
@@ -889,10 +903,13 @@ export default {
 
 /* 学习统计部分 */
 .stats-section {
-	margin: 16rpx 32rpx;
+	margin: 0 0 32rpx 0;
 	background-color: #ffffff;
-	border-radius: 16rpx;
+	border-radius: 24rpx;
 	padding: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .stats-grid {
@@ -925,8 +942,8 @@ export default {
 /* 创建按钮 */
 .create-btn {
 	position: fixed;
-	right: 30rpx;
-	bottom: 120rpx;
+	right: 40rpx;
+	bottom: 160rpx;
 	width: 120rpx;
 	height: 120rpx;
 	border-radius: 50%;
@@ -934,12 +951,13 @@ export default {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.15);
+	z-index: 100;
 	transition: all 0.3s ease;
 	
 	&:active {
 		transform: scale(0.95);
-		background: rgba(0, 122, 255, 0.15);
+		background: rgba(0, 122, 255, 0.2);
 	}
 }
 

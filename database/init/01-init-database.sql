@@ -46,6 +46,7 @@ CREATE TABLE users (
     resource_count INT DEFAULT 0 COMMENT '资源数',
     follower_count INT DEFAULT 0 COMMENT '粉丝数',
     following_count INT DEFAULT 0 COMMENT '关注数',
+    privacy_settings JSON DEFAULT ('{"show_email": false, "show_student_id": false, "show_real_name": true, "show_bio": true, "show_stats": true, "allow_follow": true}') COMMENT '隐私设置',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='用户信息表';

@@ -395,7 +395,7 @@ class PostController {
       if (!post) {
         return res.status(404).json({
           success: false,
-          message: '帖子不存在'
+          message: '帖子不存在或已被删除'
         })
       }
 
@@ -410,6 +410,7 @@ class PostController {
       // 软删除：将状态改为deleted
       await post.update({ status: 'deleted' })
 
+      // 递减帖子计数（由于查询条件已确保帖子状态为active/hidden，所以安全递减）
       await User.decrement('post_count', { where: { phone_number: userPhone }, min: 0 })
 
       res.status(200).json({

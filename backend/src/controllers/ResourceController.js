@@ -140,7 +140,8 @@ class ResourceController {
     try {
       const { id } = req.params
 
-      const resource = await Resource.findByPk(id, {
+      const resource = await Resource.findOne({
+        where: { resource_id: id },
         include: [
           {
             model: User,
@@ -578,6 +579,52 @@ class ResourceController {
           error: error.message
         })
       }
+    }
+  }
+
+  // 删除资源
+  async deleteResource(req, res) {
+    try {
+      const { id } = req.params
+      const userPhone = req.user.phone_number
+
+      // 查找资源
+      const resource = await Resource.findOne({
+        where: { 
+          resource_id: id,
+          status: { [Op.in]: ['draft', 'pending', 'published', 'rejected'] }
+        }
+      })
+
+      if (!resource) {
+        return res.status(404).json({
+          success: false,
+          message: '资源不存在'
+        })
+      }
+
+      // 验证权限：只能删除自己的资源
+      if (resource.publisher_phone !== userPhone) {
+        return res.status(403).json({
+          success: false,
+          message: '您没有权限删除这个资源'
+        })
+      }
+
+      // 软删除：将状态改为archived
+      await resource.update({ status: 'archived' })
+
+      res.status(200).json({
+        success: true,
+        message: '删除资源成功'
+      })
+    } catch (error) {
+      console.error('删除资源失败:', error)
+      res.status(500).json({
+        success: false,
+        message: '删除资源失败',
+        errors: [error.message]
+      })
     }
   }
 

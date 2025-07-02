@@ -5,13 +5,13 @@
 			<view class="resource-icon-section">
 				<image :src="getFileIcon(resource.fileType)" class="file-icon-large"></image>
 				<view class="file-info">
-					<text class="file-type">{{ resource.fileType.toUpperCase() }}</text>
-					<text class="file-size">{{ formatFileSize(resource.fileSize) }}</text>
+					<text class="file-type">{{ resource.fileType ? resource.fileType.toUpperCase() : '未知类型' }}</text>
+					<text class="file-size">{{ resource.fileSize ? formatFileSize(resource.fileSize) : '大小未知' }}</text>
 				</view>
 			</view>
 			
 			<view class="resource-title-section">
-				<text class="resource-title">{{ resource.title }}</text>
+				<text class="resource-title">{{ resource.title || '资源标题' }}</text>
 				<view class="resource-tags">
 					<text class="tag category">{{ resource.category }}</text>
 				</view>
@@ -60,6 +60,14 @@
 				<text class="btn-icon">🚨</text>
 				<text class="btn-text">举报</text>
 			</button>
+		</view>
+
+		<!-- 文件状态提示 -->
+		<view class="file-status-section" v-if="!resource.files || resource.files.length === 0">
+			<view class="file-status-warning">
+				<text class="warning-icon">⚠️</text>
+				<text class="warning-text">该资源暂无关联文件</text>
+			</view>
 		</view>
 
 		<!-- 资源描述 -->
@@ -1286,5 +1294,31 @@ export default {
 	font-size: 24rpx;
 	color: #888;
 	margin-bottom: 10rpx;
+}
+
+/* 文件状态提示样式 */
+.file-status-section {
+	background-color: #fff8dc;
+	border: 2rpx solid #f0ad4e;
+	border-radius: 12rpx;
+	margin: 20rpx 0;
+	padding: 20rpx;
+}
+
+.file-status-warning {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12rpx;
+}
+
+.warning-icon {
+	font-size: 32rpx;
+}
+
+.warning-text {
+	font-size: 28rpx;
+	color: #856404;
+	font-weight: 500;
 }
 </style>

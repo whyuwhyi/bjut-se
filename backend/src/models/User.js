@@ -82,22 +82,46 @@ const User = sequelize.define('User', {
   post_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    validate: {
+      min: 0
+    },
     comment: '发帖数'
   },
   resource_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    validate: {
+      min: 0
+    },
     comment: '资源数'
   },
   follower_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    validate: {
+      min: 0
+    },
     comment: '粉丝数'
   },
   following_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    validate: {
+      min: 0
+    },
     comment: '关注数'
+  },
+  privacy_settings: {
+    type: DataTypes.JSON,
+    defaultValue: {
+      show_email: false,
+      show_student_id: false,
+      show_real_name: true,
+      show_bio: true,
+      show_stats: true,
+      allow_follow: true
+    },
+    comment: '隐私设置'
   }
 }, {
   tableName: 'users',

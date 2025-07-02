@@ -16,6 +16,7 @@ router.post('/', auth, ResourceController.createResource)
 router.post('/:resourceId/favorite', auth, ResourceController.toggleFavorite)
 router.post('/:resourceId/submit-review', auth, ResourceController.submitForReview)
 router.post('/:resourceId/review', auth, adminAuth, ResourceController.reviewResource)
+router.delete('/:id', auth, ResourceController.deleteResource)
 
 // 下载路由 - 参数路由放在最后
 router.get('/:resourceId/files/:fileId/download', auth, ResourceController.downloadResource)

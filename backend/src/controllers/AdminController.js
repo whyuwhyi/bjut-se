@@ -955,7 +955,16 @@ class AdminController {
         });
       }
 
+      const previousStatus = post.status;
       await post.update({ status });
+
+      // 如果帖子被删除（从active/hidden状态变为deleted），需要递减用户的帖子计数
+      if (status === 'deleted' && ['active', 'hidden'].includes(previousStatus)) {
+        await User.decrement('post_count', { 
+          where: { phone_number: post.author_phone }, 
+          min: 0 
+        });
+      }
 
       // 如果隐藏或删除帖子，发送通知给作者
       if (status !== 'active') {
@@ -1063,10 +1072,18 @@ class AdminController {
 
       // 根据处理动作更新帖子状态
       if (report.post) {
+        const previousStatus = report.post.status;
         if (action === 'hide_post') {
           await report.post.update({ status: 'hidden' });
         } else if (action === 'delete_post') {
           await report.post.update({ status: 'deleted' });
+          // 如果帖子被删除（从active/hidden状态变为deleted），需要递减用户的帖子计数
+          if (['active', 'hidden'].includes(previousStatus)) {
+            await User.decrement('post_count', { 
+              where: { phone_number: report.post.author_phone }, 
+              min: 0 
+            });
+          }
         }
       }
 
