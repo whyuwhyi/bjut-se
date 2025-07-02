@@ -42,6 +42,10 @@ CREATE TABLE users (
     gender ENUM('M', 'F', 'U') DEFAULT 'U' COMMENT '性别',
     role ENUM('user', 'admin') DEFAULT 'user' COMMENT '用户角色',
     status ENUM('active', 'inactive', 'banned') DEFAULT 'active' COMMENT '用户状态',
+    post_count INT DEFAULT 0 COMMENT '发帖数',
+    resource_count INT DEFAULT 0 COMMENT '资源数',
+    follower_count INT DEFAULT 0 COMMENT '粉丝数',
+    following_count INT DEFAULT 0 COMMENT '关注数',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='用户信息表';

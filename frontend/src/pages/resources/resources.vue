@@ -62,11 +62,6 @@
 							<text class="tag">{{ item.category }}</text>
 						</view>
 					</view>
-					<view class="resource-actions">
-						<view class="action-btn" @click.stop="toggleFavorite(item)">
-							<text class="action-icon" :class="{ favorited: item.isFavorited }">{{ item.isFavorited ? '❤️' : '🤍' }}</text>
-						</view>
-					</view>
 				</view>
 				
 				<view class="resource-meta">
@@ -78,6 +73,7 @@
 						<text class="stat-item">👁️ {{ item.viewCount }}</text>
 						<text class="stat-item">⬇️ {{ item.downloadCount }}</text>
 						<text class="stat-item">⭐ {{ item.rating }}</text>
+						<text class="stat-item">❤️ {{ item.favoriteCount || item.collection_count || 0 }}</text>
 					</view>
 				</view>
 				
@@ -90,6 +86,10 @@
 		<!-- 上传按钮 -->
 		<view class="upload-btn" @click="goToUpload">
 			<image class="upload-icon" src="/static/icons/upload.png" mode="aspectFit"></image>
+		</view>
+
+		<view class="load-more" v-if="hasMore && !loading">
+			<button class="load-more-btn" @click="loadResources()">加载更多</button>
 		</view>
 
 	</view>
@@ -111,6 +111,9 @@ export default {
 			selectedCategoryIndex: -1,
 			selectedSortIndex: 0,
 			resources: [],
+			page: 1,
+			limit: 6,
+			hasMore: true,
 			loading: false
 		}
 	},
@@ -149,59 +152,59 @@ export default {
 		},
 		
 		// 加载资源列表
-		async loadResources() {
+		async loadResources(refresh = false) {
+			if (this.loading) return
 			try {
 				this.loading = true
-				
 				const params = {
-					page: 1,
-					limit: 50,
+					page: refresh ? 1 : this.page,
+					limit: this.limit,
 					sortBy: this.currentSort
 				}
-				
-				// 添加筛选条件
 				if (this.selectedCategoryIndex >= 0 && this.categories[this.selectedCategoryIndex]) {
 					params.categories = this.categories[this.selectedCategoryIndex].category_id
 				}
-				
-				
 				if (this.searchKeyword) {
 					params.search = this.searchKeyword
 				}
-				
 				const token = uni.getStorageSync('token')
 				const headers = {}
 				if (token) {
 					headers['Authorization'] = `Bearer ${token}`
 				}
-				
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources`,
 					method: 'GET',
 					header: headers,
 					data: params
 				})
-				
 				if (response.statusCode === 200 && response.data.success) {
-					this.resources = response.data.data.resources || []
+					const list = (response.data.data.resources || []).map(item => ({
+						...item,
+						isFavorited: typeof item.isFavorited === 'boolean' ? item.isFavorited : false
+					}))
+					if (refresh) {
+						this.resources = list
+						this.page = 2
+					} else {
+						this.resources = [...this.resources, ...list]
+						this.page += 1
+					}
+					this.hasMore = list.length === this.limit
 				} else {
-					uni.showToast({
-						title: '加载失败',
-						icon: 'none'
-					})
+					uni.showToast({ title: '加载失败', icon: 'none' })
 				}
 			} catch (error) {
 				console.error('加载资源列表错误:', error)
-				uni.showToast({
-					title: '网络错误',
-					icon: 'none'
-				})
+				uni.showToast({ title: '网络错误', icon: 'none' })
 			} finally {
 				this.loading = false
 			}
 		},
 		handleSearch() {
-			this.loadResources()
+			this.page = 1
+			this.hasMore = true
+			this.loadResources(true)
 		},
 		
 
@@ -235,11 +238,13 @@ export default {
 					})
 					return
 				}
-				
-				// 乐观更新：先改变UI状态
+				// 乐观更新
 				const originalState = item.isFavorited
 				item.isFavorited = !item.isFavorited
-				
+				// 本地同步更新收藏数
+				const originalCount = item.collection_count || 0
+				item.collection_count = originalState ? originalCount - 1 : originalCount + 1
+
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources/${item.id}/favorite`,
 					method: 'POST',
@@ -251,25 +256,33 @@ export default {
 						type: 'resource'
 					}
 				})
-				
+
 				if (response.statusCode === 200 && response.data.success) {
-					// 确保状态与服务器返回一致
-					item.isFavorited = response.data.data.isCollected
+					// 用接口返回的 isCollected 字段修正
+					if (typeof response.data.data.isCollected !== 'undefined') {
+						item.isFavorited = response.data.data.isCollected
+					}
+					// 用接口返回的收藏数修正（如果有）
+					if (typeof response.data.data.collection_count !== 'undefined') {
+						item.collection_count = response.data.data.collection_count
+					}
 					uni.showToast({
 						title: response.data.message,
 						icon: 'success'
 					})
 				} else {
-					// 操作失败，恢复原来的状态
+					// 操作失败，恢复原来的状态和收藏数
 					item.isFavorited = originalState
+					item.collection_count = originalCount
 					uni.showToast({
 						title: '操作失败',
 						icon: 'none'
 					})
 				}
 			} catch (error) {
-				// 网络错误，恢复原来的状态
+				// 网络错误，恢复原来的状态和收藏数
 				item.isFavorited = originalState
+				item.collection_count = originalCount
 				console.error('收藏操作错误:', error)
 				uni.showToast({
 					title: '网络错误',
@@ -645,20 +658,6 @@ export default {
 						color: #007aff;
 						border-radius: 20rpx;
 						font-size: 22rpx;
-					}
-				}
-			}
-			
-			.resource-actions {
-				.action-btn {
-					padding: 10rpx;
-					
-					.action-icon {
-						font-size: 32rpx;
-						
-						&.favorited {
-							color: #ff4757;
-						}
 					}
 				}
 			}

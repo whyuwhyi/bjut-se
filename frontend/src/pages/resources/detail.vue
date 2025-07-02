@@ -118,7 +118,7 @@
 					:maxlength="200"
 					auto-height
 				></textarea>
-				<button class="submit-btn" @click="handleSubmitComment">{{ sending ? '发送中...' : '发表' }}</button>
+				<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
 				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
 					<text class="cancel-text">取消回复</text>
 				</view>
@@ -702,17 +702,18 @@ export default {
 			this.commentText = ''
 		},
 		async handleSubmitComment() {
-			const token = uni.getStorageSync('token')
-			if (!token) {
-				uni.showToast({ title: '请先登录', icon: 'none' })
-				return
-			}
-			if (!this.commentText || !this.commentText.trim()) {
-				uni.showToast({ title: '评论内容不能为空', icon: 'none' })
-				return
-			}
+			if (this.sending) return;
+			this.sending = true;
 			try {
-				this.sending = true
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({ title: '请先登录', icon: 'none' })
+					return
+				}
+				if (!this.commentText || !this.commentText.trim()) {
+					uni.showToast({ title: '评论内容不能为空', icon: 'none' })
+					return
+				}
 				const data = {
 					comment_content: this.commentText.trim()
 				}
@@ -737,7 +738,7 @@ export default {
 			} catch (error) {
 				uni.showToast({ title: '评论失败', icon: 'none' })
 			} finally {
-				this.sending = false
+				this.sending = false;
 			}
 		},
 		

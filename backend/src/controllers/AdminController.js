@@ -696,6 +696,11 @@ class AdminController {
         reviewed_at: new Date()
       });
 
+      // 新增：删除资源后自减用户资源数
+      if (resource.publisher_phone) {
+        await User.decrement('resource_count', { where: { phone_number: resource.publisher_phone }, min: 0 })
+      }
+
       // 发送通知给资源发布者
       await Notification.create({
         notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),

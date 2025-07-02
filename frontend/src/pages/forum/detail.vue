@@ -64,7 +64,7 @@
 					:maxlength="200"
 					auto-height
 				></textarea>
-				<button class="submit-btn" @click="handleSubmitComment">{{ sending ? '发送中...' : '发表' }}</button>
+				<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
 				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
 					<text class="cancel-text">取消回复</text>
 				</view>
@@ -260,6 +260,8 @@ export default {
 		},
 		
 		async handleSubmitComment() {
+			if (this.sending) return;
+			this.sending = true;
 			const token = uni.getStorageSync('token')
 			if (!token) {
 				uni.showToast({ title: '请先登录', icon: 'none' })
@@ -270,7 +272,6 @@ export default {
 				return
 			}
 			try {
-				this.sending = true
 				const data = {
 					content: this.commentText.trim()
 				}
@@ -355,7 +356,11 @@ export default {
 		},
 		shareToFriend() {
 			this.closeSharePopup()
-			uni.showToast({ title: '请在微信内使用原生分享功能', icon: 'none' })
+			uni.showModal({
+				title: '分享给好友',
+				content: '请点击"复制链接"并粘贴到微信/QQ等聊天工具发送给好友。',
+				showCancel: false
+			})
 		},
 		copyPostLink() {
 			this.closeSharePopup()
