@@ -285,11 +285,11 @@ export default {
 
 <style lang="scss" scoped>
 .forum-container {
-	padding: 32rpx;
 	min-height: 100vh;
-	background: #f8f8f8;
+	padding: 32rpx;
+	background: linear-gradient(to bottom, #FFF8DB, #FAEED1);
 }
-
+	
 .top-section {
 	margin-bottom: 32rpx;
 	
