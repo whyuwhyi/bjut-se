@@ -89,7 +89,13 @@
 			return {
 				banners: [
 					{
-						image: require('@/static/logo.png')
+						image: require('@/static/images/information.png')
+					},
+					{
+						image: require('@/static/images/digital.png')
+					},
+					{
+						image: require('@/static/images/data-integration.png')
 					}
 				],
 				quickAccess: [
@@ -102,6 +108,16 @@
 						icon: require('@/static/icons/upload.png'),
 						text: '上传资源',
 						url: '/pages/resources/upload'
+					},
+					{
+						icon: require('@/static/icons/create-plan.png'),
+						text: '新建计划',
+						url: '/pages/learning/create-plan'
+					},
+					{
+						icon: require('@/static/icons/star.png'),
+						text: '我的收藏',
+						url: '/pages/profile/favorites'
 					}
 				],
 				notices: [],
@@ -402,14 +418,17 @@
 
 <style lang="scss">
 .banner-section {
-	margin-bottom: 30rpx; /* 增加底部间距，将下方内容向下推 */
+	margin-bottom: 30rpx;
 
 	.banner-swiper {
 		height: 300rpx;
+		padding: 0 20rpx;
 
 		.banner-image {
 			width: 100%;
 			height: 100%;
+			border-radius: 20rpx;
+			object-fit: cover;
 		}
 	}
 }

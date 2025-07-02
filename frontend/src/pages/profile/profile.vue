@@ -286,9 +286,11 @@ export default {
 }
 
 .profile-card {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	background: linear-gradient(135deg, #BEE3F8 0%, #90CDF4 100%);
 	padding: 40rpx 30rpx;
 	color: white;
+	border-radius: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	
 	.profile-header {
 		display: flex;
