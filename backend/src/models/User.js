@@ -110,6 +110,18 @@ const User = sequelize.define('User', {
       min: 0
     },
     comment: '关注数'
+  },
+  privacy_settings: {
+    type: DataTypes.JSON,
+    defaultValue: {
+      show_email: false,
+      show_student_id: false,
+      show_real_name: true,
+      show_bio: true,
+      show_stats: true,
+      allow_follow: true
+    },
+    comment: '隐私设置'
   }
 }, {
   tableName: 'users',

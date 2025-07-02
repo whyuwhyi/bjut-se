@@ -55,7 +55,32 @@ const auth = async (req, res, next) => {
   }
 }
 
+// 可选认证中间件：如果有token则验证，没有token则继续
+const optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '')
+    
+    if (!token) {
+      // 没有token时，直接继续，不设置req.user
+      return next()
+    }
+
+    const decoded = jwt.verify(token, config.jwt.secret)
+    const user = await User.findByPk(decoded.phone_number)
+
+    if (user && user.status === 'active') {
+      req.user = user
+    }
+    
+    next()
+  } catch (error) {
+    // token无效时，不返回错误，继续执行，但不设置req.user
+    next()
+  }
+}
+
 module.exports = {
   authenticateToken: auth,
-  auth
+  auth,
+  optionalAuth
 }

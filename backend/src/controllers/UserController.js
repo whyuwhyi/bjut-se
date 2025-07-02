@@ -249,6 +249,115 @@ class UserController {
     }
   }
 
+  // 获取其他用户的公开信息
+  async getUserProfile(req, res) {
+    try {
+      const { phone } = req.params
+      const currentUserPhone = req.user ? req.user.phone_number : null
+
+      const user = await User.findByPk(phone)
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        })
+      }
+
+      // 检查用户状态
+      if (user.status !== 'active') {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        })
+      }
+
+      // 获取隐私设置
+      const privacySettings = user.privacy_settings || {
+        show_email: false,
+        show_student_id: false,
+        show_real_name: true,
+        show_bio: true,
+        show_stats: true,
+        allow_follow: true
+      }
+
+      // 构建公开信息对象
+      const publicProfile = {
+        phone_number: user.phone_number,
+        nickname: user.nickname,
+        avatar_url: user.avatar_url,
+        created_at: user.created_at
+      }
+
+      // 根据隐私设置添加信息
+      if (privacySettings.show_real_name) {
+        publicProfile.name = user.name
+      }
+      
+      if (privacySettings.show_bio) {
+        publicProfile.bio = user.bio
+      }
+      
+      if (privacySettings.show_stats) {
+        publicProfile.resource_count = user.resource_count
+        publicProfile.post_count = user.post_count
+        publicProfile.follower_count = user.follower_count
+        publicProfile.following_count = user.following_count
+      }
+
+      // 如果是当前用户查看自己，返回完整信息
+      if (currentUserPhone === phone) {
+        publicProfile.name = user.name
+        publicProfile.email = user.email
+        publicProfile.student_id = user.student_id
+        publicProfile.bio = user.bio
+        publicProfile.resource_count = user.resource_count
+        publicProfile.post_count = user.post_count
+        publicProfile.follower_count = user.follower_count
+        publicProfile.following_count = user.following_count
+        publicProfile.privacy_settings = user.privacy_settings
+      } else {
+        // 其他用户查看时，根据隐私设置决定是否显示敏感信息
+        if (privacySettings.show_email) {
+          publicProfile.email = user.email
+        }
+        if (privacySettings.show_student_id) {
+          publicProfile.student_id = user.student_id
+        }
+      }
+
+      // 检查当前用户是否关注了这个用户
+      let isFollowing = false
+      let canFollow = privacySettings.allow_follow
+      
+      if (currentUserPhone && currentUserPhone !== phone && canFollow) {
+        const followRecord = await UserFollow.findOne({
+          where: {
+            follower_phone: currentUserPhone,
+            following_phone: phone,
+            status: 'active'
+          }
+        })
+        isFollowing = !!followRecord
+      }
+
+      res.json({
+        success: true,
+        data: {
+          user: publicProfile,
+          isFollowing,
+          canFollow
+        }
+      })
+    } catch (error) {
+      console.error('Get user profile error:', error)
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      })
+    }
+  }
+
   // 更新用户信息
   async updateProfile(req, res) {
     try {
@@ -684,6 +793,60 @@ class UserController {
   }
 
   // 获取用户下载记录
+
+  // 更新用户隐私设置
+  async updatePrivacySettings(req, res) {
+    try {
+      const phone_number = req.user.phone_number
+      const { privacy_settings } = req.body
+
+      const user = await User.findByPk(phone_number)
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        })
+      }
+
+      // 验证隐私设置格式
+      const allowedSettings = ['show_email', 'show_student_id', 'show_real_name', 'show_bio', 'show_stats', 'allow_follow']
+      const validSettings = {}
+      
+      for (const key of allowedSettings) {
+        if (key in privacy_settings && typeof privacy_settings[key] === 'boolean') {
+          validSettings[key] = privacy_settings[key]
+        }
+      }
+
+      // 合并现有设置和新设置
+      const currentSettings = user.privacy_settings || {
+        show_email: false,
+        show_student_id: false,
+        show_real_name: true,
+        show_bio: true,
+        show_stats: true,
+        allow_follow: true
+      }
+
+      const newSettings = { ...currentSettings, ...validSettings }
+
+      await user.update({ privacy_settings: newSettings })
+
+      res.json({
+        success: true,
+        message: '隐私设置更新成功',
+        data: {
+          privacy_settings: newSettings
+        }
+      })
+    } catch (error) {
+      console.error('Update privacy settings error:', error)
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      })
+    }
+  }
 
   // 获取用户统计信息
   async getUserStats(req, res) {
