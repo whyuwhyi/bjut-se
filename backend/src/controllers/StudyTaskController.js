@@ -1,4 +1,4 @@
-const { StudyTask, SubTask, StudyPlan, StudyRecord } = require('../models')
+const { StudyTask, SubTask, StudyPlan } = require('../models')
 
 // 创建学习任务
 const createTask = async (req, res) => {
@@ -138,32 +138,6 @@ const updateTaskStatus = async (req, res) => {
 
     await task.update(updateData)
 
-    // 如果任务完成，记录学习活动
-    if (status === 'completed') {
-      await StudyRecord.create({
-        user_phone: phone_number,
-        plan_id: task.plan_id,
-        task_id: id,
-        activity_type: 'task_complete',
-        duration_minutes: (actual_hours || 0) * 60,
-        experience_gained: 20,
-        study_date: new Date()
-      })
-    } else if (status === 'in_progress') {
-      // 如果任务从完成状态切换回未完成状态，可以选择删除相关的完成记录
-      // 这里我们保留记录，只是不创建新的记录
-      // 如果需要删除，可以取消注释下面的代码：
-      /*
-      await StudyRecord.destroy({
-        where: {
-          user_phone: phone_number,
-          task_id: id,
-          activity_type: 'task_complete'
-        }
-      })
-      */
-    }
-
     res.json({
       success: true,
       message: '任务状态更新成功',
@@ -271,7 +245,7 @@ const addSubTask = async (req, res) => {
   try {
     const { task_id } = req.params
     const { phone_number } = req.user
-    const { title, sort_order } = req.body
+    const { title, description, deadline, priority, estimated_minutes, notes, sort_order } = req.body
 
     // 验证任务是否存在且属于当前用户
     const task = await StudyTask.findOne({
@@ -292,9 +266,27 @@ const addSubTask = async (req, res) => {
       })
     }
 
+    // 时间约束验证：子任务的截止日期必须在任务的时间范围内
+    if (deadline) {
+      const deadlineDate = new Date(deadline)
+      const taskDeadline = new Date(task.deadline)
+      
+      if (deadlineDate > taskDeadline) {
+        return res.status(400).json({
+          success: false,
+          message: `子任务截止日期不能晚于任务截止日期 ${task.deadline.split('T')[0]}`
+        })
+      }
+    }
+
     const subtask = await SubTask.create({
       task_id,
       title,
+      description,
+      deadline,
+      priority: priority || 'medium',
+      estimated_minutes: estimated_minutes || 0,
+      notes,
       sort_order: sort_order || 0,
       completed: false
     })
@@ -314,12 +306,12 @@ const addSubTask = async (req, res) => {
   }
 }
 
-// 更新子任务状态
+// 更新子任务
 const updateSubTask = async (req, res) => {
   try {
     const { subtask_id } = req.params
     const { phone_number } = req.user
-    const { completed, title } = req.body
+    const { completed, title, description, deadline, priority, estimated_minutes, notes, sort_order } = req.body
 
     const subtask = await SubTask.findOne({
       where: { subtask_id },
@@ -345,9 +337,28 @@ const updateSubTask = async (req, res) => {
       })
     }
 
+    // 时间约束验证：如果更新截止日期，必须在任务的时间范围内
+    if (deadline) {
+      const deadlineDate = new Date(deadline)
+      const taskDeadline = new Date(subtask.task.deadline)
+      
+      if (deadlineDate > taskDeadline) {
+        return res.status(400).json({
+          success: false,
+          message: `子任务截止日期不能晚于任务截止日期 ${subtask.task.deadline.split('T')[0]}`
+        })
+      }
+    }
+
     const updateData = {}
     if (completed !== undefined) updateData.completed = completed
     if (title !== undefined) updateData.title = title
+    if (description !== undefined) updateData.description = description
+    if (deadline !== undefined) updateData.deadline = deadline
+    if (priority !== undefined) updateData.priority = priority
+    if (estimated_minutes !== undefined) updateData.estimated_minutes = estimated_minutes
+    if (notes !== undefined) updateData.notes = notes
+    if (sort_order !== undefined) updateData.sort_order = sort_order
 
     await subtask.update(updateData)
 
@@ -412,6 +423,175 @@ const deleteSubTask = async (req, res) => {
   }
 }
 
+// 批量更新子任务排序
+const updateSubTasksOrder = async (req, res) => {
+  try {
+    const { task_id } = req.params
+    const { phone_number } = req.user
+    const { subtasks } = req.body // Array of {subtask_id, sort_order}
+
+    // 验证任务是否存在且属于当前用户
+    const task = await StudyTask.findOne({
+      where: { task_id },
+      include: [
+        {
+          model: StudyPlan,
+          as: 'plan',
+          where: { user_phone: phone_number }
+        }
+      ]
+    })
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: '学习任务不存在'
+      })
+    }
+
+    // 批量更新排序
+    const updatePromises = subtasks.map(({ subtask_id, sort_order }) =>
+      SubTask.update(
+        { sort_order },
+        { where: { subtask_id, task_id } }
+      )
+    )
+
+    await Promise.all(updatePromises)
+
+    res.json({
+      success: true,
+      message: '子任务排序更新成功'
+    })
+  } catch (error) {
+    console.error('更新子任务排序失败:', error)
+    res.status(500).json({
+      success: false,
+      message: '更新子任务排序失败',
+      error: error.message
+    })
+  }
+}
+
+// 获取任务的子任务统计信息
+const getSubTaskStats = async (req, res) => {
+  try {
+    const { task_id } = req.params
+    const { phone_number } = req.user
+
+    // 验证任务是否存在且属于当前用户
+    const task = await StudyTask.findOne({
+      where: { task_id },
+      include: [
+        {
+          model: StudyPlan,
+          as: 'plan',
+          where: { user_phone: phone_number }
+        },
+        {
+          model: SubTask,
+          as: 'subtasks'
+        }
+      ]
+    })
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: '学习任务不存在'
+      })
+    }
+
+    const subtasks = task.subtasks
+    const total = subtasks.length
+    const completed = subtasks.filter(st => st.completed).length
+    const pending = total - completed
+
+    // 按优先级统计
+    const highPriority = subtasks.filter(st => st.priority === 'high').length
+    const mediumPriority = subtasks.filter(st => st.priority === 'medium').length
+    const lowPriority = subtasks.filter(st => st.priority === 'low').length
+
+    // 计算加权进度（高优先级3倍权重，中优先级2倍权重，低优先级1倍权重）
+    let totalWeight = 0
+    let completedWeight = 0
+
+    subtasks.forEach(st => {
+      const weight = st.priority === 'high' ? 3 : st.priority === 'medium' ? 2 : 1
+      totalWeight += weight
+      if (st.completed) {
+        completedWeight += weight
+      }
+    })
+
+    const weightedProgress = totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0
+
+    // 时间统计
+    const totalEstimatedMinutes = subtasks.reduce((sum, st) => sum + (st.estimated_minutes || 0), 0)
+    const completedEstimatedMinutes = subtasks
+      .filter(st => st.completed)
+      .reduce((sum, st) => sum + (st.estimated_minutes || 0), 0)
+
+    // 过期任务统计
+    const today = new Date()
+    const overdue = subtasks.filter(st => !st.completed && st.deadline && new Date(st.deadline) < today).length
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        completed,
+        pending,
+        overdue,
+        progress: total > 0 ? Math.round((completed / total) * 100) : 0,
+        weightedProgress,
+        priority: {
+          high: highPriority,
+          medium: mediumPriority,
+          low: lowPriority
+        },
+        estimatedTime: {
+          total: totalEstimatedMinutes,
+          completed: completedEstimatedMinutes,
+          remaining: totalEstimatedMinutes - completedEstimatedMinutes
+        }
+      }
+    })
+  } catch (error) {
+    console.error('获取子任务统计失败:', error)
+    res.status(500).json({
+      success: false,
+      message: '获取子任务统计失败',
+      error: error.message
+    })
+  }
+}
+
+// 时间约束验证工具函数
+const validateTimeConstraints = (taskDeadline, subtaskDeadline, planEndDate) => {
+  const errors = []
+  
+  if (subtaskDeadline && taskDeadline) {
+    const subtaskDate = new Date(subtaskDeadline)
+    const taskDate = new Date(taskDeadline)
+    
+    if (subtaskDate > taskDate) {
+      errors.push(`子任务截止日期不能晚于任务截止日期 ${taskDeadline.split('T')[0]}`)
+    }
+  }
+  
+  if (subtaskDeadline && planEndDate) {
+    const subtaskDate = new Date(subtaskDeadline)
+    const planDate = new Date(planEndDate)
+    
+    if (subtaskDate > planDate) {
+      errors.push(`子任务截止日期不能晚于计划结束日期 ${planEndDate.split('T')[0]}`)
+    }
+  }
+  
+  return errors
+}
+
 module.exports = {
   createTask,
   getTaskById,
@@ -420,5 +600,8 @@ module.exports = {
   deleteTask,
   addSubTask,
   updateSubTask,
-  deleteSubTask
+  deleteSubTask,
+  updateSubTasksOrder,
+  getSubTaskStats,
+  validateTimeConstraints
 }
