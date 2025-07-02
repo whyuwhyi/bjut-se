@@ -33,7 +33,23 @@
 					<view class="upload-content" v-if="!uploadForm.file">
 						<text class="upload-icon">📁</text>
 						<text class="upload-text">点击选择文件</text>
-						<text class="upload-tips">支持 PDF、DOC、PPT、ZIP 等格式，最大 50MB</text>
+						<text class="upload-tips">支持以下格式，最大 100MB</text>
+						<view class="file-type-list">
+							<text class="file-type-category">📄 文档类：</text>
+							<text class="file-type-items">PDF、DOC、DOCX、XLS、XLSX、PPT、PPTX、TXT</text>
+							
+							<text class="file-type-category">🗜️ 压缩包：</text>
+							<text class="file-type-items">ZIP、RAR</text>
+							
+							<text class="file-type-category">🖼️ 图片：</text>
+							<text class="file-type-items">JPEG、PNG、GIF</text>
+							
+							<text class="file-type-category">🎵 音频：</text>
+							<text class="file-type-items">MP3、WAV、OGG</text>
+							
+							<text class="file-type-category">🎬 视频：</text>
+							<text class="file-type-items">MP4、AVI、MKV</text>
+						</view>
 					</view>
 					<view class="file-info" v-else>
 						<text class="file-icon">{{ getFileIcon(uploadForm.file.type) }}</text>
@@ -120,9 +136,9 @@ export default {
 				type: 'file',
 				success: (res) => {
 					const file = res.tempFiles[0]
-					if (file.size > 50 * 1024 * 1024) {
+					if (file.size > 100 * 1024 * 1024) {
 						uni.showToast({
-							title: '文件大小不能超过50MB',
+							title: '文件大小不能超过100MB',
 							icon: 'none'
 						})
 						return
@@ -490,6 +506,35 @@ export default {
 		.upload-tips {
 			font-size: 24rpx;
 			color: #999;
+			margin-bottom: 20rpx;
+		}
+		
+		.file-type-list {
+			text-align: left;
+			background: #f8f9fa;
+			padding: 20rpx;
+			border-radius: 10rpx;
+			margin-top: 15rpx;
+			
+			.file-type-category {
+				display: block;
+				font-size: 22rpx;
+				font-weight: bold;
+				color: #007aff;
+				margin: 10rpx 0 5rpx 0;
+			}
+			
+			.file-type-category:first-child {
+				margin-top: 0;
+			}
+			
+			.file-type-items {
+				display: block;
+				font-size: 20rpx;
+				color: #666;
+				line-height: 1.5;
+				margin-bottom: 8rpx;
+			}
 		}
 	}
 	

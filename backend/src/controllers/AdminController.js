@@ -1,17 +1,57 @@
-const { User, Resource, Post, Notification, Comment, Collection, UserFollow, ResourceReport, PostReport } = require('../models');
+const { User, Resource, Post, Notification, Comment, Collection, UserFollow, ResourceReport, PostReport, Feedback } = require('../models');
 const { Op } = require('sequelize');
 
 class AdminController {
   // 管理面板数据
   static async getDashboard(req, res) {
     try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const thisWeekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+      
       const stats = {
+        // 基础统计
         users: await User.count(),
         resources: await Resource.count(),
         posts: await Post.count(),
         pendingResources: await Resource.count({ where: { status: 'pending' } }),
         activeUsers: await User.count({ where: { status: 'active' } }),
-        publishedResources: await Resource.count({ where: { status: 'published' } })
+        publishedResources: await Resource.count({ where: { status: 'published' } }),
+        
+        // 通知统计
+        totalNotifications: await Notification.count(),
+        todayNotifications: await Notification.count({
+          where: {
+            created_at: {
+              [Op.gte]: today
+            }
+          }
+        }),
+        weekNotifications: await Notification.count({
+          where: {
+            created_at: {
+              [Op.gte]: thisWeekStart
+            }
+          }
+        }),
+        unreadNotifications: await Notification.count({ where: { is_read: false } }),
+        
+        // 反馈统计
+        totalFeedbacks: await Feedback.count(),
+        pendingFeedbacks: await Feedback.count({ where: { status: 'pending' } }),
+        processingFeedbacks: await Feedback.count({ where: { status: 'processing' } }),
+        resolvedFeedbacks: await Feedback.count({ where: { status: 'resolved' } }),
+        todayFeedbacks: await Feedback.count({
+          where: {
+            created_at: {
+              [Op.gte]: today
+            }
+          }
+        }),
+        
+        // 其他统计
+        totalComments: await Comment.count(),
+        totalCollections: await Collection.count()
       };
       
       res.json({
@@ -1097,6 +1137,434 @@ class AdminController {
       res.status(500).json({
         success: false,
         message: '隐藏帖子失败'
+      });
+    }
+  }
+
+  // 获取所有通知列表（管理员功能）
+  static async getAllNotifications(req, res) {
+    try {
+      const { page = 1, limit = 20, type, priority, search, start_date, end_date } = req.query;
+      const offset = (page - 1) * limit;
+
+      const where = {};
+      
+      // 搜索条件
+      if (search) {
+        where[Op.or] = [
+          { title: { [Op.like]: `%${search}%` } },
+          { content: { [Op.like]: `%${search}%` } }
+        ];
+      }
+
+      // 类型筛选
+      if (type) {
+        where.type = type;
+      }
+
+      // 优先级筛选
+      if (priority) {
+        where.priority = priority;
+      }
+
+      // 时间范围筛选
+      if (start_date || end_date) {
+        where.created_at = {};
+        if (start_date) {
+          where.created_at[Op.gte] = new Date(start_date);
+        }
+        if (end_date) {
+          where.created_at[Op.lte] = new Date(end_date + ' 23:59:59');
+        }
+      }
+
+      const notifications = await Notification.findAndCountAll({
+        where,
+        include: [
+          {
+            model: User,
+            as: 'sender',
+            attributes: ['name', 'phone_number'],
+            required: false
+          }
+        ],
+        order: [['created_at', 'DESC']],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        distinct: true
+      });
+
+      // 统计每个通知的接收用户数和已读数
+      const notificationsWithStats = await Promise.all(
+        notifications.rows.map(async (notification) => {
+          const notificationData = notification.toJSON();
+          
+          // 获取接收这个通知的总用户数
+          const totalReceivers = await Notification.count({
+            where: {
+              title: notification.title,
+              content: notification.content,
+              created_at: notification.created_at
+            }
+          });
+
+          // 获取已读用户数
+          const readCount = await Notification.count({
+            where: {
+              title: notification.title,
+              content: notification.content,
+              created_at: notification.created_at,
+              is_read: true
+            }
+          });
+
+          return {
+            ...notificationData,
+            total_receivers: totalReceivers,
+            read_count: readCount,
+            read_rate: totalReceivers > 0 ? Math.round((readCount / totalReceivers) * 100) : 0
+          };
+        })
+      );
+
+      // 去重处理（根据标题、内容和创建时间）
+      const uniqueNotifications = notificationsWithStats.reduce((acc, current) => {
+        const existing = acc.find(item => 
+          item.title === current.title && 
+          item.content === current.content && 
+          new Date(item.created_at).getTime() === new Date(current.created_at).getTime()
+        );
+        
+        if (!existing) {
+          acc.push(current);
+        }
+        
+        return acc;
+      }, []);
+
+      res.json({
+        success: true,
+        data: {
+          notifications: uniqueNotifications,
+          total: uniqueNotifications.length,
+          page: parseInt(page),
+          limit: parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Get all notifications error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取通知列表失败'
+      });
+    }
+  }
+
+  // 获取通知统计信息
+  static async getNotificationStats(req, res) {
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+
+      const stats = {
+        total_notifications: await Notification.count({
+          distinct: true,
+          col: 'notification_id'
+        }),
+        today_sent: await Notification.count({
+          where: {
+            created_at: {
+              [Op.gte]: startOfDay
+            }
+          },
+          distinct: true,
+          col: 'notification_id'
+        }),
+        week_sent: await Notification.count({
+          where: {
+            created_at: {
+              [Op.gte]: startOfWeek
+            }
+          },
+          distinct: true,
+          col: 'notification_id'
+        }),
+        unread_count: await Notification.count({
+          where: {
+            is_read: false
+          }
+        }),
+        total_users: await User.count({
+          where: {
+            status: 'active'
+          }
+        })
+      };
+
+      // 计算平均阅读率
+      const totalSent = await Notification.count();
+      const totalRead = await Notification.count({
+        where: {
+          is_read: true
+        }
+      });
+      
+      stats.average_read_rate = totalSent > 0 ? Math.round((totalRead / totalSent) * 100) : 0;
+
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('Get notification stats error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取通知统计失败'
+      });
+    }
+  }
+
+  // 删除通知（管理员功能）
+  static async deleteNotificationBatch(req, res) {
+    try {
+      const { notification_ids } = req.body;
+
+      if (!notification_ids || !Array.isArray(notification_ids) || notification_ids.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: '请提供要删除的通知ID列表'
+        });
+      }
+
+      const deletedCount = await Notification.destroy({
+        where: {
+          notification_id: {
+            [Op.in]: notification_ids
+          }
+        }
+      });
+
+      res.json({
+        success: true,
+        message: '批量删除通知成功',
+        data: {
+          deleted_count: deletedCount
+        }
+      });
+    } catch (error) {
+      console.error('Delete notification batch error:', error);
+      res.status(500).json({
+        success: false,
+        message: '批量删除通知失败'
+      });
+    }
+  }
+
+  // 反馈管理
+  static async getAllFeedbacks(req, res) {
+    try {
+      const { page = 1, limit = 20, type, status, search, start_date, end_date } = req.query;
+      const offset = (page - 1) * limit;
+
+      const where = {};
+      
+      // 类型筛选
+      if (type) {
+        where.type = type;
+      }
+
+      // 状态筛选
+      if (status) {
+        where.status = status;
+      }
+
+      // 搜索条件
+      if (search) {
+        where[Op.or] = [
+          { content: { [Op.like]: `%${search}%` } },
+          { contact: { [Op.like]: `%${search}%` } },
+          { reply: { [Op.like]: `%${search}%` } }
+        ];
+      }
+
+      // 时间范围筛选
+      if (start_date || end_date) {
+        where.created_at = {};
+        if (start_date) {
+          where.created_at[Op.gte] = new Date(start_date);
+        }
+        if (end_date) {
+          where.created_at[Op.lte] = new Date(end_date + ' 23:59:59');
+        }
+      }
+
+      const feedbacks = await Feedback.findAndCountAll({
+        where,
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['name', 'phone_number'],
+            required: false
+          }
+        ],
+        order: [['created_at', 'DESC']],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        distinct: true
+      });
+
+      // 处理images字段
+      const processedFeedbacks = feedbacks.rows.map(feedback => {
+        const feedbackData = feedback.toJSON();
+        feedbackData.images = feedbackData.images ? JSON.parse(feedbackData.images) : [];
+        return feedbackData;
+      });
+
+      res.json({
+        success: true,
+        data: {
+          feedbacks: processedFeedbacks,
+          total: feedbacks.count,
+          page: parseInt(page),
+          limit: parseInt(limit)
+        }
+      });
+    } catch (error) {
+      console.error('Get feedbacks error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取反馈列表失败'
+      });
+    }
+  }
+
+  static async getFeedbackStats(req, res) {
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const thisWeekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+
+      const [
+        totalFeedbacks,
+        todayFeedbacks,
+        weekFeedbacks,
+        pendingFeedbacks,
+        processingFeedbacks,
+        resolvedFeedbacks
+      ] = await Promise.all([
+        Feedback.count(),
+        Feedback.count({
+          where: {
+            created_at: {
+              [Op.gte]: today
+            }
+          }
+        }),
+        Feedback.count({
+          where: {
+            created_at: {
+              [Op.gte]: thisWeekStart
+            }
+          }
+        }),
+        Feedback.count({ where: { status: 'pending' } }),
+        Feedback.count({ where: { status: 'processing' } }),
+        Feedback.count({ where: { status: 'resolved' } })
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          total_feedbacks: totalFeedbacks,
+          today_feedbacks: todayFeedbacks,
+          week_feedbacks: weekFeedbacks,
+          pending_feedbacks: pendingFeedbacks,
+          processing_feedbacks: processingFeedbacks,
+          resolved_feedbacks: resolvedFeedbacks
+        }
+      });
+    } catch (error) {
+      console.error('Get feedback stats error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取反馈统计失败'
+      });
+    }
+  }
+
+  static async updateFeedbackStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status, reply } = req.body;
+
+      if (!['pending', 'processing', 'resolved', 'closed'].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的状态值'
+        });
+      }
+
+      const feedback = await Feedback.findByPk(id);
+      if (!feedback) {
+        return res.status(404).json({
+          success: false,
+          message: '反馈记录不存在'
+        });
+      }
+
+      const updateData = { status };
+      if (reply !== undefined) {
+        updateData.reply = reply;
+      }
+
+      await feedback.update(updateData);
+
+      res.json({
+        success: true,
+        message: '反馈状态更新成功'
+      });
+    } catch (error) {
+      console.error('Update feedback status error:', error);
+      res.status(500).json({
+        success: false,
+        message: '更新反馈状态失败'
+      });
+    }
+  }
+
+  static async deleteFeedbackBatch(req, res) {
+    try {
+      const { feedback_ids } = req.body;
+
+      if (!Array.isArray(feedback_ids) || feedback_ids.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: '请提供要删除的反馈ID列表'
+        });
+      }
+
+      const deletedCount = await Feedback.destroy({
+        where: {
+          id: {
+            [Op.in]: feedback_ids
+          }
+        }
+      });
+
+      res.json({
+        success: true,
+        data: {
+          deleted_count: deletedCount
+        },
+        message: `成功删除 ${deletedCount} 条反馈记录`
+      });
+    } catch (error) {
+      console.error('Delete feedback batch error:', error);
+      res.status(500).json({
+        success: false,
+        message: '批量删除反馈失败'
       });
     }
   }

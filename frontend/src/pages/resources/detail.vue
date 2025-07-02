@@ -212,6 +212,7 @@ export default {
 			resourceId: '',
 			resource: {
 				id: '',
+				resource_id: '',
 				title: '加载中...',
 				description: '',
 				category: '未分类',
@@ -260,6 +261,7 @@ export default {
 					
 					this.resource = {
 						id: data.resource_id,
+						resource_id: data.resource_id,
 						title: data.resource_name,
 						description: data.description,
 						category: data.category?.category_name || '未分类',
@@ -328,7 +330,7 @@ export default {
 				
 				const file = this.resource.files[0]
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`,
+					url: `${this.$config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -368,7 +370,7 @@ export default {
 						
 						// #ifdef H5
 						// H5环境使用带身份认证的下载
-						const h5DownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const h5DownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
 						
 						// 使用fetch下载文件
 						fetch(h5DownloadUrl, {
@@ -403,7 +405,7 @@ export default {
 						
 						// #ifdef MP-WEIXIN
 						// 微信小程序使用下载API
-						const wxDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const wxDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
 						
 						uni.downloadFile({
 							url: wxDownloadUrl,
@@ -442,7 +444,7 @@ export default {
 						
 						// #ifdef APP-PLUS
 						// App环境使用plus下载
-						const appDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
+						const appDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
 						
 						const dtask = plus.downloader.createDownload(appDownloadUrl, {
 							filename: '_downloads/' + (response.data.data.fileName || 'download'),

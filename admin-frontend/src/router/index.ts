@@ -50,10 +50,10 @@ const router = createRouter({
           meta: { title: '通知管理' }
         },
         {
-          path: 'statistics',
-          name: 'Statistics',
-          component: () => import('@/views/Statistics.vue'),
-          meta: { title: '数据统计' }
+          path: 'feedbacks',
+          name: 'FeedbackManagement',
+          component: () => import('@/views/FeedbackManagement.vue'),
+          meta: { title: '反馈管理' }
         }
       ]
     },
