@@ -164,6 +164,8 @@ class PostController {
         status: 'active'
       })
 
+      await User.increment('post_count', { where: { phone_number: authorPhone } })
+
       if (tags && tags.length > 0) {
         for (const tagName of tags) {
           let tag = await PostTag.findOne({ where: { tag_name: tagName } })
@@ -407,6 +409,8 @@ class PostController {
 
       // 软删除：将状态改为deleted
       await post.update({ status: 'deleted' })
+
+      await User.decrement('post_count', { where: { phone_number: userPhone }, min: 0 })
 
       res.status(200).json({
         success: true,

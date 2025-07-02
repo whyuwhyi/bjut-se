@@ -225,6 +225,8 @@ class ResourceController {
         category_id,
         status: 'draft'
       })
+      // 新增：发布资源后自增用户资源数
+      await User.increment('resource_count', { where: { phone_number: userPhone } })
 
       res.status(201).json({
         success: true,
