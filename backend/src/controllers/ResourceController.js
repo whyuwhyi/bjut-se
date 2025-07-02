@@ -190,9 +190,16 @@ class ResourceController {
       // 增加浏览次数
       await resource.increment('view_count')
 
+      // 格式化返回数据
+      const data = resource.toJSON()
+      const formatted = {
+        ...data,
+        category: data.category?.category_name || '未分类'
+      }
+
       res.json({
         success: true,
-        data: resource
+        data: formatted
       })
     } catch (error) {
       console.error('获取资源详情错误:', error)
@@ -393,7 +400,8 @@ class ResourceController {
         status: newStatus,
         reviewer_phone: reviewerPhone,
         review_comment: comment,
-        reviewed_at: new Date()
+        reviewed_at: new Date(),
+        category_id: resource.category_id
       })
 
       res.json({
@@ -433,6 +441,11 @@ class ResourceController {
             model: File,
             as: 'files',
             attributes: ['file_id', 'file_name', 'file_type', 'file_size']
+          },
+          {
+            model: Category,
+            as: 'category',
+            attributes: ['category_id', 'category_name', 'category_value', 'icon']
           }
         ],
         order: [['created_at', 'ASC']],
@@ -440,10 +453,29 @@ class ResourceController {
         offset: parseInt(offset)
       })
 
+      // 格式化返回数据
+      const resources = rows.map(resource => {
+        const data = resource.toJSON()
+        return {
+          id: data.resource_id,
+          title: data.resource_name,
+          description: data.description,
+          uploaderName: data.publisher?.nickname || data.publisher?.name || '匿名用户',
+          uploadTime: data.created_at,
+          viewCount: data.view_count,
+          downloadCount: data.download_count,
+          rating: parseFloat(data.rating),
+          files: data.files || [],
+          category: data.category?.category_name || '未分类',
+          collection_count: data.collection_count || 0,
+          status: data.status
+        }
+      })
+
       res.json({
         success: true,
         data: {
-          resources: rows,
+          resources,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
