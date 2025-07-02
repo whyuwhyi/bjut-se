@@ -114,7 +114,7 @@
 						<text class="btn-icon">📤</text>
 						<text class="btn-text">分享</text>
 					</button>
-					<button class="action-btn danger" @click.stop="deleteResource(resource)">
+					<button class="action-btn danger" @click.stop="handleDeleteClick(resource, $event)">
 						<text class="btn-icon">🗑️</text>
 						<text class="btn-text">删除</text>
 					</button>
@@ -135,17 +135,6 @@
 			<text class="upload-icon">+</text>
 		</view>
 
-		<!-- 删除确认弹窗 -->
-		<uni-popup ref="deletePopup" type="dialog">
-			<uni-popup-dialog 
-				type="warn" 
-				title="确认删除" 
-				content="删除后无法恢复，确定要删除这个资源吗？"
-				:before-close="true"
-				@confirm="confirmDelete"
-				@close="closeDeleteDialog"
-			></uni-popup-dialog>
-		</uni-popup>
 	</view>
 </template>
 
@@ -159,7 +148,8 @@
 					{ name: '全部', value: 'all' },
 					{ name: '已通过', value: 'approved' },
 					{ name: '审核中', value: 'pending' },
-					{ name: '已拒绝', value: 'rejected' }
+					{ name: '已拒绝', value: 'rejected' },
+					{ name: '草稿', value: 'draft' }
 				],
 				sortOptions: [
 					{ name: '最新上传', value: 'upload_time_desc' },
@@ -174,30 +164,34 @@
 		
 		computed: {
 			filteredResources() {
-				let resources = this.myResources;
+				let resources = [...this.myResources]; // 创建副本避免修改原数组
 				
 				// 状态筛选
 				const statusFilter = this.statusFilters[this.selectedStatus];
-				if (statusFilter.value !== 'all') {
-					resources = resources.filter(r => r.status === statusFilter.value);
+				if (statusFilter && statusFilter.value !== 'all') {
+					resources = resources.filter(r => {
+						return r.status === statusFilter.value;
+					});
 				}
 				
 				// 排序
 				const sort = this.sortOptions[this.selectedSort];
-				resources.sort((a, b) => {
-					switch (sort.value) {
-						case 'upload_time_desc':
-							return new Date(b.uploadTime) - new Date(a.uploadTime);
-						case 'download_count_desc':
-							return b.downloadCount - a.downloadCount;
-						case 'view_count_desc':
-							return b.viewCount - a.viewCount;
-						case 'rating_desc':
-							return b.rating - a.rating;
-						default:
-							return 0;
-					}
-				});
+				if (sort) {
+					resources.sort((a, b) => {
+						switch (sort.value) {
+							case 'upload_time_desc':
+								return new Date(b.uploadTime) - new Date(a.uploadTime);
+							case 'download_count_desc':
+								return b.downloadCount - a.downloadCount;
+							case 'view_count_desc':
+								return b.viewCount - a.viewCount;
+							case 'rating_desc':
+								return b.rating - a.rating;
+							default:
+								return 0;
+						}
+					});
+				}
 				
 				return resources;
 			},
@@ -218,10 +212,15 @@
 				const ratedResources = this.myResources.filter(r => r.rating > 0);
 				if (ratedResources.length === 0) return 0;
 				return ratedResources.reduce((sum, r) => sum + r.rating, 0) / ratedResources.length;
-			}
+			},
+			
 		},
 		
 		onLoad() {
+			this.loadResources()
+		},
+		
+		onShow() {
 			this.loadResources()
 		},
 
@@ -236,22 +235,7 @@
 						return
 					}
 					
-					// 映射前端状态到后端状态
-					const statusMap = {
-						'all': '',
-						'approved': 'published',
-						'pending': 'pending',
-						'rejected': 'rejected'
-					}
-					
-					const status = this.statusFilters[this.selectedStatus].value
-					const params = {
-						page: 1,
-						limit: 50
-					}
-					if (status !== 'all') {
-						params.status = statusMap[status]
-					}
+					uni.showLoading({ title: '加载中...' })
 					
 					const response = await uni.request({
 						url: `${this.$config.apiBaseUrl}/users/my-resources`,
@@ -259,34 +243,48 @@
 						header: {
 							'Authorization': `Bearer ${token}`
 						},
-						data: params
+						data: {
+							page: 1,
+							limit: 50
+						}
 					})
 					
-					if (response.data.success) {
-						// 转换后端数据格式为前端格式
-						this.myResources = response.data.data.resources.map(resource => ({
-							id: resource.resource_id,
-							title: resource.resource_name,
-							description: resource.description,
-							status: this.mapBackendStatus(resource.status),
-							uploadTime: resource.created_at,
-							downloadCount: resource.download_count || 0,
-							viewCount: resource.view_count || 0,
-							rating: resource.rating || 0,
-							files: resource.files || [],
-							fileName: resource.files && resource.files.length > 0 ? resource.files[0].file_name : '',
-							fileType: resource.files && resource.files.length > 0 ? this.getFileTypeFromName(resource.files[0].file_name) : '',
-							fileSize: resource.files && resource.files.length > 0 ? resource.files[0].file_size : 0,
-							tags: []
-						}))
+					if (response.statusCode === 200 && response.data && response.data.success) {
+						const backendResources = response.data.data?.resources || [];
+						
+						// 直接转换数据
+						this.myResources = backendResources.map(resource => {
+							return {
+								id: resource.resource_id,
+								title: resource.resource_name,
+								description: resource.description,
+								status: this.mapBackendStatus(resource.status),
+								uploadTime: resource.created_at,
+								downloadCount: resource.download_count || 0,
+								viewCount: resource.view_count || 0,
+								rating: parseFloat(resource.rating) || 0,
+								files: resource.files || [],
+								fileName: resource.files && resource.files.length > 0 ? resource.files[0].file_name : '',
+								fileType: resource.files && resource.files.length > 0 ? this.getFileTypeFromName(resource.files[0].file_name) : '',
+								fileSize: resource.files && resource.files.length > 0 ? resource.files[0].file_size : 0,
+								tags: []
+							}
+						});
+						
+						// 强制更新视图
+						this.$forceUpdate();
 					} else {
+						this.myResources = []
 						uni.showToast({
-							title: response.data.message || '加载失败',
+							title: response.data?.message || '加载失败',
 							icon: 'none'
 						})
 					}
+					
+					uni.hideLoading()
 				} catch (error) {
-					console.error('加载资源失败:', error)
+					this.myResources = []
+					uni.hideLoading()
 					uni.showToast({
 						title: '网络错误',
 						icon: 'none'
@@ -299,9 +297,9 @@
 					'published': 'approved',
 					'pending': 'pending',
 					'rejected': 'rejected',
-					'draft': 'pending'
+					'draft': 'draft'
 				}
-				return statusMap[status] || 'pending'
+				return statusMap[status] || 'draft'
 			},
 			
 			getFileTypeFromName(fileName) {
@@ -313,7 +311,6 @@
 			
 			selectStatus(index) {
 				this.selectedStatus = index;
-				this.loadResources(); // 重新加载数据
 			},
 			
 			onSortChange(e) {
@@ -347,27 +344,77 @@
 				});
 			},
 			
-			deleteResource(resource) {
-				this.resourceToDelete = resource;
-				this.$refs.deletePopup.open();
+			handleDeleteClick(resource, event) {
+				// 阻止事件冒泡和默认行为
+				if (event) {
+					event.stopPropagation();
+					event.preventDefault();
+				}
+				
+				// 调用删除方法
+				this.deleteResource(resource);
 			},
 			
-			confirmDelete() {
-				if (this.resourceToDelete) {
-					const index = this.myResources.findIndex(r => r.id === this.resourceToDelete.id);
-					if (index > -1) {
-						this.myResources.splice(index, 1);
+			deleteResource(resource) {
+				this.resourceToDelete = resource;
+				
+				// 使用系统原生确认对话框
+				uni.showModal({
+					title: '确认删除',
+					content: '删除后无法恢复，确定要删除这个资源吗？',
+					success: (res) => {
+						if (res.confirm) {
+							this.confirmDelete();
+						}
+					}
+				});
+			},
+			
+			async confirmDelete() {
+				if (!this.resourceToDelete) return;
+
+				try {
+					const token = uni.getStorageSync('token');
+					if (!token) {
+						uni.showToast({
+							title: '请先登录',
+							icon: 'none'
+						});
+						return;
+					}
+
+					const response = await uni.request({
+						url: `${this.$config.apiBaseUrl}/resources/${this.resourceToDelete.id}`,
+						method: 'DELETE',
+						header: {
+							'Authorization': `Bearer ${token}`
+						}
+					});
+
+					if (response.statusCode === 200 && response.data && response.data.success) {
+						// 从本地列表中移除
+						const index = this.myResources.findIndex(r => r.id === this.resourceToDelete.id);
+						if (index > -1) {
+							this.myResources.splice(index, 1);
+						}
+						
 						uni.showToast({
 							title: '删除成功',
 							icon: 'success'
 						});
+					} else {
+						uni.showToast({
+							title: response.data?.message || '删除失败',
+							icon: 'none'
+						});
 					}
+				} catch (error) {
+					uni.showToast({
+						title: '网络错误',
+						icon: 'none'
+					});
 				}
-				this.closeDeleteDialog();
-			},
-			
-			closeDeleteDialog() {
-				this.$refs.deletePopup.close();
+
 				this.resourceToDelete = null;
 			},
 			

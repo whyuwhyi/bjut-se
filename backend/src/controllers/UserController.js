@@ -356,15 +356,23 @@ class UserController {
   // 获取用户发布的资源
   async getUserResources(req, res) {
     try {
-      const { page = 1, limit = 10, status = 'published' } = req.query
+      const { page = 1, limit = 10, status } = req.query
       const phone_number = req.user.phone_number
       const offset = (page - 1) * limit
 
+      // 构建查询条件
+      const where = { publisher_phone: phone_number }
+      
+      // 如果status参数存在且不为空，则添加状态筛选
+      if (status && status !== '' && status !== 'all') {
+        where.status = status
+      } else {
+        // 如果没有指定状态或状态为空/all，则查询所有非删除状态的资源
+        where.status = { [Op.in]: ['draft', 'pending', 'published', 'rejected'] }
+      }
+
       const resources = await Resource.findAndCountAll({
-        where: {
-          publisher_phone: phone_number,
-          status
-        },
+        where,
         include: [
           {
             model: File,
@@ -376,6 +384,7 @@ class UserController {
         offset,
         limit: parseInt(limit)
       })
+
 
       res.json({
         success: true,
@@ -680,7 +689,7 @@ class UserController {
         followingCount,
         followerCount
       ] = await Promise.all([
-        Resource.count({ where: { publisher_phone: phone_number, status: 'published' } }),
+        Resource.count({ where: { publisher_phone: phone_number, status: { [Op.in]: ['draft', 'pending', 'published', 'rejected'] } } }),
         Post.count({ where: { author_phone: phone_number, status: 'active' } }),
         Collection.count({ where: { user_phone: phone_number, status: 'active' } }),
         UserFollow.count({ where: { follower_phone: phone_number, status: 'active' } }),

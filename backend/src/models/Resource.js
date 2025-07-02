@@ -108,15 +108,6 @@ const Resource = sequelize.define('Resource', {
     allowNull: true,
     comment: '审核时间'
   },
-  // 下载统计
-  download_count: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-    validate: {
-      min: 0
-    },
-    comment: '下载次数'
-  },
   // 分类信息
   category_id: {
     type: DataTypes.STRING(20),
