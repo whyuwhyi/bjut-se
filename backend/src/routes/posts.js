@@ -15,4 +15,6 @@ router.post('/', authMiddleware, PostController.createPost)
 
 router.post('/:id/comments', authMiddleware, PostController.createComment)
 
+router.delete('/:id', authMiddleware, PostController.deletePost)
+
 module.exports = router

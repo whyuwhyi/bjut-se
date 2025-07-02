@@ -18,11 +18,14 @@ const SubTask = require('./SubTask')
 const StudyRecord = require('./StudyRecord')
 // 用户管理模块
 const UserFollow = require('./UserFollow')
+const VerificationCode = require('./VerificationCode')
 // 通知模块
 const Notification = require('./Notification')
 // 举报模块
 const ResourceReport = require('./ResourceReport')
 const PostReport = require('./PostReport')
+// 反馈模块
+const Feedback = require('./Feedback')
 
 // 设置模型关系
 // 用户 - 资源关系
@@ -375,6 +378,18 @@ PostReport.belongsTo(User, {
   as: 'processor'
 })
 
+// 用户 - 反馈关系
+User.hasMany(Feedback, {
+  foreignKey: 'user_phone',
+  sourceKey: 'phone_number',
+  as: 'feedbacks'
+})
+Feedback.belongsTo(User, {
+  foreignKey: 'user_phone',
+  targetKey: 'phone_number',
+  as: 'user'
+})
+
 const models = {
   User,
   Resource,
@@ -393,11 +408,14 @@ const models = {
   StudyRecord,
   // 用户管理模块
   UserFollow,
+  VerificationCode,
   // 通知模块
   Notification,
   // 举报模块
   ResourceReport,
   PostReport,
+  // 反馈模块
+  Feedback,
   sequelize
 }
 

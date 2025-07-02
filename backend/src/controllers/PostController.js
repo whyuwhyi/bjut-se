@@ -376,6 +376,51 @@ class PostController {
       })
     }
   }
+
+  static async deletePost(req, res) {
+    try {
+      const { id } = req.params
+      const userPhone = req.user.phone_number
+
+      // 查找帖子
+      const post = await Post.findOne({
+        where: { 
+          post_id: id,
+          status: { [Op.in]: ['active', 'hidden'] }
+        }
+      })
+
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: '帖子不存在'
+        })
+      }
+
+      // 验证权限：只能删除自己的帖子
+      if (post.author_phone !== userPhone) {
+        return res.status(403).json({
+          success: false,
+          message: '您没有权限删除这个帖子'
+        })
+      }
+
+      // 软删除：将状态改为deleted
+      await post.update({ status: 'deleted' })
+
+      res.status(200).json({
+        success: true,
+        message: '删除帖子成功'
+      })
+    } catch (error) {
+      console.error('删除帖子失败:', error)
+      res.status(500).json({
+        success: false,
+        message: '删除帖子失败',
+        errors: [error.message]
+      })
+    }
+  }
 }
 
 module.exports = PostController

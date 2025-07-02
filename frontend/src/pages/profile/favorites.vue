@@ -67,10 +67,7 @@
 				</view>
 				
 				<!-- 右侧操作 -->
-				<view class="item-actions">
-					<view class="action-btn" @click.stop="shareItem(item)">
-						<text class="action-icon">📤</text>
-					</view>
+				<view class="item-actions delete-bottom">
 					<view class="action-btn" @click.stop="removeFavorite(item)">
 						<text class="action-icon">🗑️</text>
 					</view>
@@ -784,5 +781,14 @@
 	.batch-btn.delete {
 		background-color: #ff3b30;
 		color: #ffffff;
+	}
+
+	.item-actions.delete-bottom {
+		position: absolute;
+		right: 24rpx;
+		bottom: 24rpx;
+		margin-left: 0;
+		flex-direction: column;
+		z-index: 2;
 	}
 </style>

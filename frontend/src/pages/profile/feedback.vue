@@ -1,5 +1,9 @@
 <template>
 	<view class="feedback-container">
+		<!-- 右上角我的反馈按钮 -->
+		<view class="my-feedback-btn" @click="showFeedbackDialog = true">
+			<text class="btn-text">我的反馈</text>
+		</view>
 		<!-- 反馈类型选择 -->
 		<view class="feedback-type">
 			<text class="section-title">反馈类型</text>
@@ -64,30 +68,29 @@
 			</view>
 		</view>
 
-		<!-- 历史反馈 -->
-		<view class="feedback-history">
-			<view class="history-header">
-				<text class="section-title">我的反馈</text>
-				<text class="view-all" @click="viewAllFeedback">查看全部</text>
-			</view>
-			<view class="history-list">
-				<view class="history-item" v-for="(item, index) in recentFeedback" :key="index" @click="viewFeedbackDetail(item)">
-					<view class="history-content">
-						<text class="history-type">{{ getFeedbackTypeName(item.type) }}</text>
-						<text class="history-text">{{ item.content }}</text>
-						<text class="history-time">{{ formatTime(item.createTime) }}</text>
-					</view>
-					<view class="history-status" :class="'status-' + item.status">
-						<text class="status-text">{{ getStatusText(item.status) }}</text>
-					</view>
-				</view>
-			</view>
-		</view>
-
 		<!-- 提交按钮 -->
 		<view class="submit-section">
 			<view class="submit-btn" :class="{ 'disabled': !canSubmit }" @click="submitFeedback">
 				<text class="submit-text">提交反馈</text>
+			</view>
+		</view>
+
+		<!-- 弹窗：我的反馈记录 -->
+		<view v-if="showFeedbackDialog" class="feedback-dialog-mask" @click.self="showFeedbackDialog = false">
+			<view class="feedback-dialog">
+				<view class="dialog-header">
+					<text class="dialog-title">我的反馈记录</text>
+					<text class="dialog-close" @click="showFeedbackDialog = false">×</text>
+				</view>
+				<view class="dialog-list">
+					<view v-if="recentFeedback.length === 0" class="dialog-empty">暂无反馈记录</view>
+					<view v-for="(item, idx) in recentFeedback" :key="idx" class="dialog-item">
+						<view class="dialog-type">{{ getFeedbackTypeName(item.type) }}</view>
+						<view class="dialog-content">{{ item.content }}</view>
+						<view class="dialog-time">{{ formatTime(item.created_at) }}</view>
+						<view class="dialog-status">{{ getStatusText(item.status) }}</view>
+					</view>
+				</view>
 			</view>
 		</view>
 	</view>
@@ -109,7 +112,8 @@ export default {
 				{ key: 'content', name: '内容建议', icon: '📝' },
 				{ key: 'other', name: '其他问题', icon: '❓' }
 			],
-			recentFeedback: []
+			recentFeedback: [],
+			showFeedbackDialog: false
 		}
 	},
 	
@@ -160,27 +164,50 @@ export default {
 		},
 		
 		uploadImage() {
+			const remain = 3 - this.uploadedImages.length
+			if (remain <= 0) return
 			uni.chooseImage({
-				count: 3 - this.uploadedImages.length,
+				count: remain,
 				sizeType: ['compressed'],
 				sourceType: ['album', 'camera'],
 				success: (res) => {
 					const tempFilePaths = res.tempFilePaths
-					
-					// 检查文件大小
 					tempFilePaths.forEach(filePath => {
 						uni.getFileInfo({
-							filePath: filePath,
+							filePath,
 							success: (fileInfo) => {
 								if (fileInfo.size > 5 * 1024 * 1024) {
-									uni.showToast({
-										title: '图片大小不能超过5MB',
-										icon: 'none'
-									})
+									uni.showToast({ title: '图片大小不能超过5MB', icon: 'none' })
 									return
 								}
-								
-								this.uploadedImages.push(filePath)
+								// 上传到后端通用图片接口
+								uni.uploadFile({
+									url: `${this.$config.apiBaseUrl}/files/upload-image`,
+									filePath,
+									name: 'file',
+									header: {
+										'Authorization': `Bearer ${uni.getStorageSync('token')}`
+									},
+									success: (uploadRes) => {
+										let data = uploadRes.data
+										if (typeof data === 'string') {
+											try { data = JSON.parse(data) } catch (e) { data = {} }
+										}
+										if (data.success && data.url) {
+											let url = data.url
+											if (!/^https?:/.test(url)) {
+												url = 'http://localhost:3000' + url
+											}
+											this.uploadedImages.push(url)
+											this.$forceUpdate && this.$forceUpdate()
+										} else {
+											uni.showToast({ title: '图片上传失败', icon: 'none' })
+										}
+									},
+									fail: () => {
+										uni.showToast({ title: '图片上传失败', icon: 'none' })
+									}
+								})
 							}
 						})
 					})
@@ -195,7 +222,7 @@ export default {
 		async submitFeedback() {
 			if (!this.canSubmit) {
 				uni.showToast({
-					title: '请完善反馈信息',
+					title: '请完善反馈信息（至少10个字）',
 					icon: 'none'
 				})
 				return
@@ -284,18 +311,22 @@ export default {
 		},
 		
 		formatTime(time) {
-			const now = new Date()
-			const diff = now - time
-			const day = 24 * 60 * 60 * 1000
-			
-			if (diff < day) {
-				const hours = Math.floor(diff / (60 * 60 * 1000))
-				return hours > 0 ? `${hours}小时前` : '刚刚'
-			} else if (diff < 7 * day) {
-				return `${Math.floor(diff / day)}天前`
-			} else {
-				return time.toLocaleDateString()
+			if (!time) return '未知时间'
+			let date = time
+			if (typeof time === 'string' || typeof time === 'number') {
+				date = new Date(time)
 			}
+			if (!(date instanceof Date) || isNaN(date.getTime())) {
+				return '时间格式错误'
+			}
+			// 转为北京时间
+			const pad = n => n < 10 ? '0' + n : n
+			const year = date.getFullYear()
+			const month = pad(date.getMonth() + 1)
+			const day = pad(date.getDate())
+			const hour = pad(date.getHours())
+			const min = pad(date.getMinutes())
+			return `${year}-${month}-${day} ${hour}:${min}`
 		}
 	}
 }
@@ -306,6 +337,94 @@ export default {
 	min-height: 100vh;
 	padding: 30rpx;
 	padding-bottom: 160rpx;
+	position: relative;
+}
+
+.my-feedback-btn {
+	position: absolute;
+	top: 30rpx;
+	right: 40rpx;
+	z-index: 20;
+	background: #007aff;
+	color: #fff;
+	border-radius: 30rpx;
+	padding: 16rpx 36rpx;
+	font-size: 28rpx;
+	font-weight: bold;
+	box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.08);
+	cursor: pointer;
+}
+
+.feedback-dialog-mask {
+	position: fixed;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background: rgba(0,0,0,0.25);
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.feedback-dialog {
+	background: #fff;
+	border-radius: 20rpx;
+	width: 80vw;
+	max-width: 600rpx;
+	max-height: 70vh;
+	overflow-y: auto;
+	box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.18);
+	padding: 0 0 30rpx 0;
+}
+.dialog-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 30rpx 30rpx 10rpx 30rpx;
+	border-bottom: 1rpx solid #f0f0f0;
+}
+.dialog-title {
+	font-size: 32rpx;
+	font-weight: bold;
+	color: #333;
+}
+.dialog-close {
+	font-size: 40rpx;
+	color: #999;
+	cursor: pointer;
+}
+.dialog-list {
+	padding: 20rpx 30rpx 0 30rpx;
+}
+.dialog-item {
+	margin-bottom: 24rpx;
+	padding-bottom: 18rpx;
+	border-bottom: 1rpx solid #f5f5f5;
+}
+.dialog-type {
+	font-size: 26rpx;
+	color: #007aff;
+	margin-bottom: 6rpx;
+}
+.dialog-content {
+	font-size: 28rpx;
+	color: #333;
+	margin-bottom: 6rpx;
+}
+.dialog-time {
+	font-size: 22rpx;
+	color: #999;
+	display: inline-block;
+	margin-right: 18rpx;
+}
+.dialog-status {
+	font-size: 22rpx;
+	color: #666;
+	display: inline-block;
+}
+.dialog-empty {
+	text-align: center;
+	color: #aaa;
+	font-size: 28rpx;
+	margin: 40rpx 0;
 }
 
 .feedback-form {
@@ -472,97 +591,6 @@ export default {
 			width: 100%;
 			font-size: 28rpx;
 			color: #333;
-		}
-	}
-}
-
-.feedback-history {
-	margin: 20rpx;
-	background: white;
-	border-radius: 15rpx;
-	padding: 30rpx;
-	
-	.history-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 30rpx;
-		
-		.view-all {
-			font-size: 26rpx;
-			color: #007aff;
-		}
-	}
-	
-	.history-list {
-		.history-item {
-			display: flex;
-			align-items: center;
-			padding: 20rpx 0;
-			border-bottom: 1rpx solid #f0f0f0;
-			
-			&:last-child {
-				border-bottom: none;
-			}
-			
-			.history-content {
-				flex: 1;
-				
-				.history-type {
-					display: block;
-					font-size: 24rpx;
-					color: #007aff;
-					margin-bottom: 8rpx;
-				}
-				
-				.history-text {
-					display: block;
-					font-size: 28rpx;
-					color: #333;
-					margin-bottom: 8rpx;
-					overflow: hidden;
-					text-overflow: ellipsis;
-					white-space: nowrap;
-				}
-				
-				.history-time {
-					font-size: 22rpx;
-					color: #999;
-				}
-			}
-			
-			.history-status {
-				padding: 8rpx 20rpx;
-				border-radius: 20rpx;
-				
-				&.status-pending {
-					background: #fff3cd;
-					
-					.status-text {
-						color: #856404;
-					}
-				}
-				
-				&.status-processing {
-					background: #cce5ff;
-					
-					.status-text {
-						color: #0066cc;
-					}
-				}
-				
-				&.status-resolved {
-					background: #d4edda;
-					
-					.status-text {
-						color: #155724;
-					}
-				}
-				
-				.status-text {
-					font-size: 22rpx;
-				}
-			}
 		}
 	}
 }

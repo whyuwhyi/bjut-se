@@ -12,6 +12,7 @@ const studyPlanRoutes = require('./studyPlans')
 const notificationRoutes = require('./notifications')
 const adminRoutes = require('./admin')
 const reportRoutes = require('./reports')
+const feedbackRoutes = require('./feedback')
 
 const router = express.Router()
 
@@ -39,5 +40,6 @@ router.use('/reports', reportRoutes)
 router.use('/', commentRoutes)
 router.use('/', ratingRoutes)
 router.use('/', collectionRoutes)
+router.use('/feedback', feedbackRoutes)
 
 module.exports = router

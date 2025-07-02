@@ -1,5 +1,6 @@
 const { File, Resource } = require('../models')
 const path = require('path')
+const fs = require('fs')
 
 class FileController {
   // 上传文件
@@ -55,6 +56,20 @@ class FileController {
         message: '文件上传失败',
         error: error.message
       })
+    }
+  }
+
+  // 通用图片上传（不依赖resource_id）
+  async uploadImage(req, res) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: '没有文件被上传' })
+      }
+      // 拼接图片URL
+      const url = `/uploads/images/${req.file.filename}`
+      res.json({ success: true, url })
+    } catch (error) {
+      res.status(500).json({ success: false, message: '图片上传失败', error: error.message })
     }
   }
 }
