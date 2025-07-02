@@ -78,11 +78,12 @@
 					<view class="date-item">
 						<text class="date-label">开始日期</text>
 						<picker mode="date" :value="planData.startDate" @change="onStartDateChange">
-							<view class="date-picker">
+							<view class="date-picker" :class="{ 'date-constraint': planData.startDate }">
 								<text class="date-text">{{ planData.startDate || '选择日期' }}</text>
 								<text class="date-icon">📅</text>
 							</view>
 						</picker>
+						<text class="date-hint">不能早于今天</text>
 					</view>
 					<view class="date-separator">
 						<text class="separator-line">—</text>
@@ -90,12 +91,19 @@
 					<view class="date-item">
 						<text class="date-label">结束日期</text>
 						<picker mode="date" :value="planData.endDate" @change="onEndDateChange">
-							<view class="date-picker">
+							<view class="date-picker" :class="{ 'date-constraint': planData.endDate }">
 								<text class="date-text">{{ planData.endDate || '选择日期' }}</text>
 								<text class="date-icon">📅</text>
 							</view>
 						</picker>
+						<text class="date-hint">必须晚于开始日期</text>
 					</view>
+				</view>
+				
+				<!-- 时间约束提示 -->
+				<view class="time-constraint-tips" v-if="planData.startDate && planData.endDate">
+					<text class="tips-icon">💡</text>
+					<text class="tips-text">计划时长：{{ getPlanDuration() }}天 | 任务截止日期将自动限制在此范围内</text>
 				</view>
 			</view>
 
@@ -132,10 +140,14 @@
 									</view>
 								</picker>
 								<picker mode="date" :value="task.deadline" @change="(e) => onTaskDeadlineChange(e, index)">
-									<view class="task-deadline">
+									<view class="task-deadline" :class="{ 'deadline-set': task.deadline, 'deadline-invalid': task.deadline && !validateTaskDeadline(task.deadline, false) }">
 										<text class="deadline-label">{{ task.deadline || '无截止日期' }}</text>
+										<text class="deadline-icon">⏰</text>
 									</view>
 								</picker>
+								<text class="task-deadline-hint" v-if="planData.startDate && planData.endDate">
+									范围：{{ planData.startDate }} ~ {{ planData.endDate }}
+								</text>
 							</view>
 						</view>
 						<view class="task-actions">
@@ -270,17 +282,67 @@ export default {
 		},
 		
 		onStartDateChange(e) {
-			this.planData.startDate = e.detail.value
+			const newStartDate = e.detail.value
+			
+			// 验证开始日期不能早于今天
+			const today = new Date()
+			today.setHours(0, 0, 0, 0)
+			const selectedDate = new Date(newStartDate)
+			
+			if (selectedDate < today) {
+				uni.showToast({
+					title: '开始日期不能早于今天',
+					icon: 'none'
+				})
+				return
+			}
+			
+			this.planData.startDate = newStartDate
+			
 			// 如果开始日期晚于结束日期，自动调整结束日期
 			if (this.planData.endDate && this.planData.startDate > this.planData.endDate) {
 				const startDate = new Date(this.planData.startDate)
 				startDate.setMonth(startDate.getMonth() + 1)
 				this.planData.endDate = this.formatDate(startDate)
+				uni.showToast({
+					title: '已自动调整结束日期',
+					icon: 'none'
+				})
 			}
+			
+			// 自动调整所有任务的截止日期以确保在计划时间范围内
+			this.adjustTaskDeadlines()
 		},
 		
 		onEndDateChange(e) {
-			this.planData.endDate = e.detail.value
+			const newEndDate = e.detail.value
+			
+			// 验证结束日期不能早于开始日期
+			if (this.planData.startDate && newEndDate < this.planData.startDate) {
+				uni.showToast({
+					title: '结束日期不能早于开始日期',
+					icon: 'none'
+				})
+				return
+			}
+			
+			// 验证结束日期不能早于今天
+			const today = new Date()
+			today.setHours(0, 0, 0, 0)
+			const selectedDate = new Date(newEndDate)
+			
+			if (selectedDate < today) {
+				uni.showToast({
+					title: '结束日期不能早于今天',
+					icon: 'none'
+				})
+				return
+			}
+			
+			this.planData.endDate = newEndDate
+			
+			// 自动调整所有任务的截止日期以确保在计划时间范围内
+			this.adjustTaskDeadlines()
 		},
 		
 		addTask() {
@@ -288,7 +350,7 @@ export default {
 				title: '',
 				description: '',
 				priorityIndex: 1,
-				deadline: ''
+				deadline: this.getSuggestedTaskDeadline() // 智能推荐截止日期
 			}
 			this.planData.tasks.push(newTask)
 		},
@@ -310,7 +372,14 @@ export default {
 		},
 		
 		onTaskDeadlineChange(e, index) {
-			this.planData.tasks[index].deadline = e.detail.value
+			const newDeadline = e.detail.value
+			
+			// 验证任务截止日期是否在计划时间范围内
+			if (!this.validateTaskDeadline(newDeadline)) {
+				return
+			}
+			
+			this.planData.tasks[index].deadline = newDeadline
 		},
 		
 		validateForm() {
@@ -338,11 +407,8 @@ export default {
 				return false
 			}
 			
-			if (this.planData.startDate > this.planData.endDate) {
-				uni.showToast({
-					title: '开始日期不能晚于结束日期',
-					icon: 'none'
-				})
+			// 全面的时间约束验证
+			if (!this.validateTimeConstraints()) {
 				return false
 			}
 			
@@ -352,6 +418,15 @@ export default {
 				if (!task.title.trim()) {
 					uni.showToast({
 						title: `请输入第${i + 1}个任务的名称`,
+						icon: 'none'
+					})
+					return false
+				}
+				
+				// 验证任务时间约束
+				if (task.deadline && !this.validateTaskDeadline(task.deadline, false)) {
+					uni.showToast({
+						title: `第${i + 1}个任务的截止日期超出计划时间范围`,
 						icon: 'none'
 					})
 					return false
@@ -448,21 +523,39 @@ export default {
 				// 处理任务 - 只在新建模式下创建任务，编辑模式下不处理任务
 				if (!this.planData.id && submitData.tasks.length > 0) {
 					for (const task of submitData.tasks) {
-						await uni.request({
-							url: `${this.$config.apiBaseUrl}/study-plans/tasks`,
-							method: 'POST',
-							header: {
-								'Authorization': `Bearer ${token}`,
-								'Content-Type': 'application/json'
-							},
-							data: {
-								plan_id: planId,
-								title: task.title,
-								description: task.description,
-								priority: task.priority,
-								deadline: task.deadline
+						try {
+							const taskResponse = await uni.request({
+								url: `${this.$config.apiBaseUrl}/study-plans/tasks`,
+								method: 'POST',
+								header: {
+									'Authorization': `Bearer ${token}`,
+									'Content-Type': 'application/json'
+								},
+								data: {
+									plan_id: planId,
+									title: task.title,
+									description: task.description,
+									priority: task.priority,
+									deadline: task.deadline
+								}
+							})
+							
+							if (!taskResponse.data.success) {
+								throw new Error(taskResponse.data.message || '创建任务失败')
 							}
-						})
+						} catch (taskError) {
+							console.error('创建任务失败:', taskError)
+							// 如果是时间约束错误，显示详细错误信息
+							if (taskError.message && taskError.message.includes('时间约束')) {
+								uni.showModal({
+									title: '时间约束冲突',
+									content: taskError.message,
+									showCancel: false
+								})
+								return
+							}
+							throw taskError
+						}
 					}
 				}
 				
@@ -480,10 +573,20 @@ export default {
 			} catch (error) {
 				uni.hideLoading()
 				console.error('保存计划失败:', error)
-				uni.showToast({
-					title: '保存失败',
-					icon: 'none'
-				})
+				
+				// 检查是否是时间约束错误，提供更详细的错误信息
+				if (error.message && (error.message.includes('时间约束') || error.message.includes('time constraint'))) {
+					uni.showModal({
+						title: '时间约束错误',
+						content: error.message || '计划时间设置不符合约束条件',
+						showCancel: false
+					})
+				} else {
+					uni.showToast({
+						title: '保存失败',
+						icon: 'none'
+					})
+				}
 			}
 		},
 		
@@ -492,6 +595,142 @@ export default {
 			const month = String(date.getMonth() + 1).padStart(2, '0')
 			const day = String(date.getDate()).padStart(2, '0')
 			return `${year}-${month}-${day}`
+		},
+		
+		// 验证时间约束
+		validateTimeConstraints() {
+			const today = new Date()
+			today.setHours(0, 0, 0, 0)
+			const startDate = new Date(this.planData.startDate)
+			const endDate = new Date(this.planData.endDate)
+			
+			// 验证计划开始日期不能早于今天
+			if (startDate < today) {
+				uni.showToast({
+					title: '计划开始日期不能早于今天',
+					icon: 'none'
+				})
+				return false
+			}
+			
+			// 验证计划结束日期不能早于开始日期
+			if (endDate <= startDate) {
+				uni.showToast({
+					title: '计划结束日期必须晚于开始日期',
+					icon: 'none'
+				})
+				return false
+			}
+			
+			// 验证计划结束日期不能早于今天
+			if (endDate < today) {
+				uni.showToast({
+					title: '计划结束日期不能早于今天',
+					icon: 'none'
+				})
+				return false
+			}
+			
+			return true
+		},
+		
+		// 验证任务截止日期
+		validateTaskDeadline(deadline, showToast = true) {
+			if (!deadline) return true // 允许没有截止日期
+			
+			if (!this.planData.startDate || !this.planData.endDate) {
+				if (showToast) {
+					uni.showToast({
+						title: '请先设置计划的时间范围',
+						icon: 'none'
+					})
+				}
+				return false
+			}
+			
+			const taskDeadline = new Date(deadline)
+			const planStart = new Date(this.planData.startDate)
+			const planEnd = new Date(this.planData.endDate)
+			
+			// 任务截止日期必须在计划时间范围内
+			if (taskDeadline < planStart || taskDeadline > planEnd) {
+				if (showToast) {
+					const startStr = this.planData.startDate
+					const endStr = this.planData.endDate
+					uni.showToast({
+						title: `任务截止日期必须在计划时间范围内(${startStr} ~ ${endStr})`,
+						icon: 'none',
+						duration: 3000
+					})
+				}
+				return false
+			}
+			
+			return true
+		},
+		
+		// 自动调整任务截止日期
+		adjustTaskDeadlines() {
+			if (!this.planData.startDate || !this.planData.endDate) return
+			
+			const planStart = new Date(this.planData.startDate)
+			const planEnd = new Date(this.planData.endDate)
+			let hasAdjustment = false
+			
+			this.planData.tasks.forEach((task, index) => {
+				if (task.deadline) {
+					const taskDeadline = new Date(task.deadline)
+					
+					// 如果任务截止日期超出计划范围，自动调整到计划结束日期
+					if (taskDeadline < planStart || taskDeadline > planEnd) {
+						task.deadline = this.planData.endDate
+						hasAdjustment = true
+					}
+				}
+			})
+			
+			if (hasAdjustment) {
+				uni.showToast({
+					title: '已自动调整任务截止日期到计划范围内',
+					icon: 'none',
+					duration: 2000
+				})
+			}
+		},
+		
+		// 获取智能推荐的任务截止日期
+		getSuggestedTaskDeadline() {
+			if (!this.planData.startDate || !this.planData.endDate) {
+				return ''
+			}
+			
+			// 根据现有任务数量和计划时间范围智能推荐截止日期
+			const planStart = new Date(this.planData.startDate)
+			const planEnd = new Date(this.planData.endDate)
+			const totalDays = Math.ceil((planEnd - planStart) / (1000 * 60 * 60 * 24))
+			const taskCount = this.planData.tasks.length + 1 // 包括即将添加的任务
+			
+			// 将计划时间平均分配给所有任务
+			const daysPerTask = Math.floor(totalDays / taskCount)
+			const suggestedDate = new Date(planStart)
+			suggestedDate.setDate(suggestedDate.getDate() + daysPerTask * taskCount)
+			
+			// 确保不超过计划结束日期
+			if (suggestedDate > planEnd) {
+				return this.planData.endDate
+			}
+			
+			return this.formatDate(suggestedDate)
+		},
+		
+		// 计算计划持续天数
+		getPlanDuration() {
+			if (!this.planData.startDate || !this.planData.endDate) return 0
+			
+			const start = new Date(this.planData.startDate)
+			const end = new Date(this.planData.endDate)
+			const diffTime = end - start
+			return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 		}
 	}
 }
@@ -676,6 +915,40 @@ export default {
 	}
 }
 
+.date-hint {
+	display: block;
+	font-size: 20rpx;
+	color: #999;
+	margin-top: 8rpx;
+	text-align: center;
+}
+
+.date-picker.date-constraint {
+	border: 2rpx solid #007aff;
+	background: #f0f8ff;
+}
+
+.time-constraint-tips {
+	display: flex;
+	align-items: center;
+	padding: 16rpx 20rpx;
+	background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+	border-radius: 12rpx;
+	margin-top: 16rpx;
+	
+	.tips-icon {
+		font-size: 28rpx;
+		margin-right: 12rpx;
+	}
+	
+	.tips-text {
+		font-size: 24rpx;
+		color: #666;
+		line-height: 1.4;
+		flex: 1;
+	}
+}
+
 .task-list {
 	.task-item {
 		border: 2rpx solid #f0f0f0;
@@ -710,17 +983,58 @@ export default {
 				display: flex;
 				gap: 20rpx;
 				
-				.task-priority, .task-deadline {
+				.task-priority {
 					flex: 1;
 					padding: 10rpx 15rpx;
 					background: #f8f8f8;
 					border-radius: 8rpx;
 					
-					.priority-label, .deadline-label {
+					.priority-label {
 						font-size: 22rpx;
 						color: #666;
 					}
 				}
+				
+				.task-deadline {
+					flex: 1;
+					padding: 10rpx 15rpx;
+					background: #f8f8f8;
+					border-radius: 8rpx;
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					
+					.deadline-label {
+						font-size: 22rpx;
+						color: #666;
+					}
+					
+					.deadline-icon {
+						font-size: 18rpx;
+						margin-left: 8rpx;
+					}
+					
+					&.deadline-set {
+						background: #e8f5e8;
+						border: 1rpx solid #4caf50;
+					}
+					
+					&.deadline-invalid {
+						background: #ffebee;
+						border: 1rpx solid #f44336;
+						
+						.deadline-label {
+							color: #f44336;
+						}
+					}
+				}
+			}
+			
+			.task-deadline-hint {
+				font-size: 20rpx;
+				color: #999;
+				margin-top: 8rpx;
+				text-align: center;
 			}
 		}
 		

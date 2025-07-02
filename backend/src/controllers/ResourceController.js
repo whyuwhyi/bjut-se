@@ -108,7 +108,8 @@ class ResourceController {
           rating: parseFloat(data.rating),
           isFavorited: userCollections.includes(data.resource_id),
           files: data.files || [],
-          category: data.category?.category_name || '未分类'
+          category: data.category?.category_name || '未分类',
+          collection_count: data.collection_count || 0
         }
       })
 
@@ -224,6 +225,8 @@ class ResourceController {
         category_id,
         status: 'draft'
       })
+      // 新增：发布资源后自增用户资源数
+      await User.increment('resource_count', { where: { phone_number: userPhone } })
 
       res.status(201).json({
         success: true,
@@ -298,7 +301,10 @@ class ResourceController {
       res.json({
         success: true,
         message,
-        data: { isFavorited }
+        data: {
+          isFavorited,
+          collection_count: resource.collection_count
+        }
       })
     } catch (error) {
       console.error('收藏操作错误:', error)

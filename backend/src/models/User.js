@@ -78,6 +78,26 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('active', 'inactive', 'banned', 'deleted'),
     defaultValue: 'active',
     comment: '用户状态'
+  },
+  post_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: '发帖数'
+  },
+  resource_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: '资源数'
+  },
+  follower_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: '粉丝数'
+  },
+  following_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    comment: '关注数'
   }
 }, {
   tableName: 'users',

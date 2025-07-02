@@ -313,7 +313,7 @@ export default {
 			}
 			
 			const file = this.uploadForm.file
-				
+			const token = uni.getStorageSync('token')
 			const uploadTask = uni.uploadFile({
 				url: `${this.$config.apiBaseUrl}/files/upload`,
 				filePath: file.path,
@@ -322,28 +322,42 @@ export default {
 					resource_id: resourceId,
 					file_name: file.name,
 					file_type: file.type
+				},
+				header: {
+					'Authorization': `Bearer ${token}`
 				}
 			})
 			
-			uploadTask.onProgressUpdate((progress) => {
-				const baseProgress = 30
-				const fileProgress = progress.progress / 100 * 60
-				this.uploadProgress = Math.min(90, baseProgress + fileProgress)
-			})
-			
+			// 兼容H5和小程序/APP
 			await new Promise((resolve, reject) => {
-				uploadTask.onSuccess((res) => {
-					const data = JSON.parse(res.data)
-					if (data.success) {
-						resolve(data)
-					} else {
-						reject(new Error(data.message || '文件上传失败'))
-					}
-				})
-				
-				uploadTask.onFail((err) => {
+				if (uploadTask && typeof uploadTask.onSuccess === 'function') {
+					// 小程序/APP端
+					uploadTask.onSuccess((res) => {
+						const data = JSON.parse(res.data)
+						if (data.success) {
+							resolve(data)
+						} else {
+							reject(new Error(data.message || '文件上传失败'))
+						}
+					})
+					uploadTask.onFail((err) => {
+						reject(new Error('文件上传失败'))
+					})
+				} else if (uploadTask && typeof uploadTask.then === 'function') {
+					// H5端
+					uploadTask.then(res => {
+						const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+						if (data.success) {
+							resolve(data)
+						} else {
+							reject(new Error(data.message || '文件上传失败'))
+						}
+					}).catch(() => {
+						reject(new Error('文件上传失败'))
+					})
+				} else {
 					reject(new Error('文件上传失败'))
-				})
+				}
 			})
 		}
 	}

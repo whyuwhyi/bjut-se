@@ -15,7 +15,6 @@ const PostTagRelation = require('./PostTagRelation')
 const StudyPlan = require('./StudyPlan')
 const StudyTask = require('./StudyTask')
 const SubTask = require('./SubTask')
-const StudyRecord = require('./StudyRecord')
 // 用户管理模块
 const UserFollow = require('./UserFollow')
 const VerificationCode = require('./VerificationCode')
@@ -70,58 +69,6 @@ StudyTask.hasMany(SubTask, {
 SubTask.belongsTo(StudyTask, {
   foreignKey: 'task_id',
   as: 'task'
-})
-
-// 用户 - 学习记录关系
-User.hasMany(StudyRecord, {
-  foreignKey: 'user_phone',
-  sourceKey: 'phone_number',
-  as: 'studyRecords'
-})
-StudyRecord.belongsTo(User, {
-  foreignKey: 'user_phone',
-  targetKey: 'phone_number',
-  as: 'user'
-})
-
-// 学习记录 - 学习计划关系
-StudyPlan.hasMany(StudyRecord, {
-  foreignKey: 'plan_id',
-  as: 'records'
-})
-StudyRecord.belongsTo(StudyPlan, {
-  foreignKey: 'plan_id',
-  as: 'plan'
-})
-
-// 学习记录 - 学习任务关系
-StudyTask.hasMany(StudyRecord, {
-  foreignKey: 'task_id',
-  as: 'records'
-})
-StudyRecord.belongsTo(StudyTask, {
-  foreignKey: 'task_id',
-  as: 'task'
-})
-
-// 学习记录 - 资源关系
-Resource.hasMany(StudyRecord, {
-  foreignKey: 'resource_id',
-  as: 'studyRecords'
-})
-StudyRecord.belongsTo(Resource, {
-  foreignKey: 'resource_id',
-  as: 'resource'
-})
-
-// 学习记录 - 帖子关系
-Post.hasMany(StudyRecord, {
-  foreignKey: 'post_id',
-  as: 'studyRecords'
-})
-StudyRecord.belongsTo(Post, {
-  foreignKey: 'post_id',
-  as: 'post'
 })
 
 
@@ -405,7 +352,6 @@ const models = {
   StudyPlan,
   StudyTask,
   SubTask,
-  StudyRecord,
   // 用户管理模块
   UserFollow,
   VerificationCode,

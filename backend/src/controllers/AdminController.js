@@ -1,4 +1,4 @@
-const { User, Resource, Post, Notification, Comment, Collection, StudyRecord, UserFollow, ResourceReport, PostReport } = require('../models');
+const { User, Resource, Post, Notification, Comment, Collection, UserFollow, ResourceReport, PostReport } = require('../models');
 const { Op } = require('sequelize');
 
 class AdminController {
@@ -188,14 +188,7 @@ class AdminController {
       }
       console.log(`Deleted ${collections.length} collections`);
 
-      // 5. 删除用户的学习记录
-      const studyRecords = await StudyRecord.findAll({ where: { user_phone: phone } });
-      for (const studyRecord of studyRecords) {
-        await studyRecord.destroy();
-      }
-      console.log(`Deleted ${studyRecords.length} study records`);
-
-      // 6. 删除关注关系（作为关注者）
+      // 5. 删除关注关系（作为关注者）
       const followings = await UserFollow.findAll({ where: { follower_phone: phone } });
       for (const follow of followings) {
         await follow.destroy();
@@ -702,6 +695,11 @@ class AdminController {
         reviewer_phone: req.user.phone_number,
         reviewed_at: new Date()
       });
+
+      // 新增：删除资源后自减用户资源数
+      if (resource.publisher_phone) {
+        await User.decrement('resource_count', { where: { phone_number: resource.publisher_phone }, min: 0 })
+      }
 
       // 发送通知给资源发布者
       await Notification.create({
