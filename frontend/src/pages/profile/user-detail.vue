@@ -71,6 +71,8 @@
 </template>
 
 <script>
+import config from '@/utils/config'
+
 export default {
 	data() {
 		return {
@@ -128,7 +130,7 @@ export default {
 				const token = uni.getStorageSync('token')
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/users/${this.userPhone}/profile`,
+					url: `${config.apiBaseUrl}/users/${this.userPhone}/profile`,
 					method: 'GET',
 					header: token ? {
 						'Authorization': `Bearer ${token}`
@@ -168,7 +170,7 @@ export default {
 			this.followLoading = true
 			try {
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/users/follow/${this.userPhone}`,
+					url: `${config.apiBaseUrl}/users/follow/${this.userPhone}`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`

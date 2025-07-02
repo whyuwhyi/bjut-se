@@ -4,7 +4,7 @@
 		<view class="post-detail" v-if="post">
 			<view class="post-header">
 				<view class="author-info">
-					<image class="avatar" :src="post.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill"></image>
+					<image class="avatar" :src="post.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill" @click.stop="viewUserProfile(post.author.phone_number, post.author)"></image>
 					<view class="author-details">
 						<text class="author-name">{{ post.author.nickname || post.author.name }}</text>
 						<text class="post-time">{{ formatTime(post.created_at) }}</text>
@@ -73,7 +73,7 @@
 			<!-- 评论列表 -->
 			<view class="comment-list">
 				<view class="comment-item" v-for="(comment, index) in comments" :key="comment.comment_id">
-					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'"></image>
+					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(comment.userPhone, comment)"></image>
 					<view class="comment-content">
 						<view class="comment-header">
 							<text class="comment-username">{{ comment.userName }}</text>
@@ -88,7 +88,7 @@
 						<!-- 回复列表 -->
 						<view class="replies" v-if="comment.replies && comment.replies.length > 0">
 							<view class="reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
-								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'"></image>
+								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(reply.userPhone, reply)"></image>
 								<view class="reply-content-wrap">
 									<view class="reply-header">
 										<view class="reply-info">
@@ -140,6 +140,8 @@
 <script>
 import QRCode from 'qrcode'
 import ReportModal from '@/components/ReportModal.vue'
+import config from '@/utils/config'
+import { navigateToUserProfile } from '@/utils/userUtils'
 
 export default {
 	components: {
@@ -183,7 +185,7 @@ export default {
 		async loadPostDetail() {
 			try {
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}`,
 					method: 'GET'
 				})
 				
@@ -215,7 +217,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/favorite-status?type=post`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}/favorite-status?type=post`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -234,19 +236,21 @@ export default {
 			try {
 				this.loadingComments = true
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/comments`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}/comments`,
 					method: 'GET'
 				})
 				if (response.statusCode === 200 && response.data.success) {
 					this.comments = (response.data.data.comments || []).map(comment => ({
 						comment_id: comment.comment_id,
 						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
+						userPhone: comment.author?.phone_number,
 						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
 						content: comment.content,
 						createTime: new Date(comment.created_at),
 						replies: (comment.replies || []).map(reply => ({
 							comment_id: reply.comment_id,
 							userName: reply.author?.nickname || reply.author?.name || '匿名用户',
+							userPhone: reply.author?.phone_number,
 							userAvatar: reply.author?.avatar_url || '/static/images/default-avatar.png',
 							content: reply.content,
 							createTime: new Date(reply.created_at),
@@ -281,7 +285,7 @@ export default {
 					data.parent_comment_id = this.replyTarget.comment_id
 				}
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/comments`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}/comments`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -314,7 +318,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/favorite`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}/favorite`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -456,6 +460,10 @@ export default {
 			} else if (e.detail && e.detail.height) {
 				this.commentTextareaHeight = e.detail.height;
 			}
+		},
+		
+		viewUserProfile(userPhone, userInfo) {
+			navigateToUserProfile(userPhone, userInfo)
 		}
 	}
 }
