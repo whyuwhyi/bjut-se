@@ -65,6 +65,7 @@
 					<view class="post-stats">
 						<text class="stat-item">👁️ {{ post.view_count }}</text>
 						<text class="stat-item">💬 {{ post.comment_count || 0 }}</text>
+						<text class="stat-item">❤️ {{ post.collection_count || 0 }}</text>
 					</view>
 				</view>
 				
@@ -165,7 +166,7 @@ export default {
 				
 				const params = {
 					page: refresh ? 1 : this.page,
-					limit: 10,
+					limit: 6,
 					sortBy: this.currentSort
 				}
 				
