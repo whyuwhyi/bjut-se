@@ -57,6 +57,11 @@
 
 			<view class="menu-group">
 				<text class="group-title">⚙️ 应用管理</text>
+				<view class="menu-item" @click="goToPrivacySettings">
+					<text class="menu-icon">🔒</text>
+					<text class="menu-text">隐私设置</text>
+					<text class="menu-arrow">></text>
+				</view>
 				<view class="menu-item" @click="goToFeedback">
 					<text class="menu-icon">📮</text>
 					<text class="menu-text">意见反馈</text>
@@ -251,13 +256,17 @@ export default {
 			})
 		},
 		
+		goToPrivacySettings() {
+			uni.navigateTo({
+				url: './privacy-settings'
+			})
+		},
+		
 		goToAbout() {
 			uni.navigateTo({
 				url: './about'
 			})
 		},
-		
-		
 		
 		logout() {
 			uni.showModal({

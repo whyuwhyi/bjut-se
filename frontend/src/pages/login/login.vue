@@ -130,6 +130,7 @@ export default {
 					// 保存用户信息
 					uni.setStorageSync('userInfo', result.data.user)
 					uni.setStorageSync('token', result.data.token)
+					uni.setStorageSync('currentUserPhone', result.data.user.phone_number)
 					
 					// 如果选择记住密码
 					if (this.rememberMe) {
