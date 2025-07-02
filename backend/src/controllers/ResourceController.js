@@ -523,7 +523,7 @@ class ResourceController {
             }
           })
         } else {
-          // 直接文件访问，返回文件流
+          // 其他情况都返回文件流（包括 application/octet-stream 或默认情况）
           const filePath = path.join(process.cwd(), 'uploads', file.storage_path)
           
           // 检查文件是否存在

@@ -4,7 +4,7 @@
     
     <div class="stats-cards">
       <el-row :gutter="20">
-        <el-col :xs="12" :sm="6">
+        <el-col :xs="12" :sm="6" :lg="4">
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon user-icon">
@@ -18,7 +18,7 @@
           </el-card>
         </el-col>
         
-        <el-col :xs="12" :sm="6">
+        <el-col :xs="12" :sm="6" :lg="4">
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon resource-icon">
@@ -32,7 +32,7 @@
           </el-card>
         </el-col>
         
-        <el-col :xs="12" :sm="6">
+        <el-col :xs="12" :sm="6" :lg="4">
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon post-icon">
@@ -46,15 +46,43 @@
           </el-card>
         </el-col>
         
-        <el-col :xs="12" :sm="6">
+        <el-col :xs="12" :sm="6" :lg="4">
+          <el-card class="stat-card">
+            <div class="stat-content">
+              <div class="stat-icon notification-icon">
+                <el-icon><Bell /></el-icon>
+              </div>
+              <div class="stat-info">
+                <h3>{{ stats?.totalNotifications || 0 }}</h3>
+                <p>通知总数</p>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+        
+        <el-col :xs="12" :sm="6" :lg="4">
+          <el-card class="stat-card">
+            <div class="stat-content">
+              <div class="stat-icon feedback-icon">
+                <el-icon><ChatDotRound /></el-icon>
+              </div>
+              <div class="stat-info">
+                <h3>{{ stats?.totalFeedbacks || 0 }}</h3>
+                <p>反馈总数</p>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+        
+        <el-col :xs="12" :sm="6" :lg="4">
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon pending-icon">
                 <el-icon><Clock /></el-icon>
               </div>
               <div class="stat-info">
-                <h3>{{ stats?.pendingResources || 0 }}</h3>
-                <p>待审核资源</p>
+                <h3>{{ (stats?.pendingResources || 0) + (stats?.pendingFeedbacks || 0) }}</h3>
+                <p>待处理任务</p>
               </div>
             </div>
           </el-card>
@@ -68,7 +96,7 @@
           <el-card class="content-card">
             <template #header>
               <div class="card-header">
-                <h3>活跃统计</h3>
+                <h3>用户活跃统计</h3>
               </div>
             </template>
             <div class="active-stats">
@@ -80,6 +108,14 @@
                 <span class="label">已发布资源:</span>
                 <span class="value">{{ stats?.publishedResources || 0 }}</span>
               </div>
+              <div class="stat-item">
+                <span class="label">总评论数:</span>
+                <span class="value">{{ stats?.totalComments || 0 }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="label">总收藏数:</span>
+                <span class="value">{{ stats?.totalCollections || 0 }}</span>
+              </div>
             </div>
           </el-card>
         </el-col>
@@ -88,26 +124,80 @@
           <el-card class="content-card">
             <template #header>
               <div class="card-header">
-                <h3>快捷操作</h3>
+                <h3>通知与反馈</h3>
               </div>
             </template>
-            <div class="quick-actions">
-              <el-button type="primary" @click="$router.push('/users')">
-                <el-icon><User /></el-icon>
-                用户管理
-              </el-button>
-              <el-button type="success" @click="$router.push('/content-review')">
-                <el-icon><Document /></el-icon>
-                内容审核
-              </el-button>
-              <el-button type="warning" @click="$router.push('/notifications')">
-                <el-icon><Bell /></el-icon>
-                发送通知
-              </el-button>
-              <el-button type="info" @click="$router.push('/statistics')">
-                <el-icon><PieChart /></el-icon>
-                数据统计
-              </el-button>
+            <div class="active-stats">
+              <div class="stat-item">
+                <span class="label">今日通知:</span>
+                <span class="value">{{ stats?.todayNotifications || 0 }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="label">未读通知:</span>
+                <span class="value">{{ stats?.unreadNotifications || 0 }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="label">今日反馈:</span>
+                <span class="value">{{ stats?.todayFeedbacks || 0 }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="label">待处理反馈:</span>
+                <span class="value">{{ stats?.pendingFeedbacks || 0 }}</span>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+        
+      </el-row>
+      
+      <!-- 处理状态概览 -->
+      <el-row :gutter="20" style="margin-top: 20px;">
+        <el-col :xs="24">
+          <el-card class="content-card">
+            <template #header>
+              <div class="card-header">
+                <h3>处理状态概览</h3>
+              </div>
+            </template>
+            <div class="status-overview">
+              <el-row :gutter="20">
+                <el-col :xs="24" :sm="12" :lg="6">
+                  <div class="status-item">
+                    <div class="status-header">
+                      <el-icon class="status-icon pending"><Clock /></el-icon>
+                      <span class="status-title">待审核资源</span>
+                    </div>
+                    <div class="status-value">{{ stats?.pendingResources || 0 }}</div>
+                  </div>
+                </el-col>
+                <el-col :xs="24" :sm="12" :lg="6">
+                  <div class="status-item">
+                    <div class="status-header">
+                      <el-icon class="status-icon processing"><Loading /></el-icon>
+                      <span class="status-title">处理中反馈</span>
+                    </div>
+                    <div class="status-value">{{ stats?.processingFeedbacks || 0 }}</div>
+                  </div>
+                </el-col>
+                <el-col :xs="24" :sm="12" :lg="6">
+                  <div class="status-item">
+                    <div class="status-header">
+                      <el-icon class="status-icon resolved"><Check /></el-icon>
+                      <span class="status-title">已解决反馈</span>
+                    </div>
+                    <div class="status-value">{{ stats?.resolvedFeedbacks || 0 }}</div>
+                  </div>
+                </el-col>
+                <el-col :xs="24" :sm="12" :lg="6">
+                  <div class="status-item">
+                    <div class="status-header">
+                      <el-icon class="status-icon week"><Calendar /></el-icon>
+                      <span class="status-title">本周通知</span>
+                    </div>
+                    <div class="status-value">{{ stats?.weekNotifications || 0 }}</div>
+                  </div>
+                </el-col>
+              </el-row>
             </div>
           </el-card>
         </el-col>
@@ -127,7 +217,11 @@ import {
   EditPen,
   Clock,
   Bell,
-  PieChart
+  ChatDotRound,
+  ChatLineRound,
+  Loading,
+  Check,
+  Calendar
 } from '@element-plus/icons-vue'
 
 const stats = ref<DashboardStats | null>(null)
@@ -204,6 +298,14 @@ onMounted(() => {
   background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
 }
 
+.notification-icon {
+  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+}
+
+.feedback-icon {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
 .stat-info h3 {
   margin: 0;
   font-size: 24px;
@@ -219,6 +321,13 @@ onMounted(() => {
 
 .content-card {
   margin-bottom: 20px;
+  height: 260px;
+}
+
+.content-card .el-card__body {
+  height: calc(100% - 60px);
+  display: flex;
+  flex-direction: column;
 }
 
 .card-header h3 {
@@ -230,6 +339,10 @@ onMounted(() => {
 
 .active-stats {
   padding: 10px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .stat-item {
@@ -257,20 +370,77 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.quick-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+
+/* 处理状态概览 */
+.status-overview {
+  padding: 20px 0;
 }
 
-.quick-actions .el-button {
-  flex: 1;
-  min-width: calc(50% - 5px);
+.status-item {
+  text-align: center;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  transition: all 0.3s ease;
+}
+
+.status-item:hover {
+  background-color: #e9ecef;
+  transform: translateY(-2px);
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.status-icon {
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+.status-icon.pending {
+  color: #e6a23c;
+}
+
+.status-icon.processing {
+  color: #409eff;
+}
+
+.status-icon.resolved {
+  color: #67c23a;
+}
+
+.status-icon.week {
+  color: #f56c6c;
+}
+
+.status-title {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.status-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #303133;
 }
 
 @media (max-width: 768px) {
-  .quick-actions .el-button {
-    min-width: 100%;
+  .dashboard-content .el-col {
+    margin-bottom: 20px;
+  }
+  
+  .status-item {
+    margin-bottom: 10px;
+  }
+  
+  .status-value {
+    font-size: 24px;
   }
 }
 </style>

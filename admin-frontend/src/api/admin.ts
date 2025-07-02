@@ -6,7 +6,9 @@ import type {
   Resource, 
   Post, 
   PaginatedResponse,
-  NotificationForm 
+  NotificationForm,
+  Notification,
+  NotificationStats
 } from '@/types'
 
 // 认证相关
@@ -144,8 +146,67 @@ export const hidePost = (id: string) => {
 }
 
 // 通知管理
+export const getAllNotifications = (params?: {
+  page?: number
+  limit?: number
+  type?: string
+  priority?: string
+  search?: string
+  start_date?: string
+  end_date?: string
+}) => {
+  return request.get<ApiResponse<{
+    notifications: Notification[]
+    total: number
+    page: number
+    limit: number
+  }>>('/admin/notifications', { params })
+}
+
+export const getNotificationStats = () => {
+  return request.get<ApiResponse<NotificationStats>>('/admin/notifications/stats')
+}
+
 export const createSystemNotification = (data: NotificationForm) => {
   return request.post<ApiResponse<{ sent_count: number }>>('/admin/notifications/system', data)
+}
+
+export const deleteNotificationBatch = (notification_ids: string[]) => {
+  return request.delete<ApiResponse<{ deleted_count: number }>>('/admin/notifications/batch', {
+    data: { notification_ids }
+  })
+}
+
+// 反馈管理
+export const getAllFeedbacks = (params?: {
+  page?: number
+  limit?: number
+  type?: string
+  status?: string
+  search?: string
+  start_date?: string
+  end_date?: string
+}) => {
+  return request.get<ApiResponse<{
+    feedbacks: Feedback[]
+    total: number
+    page: number
+    limit: number
+  }>>('/admin/feedbacks', { params })
+}
+
+export const getFeedbackStats = () => {
+  return request.get<ApiResponse<FeedbackStats>>('/admin/feedbacks/stats')
+}
+
+export const updateFeedbackStatus = (id: number, status: string, reply?: string) => {
+  return request.put<ApiResponse>(`/admin/feedbacks/${id}/status`, { status, reply })
+}
+
+export const deleteFeedbackBatch = (feedback_ids: number[]) => {
+  return request.delete<ApiResponse<{ deleted_count: number }>>('/admin/feedbacks/batch', {
+    data: { feedback_ids }
+  })
 }
 
 // 统计数据

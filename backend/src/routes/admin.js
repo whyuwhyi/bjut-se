@@ -78,12 +78,31 @@ router.post('/posts/:id/hide', [
 ], AdminController.hidePost);
 
 // 通知管理
+router.get('/notifications', AdminController.getAllNotifications);
+router.get('/notifications/stats', AdminController.getNotificationStats);
 router.post('/notifications/system', [
   body('title').isLength({ min: 1, max: 200 }).withMessage('标题长度必须在1-200个字符之间'),
   body('content').isLength({ min: 1, max: 2000 }).withMessage('内容长度必须在1-2000个字符之间'),
   body('priority').optional().isIn(['high', 'medium', 'low']).withMessage('优先级无效'),
   body('target_users').optional().isArray().withMessage('目标用户必须是数组格式')
 ], AdminController.createSystemNotification);
+router.delete('/notifications/batch', [
+  body('notification_ids').isArray({ min: 1 }).withMessage('通知ID列表不能为空'),
+  body('notification_ids.*').isLength({ min: 9, max: 9 }).withMessage('通知ID格式不正确')
+], AdminController.deleteNotificationBatch);
+
+// 反馈管理
+router.get('/feedbacks', AdminController.getAllFeedbacks);
+router.get('/feedbacks/stats', AdminController.getFeedbackStats);
+router.put('/feedbacks/:id/status', [
+  param('id').isInt().withMessage('反馈ID必须是整数'),
+  body('status').isIn(['pending', 'processing', 'resolved', 'closed']).withMessage('反馈状态无效'),
+  body('reply').optional().isLength({ max: 1000 }).withMessage('回复内容不能超过1000字符')
+], AdminController.updateFeedbackStatus);
+router.delete('/feedbacks/batch', [
+  body('feedback_ids').isArray({ min: 1 }).withMessage('反馈ID列表不能为空'),
+  body('feedback_ids.*').isInt().withMessage('反馈ID必须是整数')
+], AdminController.deleteFeedbackBatch);
 
 // 统计数据
 router.get('/statistics', AdminController.getStatistics);
