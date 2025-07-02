@@ -16,15 +16,9 @@
 					</view>
 				</view>
 			</scroll-view>
-		</view>
-
-		<!-- 操作栏 -->
-		<view class="action-bar" v-if="filteredFavorites.length > 0">
-			<view class="select-controls">
-				<button class="select-btn" @click="toggleSelectMode">
-					{{ isSelectMode ? '取消' : '选择' }}
-				</button>
-			</view>
+			<button v-if="filteredFavorites.length > 0" class="select-btn" @click="toggleSelectMode">
+				{{ isSelectMode ? '取消' : '选择' }}
+			</button>
 		</view>
 
 		<!-- 收藏列表 -->
@@ -447,251 +441,244 @@
 <style scoped>
 	.favorites-container {
 		min-height: 100vh;
-		padding: 20rpx;
-		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
-		animation: gradientBG 15s ease infinite;
+		padding-bottom: 120rpx; /* 为底部操作栏留出空间 */
+		position: relative;
+		
+		&::before {
+			content: '';
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			z-index: -1;
+			background-color: #FAEED1;
+			background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+			background-size: 400% 400%;
+			animation: gradientBG 15s ease infinite;
+		}
 	}
 
 	@keyframes gradientBG {
 		0% {
-			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+			background-position: 0% 50%;
 		}
 		50% {
-			background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+			background-position: 100% 50%;
 		}
 		100% {
-			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+			background-position: 0% 50%;
 		}
 	}
 
-	/* 顶部筛选栏 */
 	.filter-section {
+		position: sticky;
+		top: 0;
+		z-index: 100;
 		background-color: #ffffff;
-		padding: 20rpx;
-		border-bottom: 1rpx solid #e0e0e0;
-	}
-
-	.filter-scroll {
-		white-space: nowrap;
-	}
-
-	.filter-list {
-		display: flex;
-		gap: 20rpx;
-	}
-
-	.filter-item {
-		flex-shrink: 0;
-		display: flex;
-		align-items: center;
-		gap: 8rpx;
-		padding: 12rpx 20rpx;
-		background-color: #f0f0f0;
-		border-radius: 24rpx;
-		transition: all 0.3s ease;
-	}
-
-	.filter-item.active {
-		background-color: #007aff;
-		color: #ffffff;
-	}
-
-	.filter-text {
-		font-size: 26rpx;
-		color: inherit;
-	}
-
-	.filter-count {
-		font-size: 22rpx;
-		opacity: 0.8;
-	}
-
-	/* 操作栏 */
-	.action-bar {
-		background: white;
-		padding: 20rpx 30rpx;
 		border-bottom: 1rpx solid #f0f0f0;
-		position: relative;
-	}
-	
-	.select-controls {
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
 		display: flex;
 		align-items: center;
-		justify-content: flex-end;
-	}
-	
-	.select-btn {
-		position: absolute;
-		right: 30rpx;
-		background: #007aff;
-		color: white;
-		border: none;
-		border-radius: 8rpx;
-		padding: 12rpx 32rpx;
-		font-size: 28rpx;
-		min-width: 120rpx;
-		text-align: center;
-	}
-	
-	.select-text {
-		font-size: 24rpx;
-		color: #666;
-		margin-right: 20rpx;
+		padding-right: 20rpx;
+		
+		.filter-scroll {
+			flex: 1;
+			white-space: nowrap;
+			padding: 16rpx 20rpx;
+		}
+		
+		.filter-list {
+			display: inline-flex;
+			gap: 16rpx;
+		}
+		
+		.filter-item {
+			display: inline-flex;
+			align-items: center;
+			padding: 12rpx 24rpx;
+			border-radius: 24rpx;
+			background-color: #f5f5f5;
+			transition: all 0.3s ease;
+			
+			&.active {
+				background-color: #007aff;
+				
+				.filter-text, .filter-count {
+					color: #ffffff;
+				}
+			}
+			
+			.filter-text {
+				font-size: 28rpx;
+				color: #333333;
+				margin-right: 8rpx;
+			}
+			
+			.filter-count {
+				font-size: 24rpx;
+				color: #666666;
+			}
+		}
+
+		.select-btn {
+			padding: 12rpx 24rpx;
+			font-size: 28rpx;
+			color: #007aff;
+			background: none;
+			border: none;
+			min-width: 120rpx;
+			text-align: center;
+			
+			&:after {
+				border: none;
+			}
+		}
 	}
 
-	/* 收藏项选择模式 */
-	.favorite-item.select-mode {
-		padding-left: 60rpx;
-	}
-	
-	.favorite-item.selected {
-		background-color: #f0f8ff;
-		border-left: 4rpx solid #007aff;
-	}
-	
-	.select-checkbox {
-		position: absolute;
-		left: 20rpx;
-		top: 50%;
-		transform: translateY(-50%);
-		z-index: 10;
-	}
-	
-	.checkbox-icon {
-		font-size: 32rpx;
-	}
-
-	/* 收藏列表 */
 	.favorites-list {
-		padding: 32rpx;
-	}
-
-	.favorite-item {
-		display: flex;
-		align-items: flex-start;
-		background-color: #ffffff;
-		border-radius: 16rpx;
-		padding: 24rpx;
-		margin-bottom: 16rpx;
-		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
-		transition: all 0.3s ease;
-		position: relative;
-	}
-
-	.favorite-item:active {
-		transform: scale(0.98);
-		background-color: #f8f8f8;
-	}
-
-	.item-icon {
-		width: 80rpx;
-		height: 80rpx;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-right: 24rpx;
-		flex-shrink: 0;
-	}
-
-	.item-icon.icon-resource {
-		background-color: #e8f4fd;
-	}
-
-	.item-icon.icon-post {
-		background-color: #f0f9ff;
-	}
-
-	.item-icon.icon-activity {
-		background-color: #f8f0ff;
-	}
-
-	.icon-emoji {
-		font-size: 36rpx;
-	}
-
-	.item-content {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.item-title {
-		font-size: 32rpx;
-		font-weight: 600;
-		color: #333333;
-		display: block;
-		margin-bottom: 8rpx;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.item-desc {
-		font-size: 28rpx;
-		color: #666666;
-		line-height: 1.4;
-		display: block;
-		margin-bottom: 16rpx;
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		overflow: hidden;
-	}
-
-	.item-meta {
-		display: flex;
-		align-items: center;
-		gap: 16rpx;
-		flex-wrap: wrap;
-	}
-
-	.item-author {
-		font-size: 24rpx;
-		color: #999999;
-	}
-
-	.item-time {
-		font-size: 24rpx;
-		color: #999999;
-	}
-
-	.item-tags {
-		display: flex;
-		gap: 8rpx;
-	}
-
-	.item-tag {
-		padding: 4rpx 8rpx;
-		background-color: #f0f0f0;
-		border-radius: 8rpx;
-		font-size: 20rpx;
-		color: #666666;
-	}
-
-	.item-actions {
-		display: flex;
-		flex-direction: column;
-		gap: 12rpx;
-		margin-left: 16rpx;
-	}
-
-	.action-btn {
-		width: 60rpx;
-		height: 60rpx;
-		border-radius: 50%;
-		background-color: #f0f0f0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.3s ease;
-	}
-
-	.action-btn:active {
-		background-color: #e0e0e0;
-	}
-
-	.action-icon {
-		font-size: 24rpx;
+		padding: 20rpx;
+		
+		.favorite-item {
+			position: relative;
+			display: flex;
+			align-items: flex-start;
+			gap: 20rpx;
+			padding: 24rpx;
+			margin-bottom: 20rpx;
+			background-color: #ffffff;
+			border-radius: 16rpx;
+			box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+			transition: all 0.3s ease;
+			
+			&.select-mode {
+				padding-left: 80rpx;
+			}
+			
+			&.selected {
+				background-color: #f0f7ff;
+				border: 2rpx solid #007aff;
+			}
+			
+			.select-checkbox {
+				position: absolute;
+				left: 24rpx;
+				top: 50%;
+				transform: translateY(-50%);
+				width: 40rpx;
+				height: 40rpx;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 1;
+				
+				.checkbox-icon {
+					font-size: 36rpx;
+					line-height: 1;
+				}
+			}
+			
+			.item-icon {
+				width: 80rpx;
+				height: 80rpx;
+				border-radius: 16rpx;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-shrink: 0;
+				background-color: #f5f5f5;
+				
+				&.icon-resource {
+					background-color: #e8f4fd;
+				}
+				
+				&.icon-post {
+					background-color: #f0f9ff;
+				}
+				
+				.icon-emoji {
+					font-size: 36rpx;
+					line-height: 1;
+				}
+			}
+			
+			.item-content {
+				flex: 1;
+				min-width: 0;
+				padding-right: 80rpx;
+				
+				.item-title {
+					font-size: 32rpx;
+					font-weight: 600;
+					color: #333333;
+					margin-bottom: 8rpx;
+					@include text-ellipsis;
+				}
+				
+				.item-desc {
+					font-size: 28rpx;
+					color: #666666;
+					line-height: 1.4;
+					margin-bottom: 16rpx;
+					@include multi-ellipsis(2);
+				}
+				
+				.item-meta {
+					display: flex;
+					align-items: center;
+					gap: 16rpx;
+					flex-wrap: wrap;
+					
+					.item-author, .item-time {
+						font-size: 24rpx;
+						color: #999999;
+					}
+					
+					.item-tags {
+						display: flex;
+						gap: 8rpx;
+						flex-wrap: wrap;
+						
+						.item-tag {
+							padding: 4rpx 12rpx;
+							background-color: #f5f5f5;
+							border-radius: 12rpx;
+							font-size: 22rpx;
+							color: #666666;
+						}
+					}
+				}
+			}
+			
+			.item-actions.delete-bottom {
+				position: absolute;
+				right: 24rpx;
+				top: 50%;
+				transform: translateY(-50%);
+				margin-left: 0;
+				z-index: 2;
+				
+				.action-btn {
+					width: 64rpx;
+					height: 64rpx;
+					border-radius: 32rpx;
+					background-color: #f5f5f5;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					transition: all 0.3s ease;
+					
+					&:active {
+						background-color: #e0e0e0;
+					}
+					
+					.action-icon {
+						font-size: 32rpx;
+						line-height: 1;
+					}
+				}
+			}
+		}
 	}
 
 	/* 空状态 */
@@ -781,14 +768,5 @@
 	.batch-btn.delete {
 		background-color: #ff3b30;
 		color: #ffffff;
-	}
-
-	.item-actions.delete-bottom {
-		position: absolute;
-		right: 24rpx;
-		bottom: 24rpx;
-		margin-left: 0;
-		flex-direction: column;
-		z-index: 2;
 	}
 </style>

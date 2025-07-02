@@ -25,18 +25,23 @@
 		</view>
 
 		<!-- 筛选和排序 -->
-		<view class="filter-section">
-			<view class="filter-tabs">
-				<text 
-					class="filter-tab" 
-					:class="{ active: selectedStatus === index }"
-					v-for="(status, index) in statusFilters" 
-					:key="index"
-					@click="selectStatus(index)"
-				>
-					{{ status.name }}
-				</text>
+		<view class="filter-container">
+			<view class="filter-section">
+				<scroll-view class="filter-tabs" scroll-x="true" show-scrollbar="false">
+					<view class="tabs-content">
+						<text 
+							class="filter-tab" 
+							:class="{ active: selectedStatus === index }"
+							v-for="(status, index) in statusFilters" 
+							:key="index"
+							@click="selectStatus(index)"
+						>
+							{{ status.name }}
+						</text>
+					</view>
+				</scroll-view>
 			</view>
+			
 			<view class="sort-controls">
 				<picker @change="onSortChange" :value="selectedSort" :range="sortOptions" range-key="name">
 					<view class="sort-trigger">
@@ -486,7 +491,7 @@
 <style scoped>
 	.my-resources-container {
 		min-height: 100vh;
-		padding: 20rpx;
+		padding: 32rpx;
 		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 		animation: gradientBG 15s ease infinite;
 	}
@@ -503,283 +508,162 @@
 		}
 	}
 
-	/* 顶部统计 */
 	.stats-header {
-		padding: 32rpx;
+		margin-bottom: 32rpx;
+		padding: 0;
+		
+		.stats-card {
+			background-color: #ffffff;
+			border-radius: 16rpx;
+			padding: 32rpx;
+			box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+			
+			.stats-grid {
+				display: grid;
+				grid-template-columns: repeat(4, 1fr);
+				gap: 24rpx;
+				
+				.stat-item {
+					text-align: center;
+					
+					.stat-value {
+						display: block;
+						font-size: 36rpx;
+						font-weight: bold;
+						color: #333333;
+						margin-bottom: 8rpx;
+					}
+					
+					.stat-label {
+						font-size: 24rpx;
+						color: #666666;
+					}
+				}
+			}
+		}
 	}
 
-	.stats-card {
+	.filter-container {
+		display: flex;
+		align-items: center;
+		gap: 24rpx;
+		margin-bottom: 32rpx;
+	}
+
+	.filter-section {
+		flex: 1;
 		background-color: #ffffff;
 		border-radius: 16rpx;
-		padding: 32rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-	}
-
-	.stats-grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 32rpx;
-	}
-
-	.stat-item {
-		text-align: center;
-	}
-
-	.stat-value {
-		display: block;
-		font-size: 48rpx;
-		font-weight: 700;
-		color: #007aff;
-		margin-bottom: 8rpx;
-	}
-
-	.stat-label {
-		font-size: 24rpx;
-		color: #666666;
-	}
-
-	/* 筛选区域 */
-	.filter-section {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 32rpx;
-		background-color: #ffffff;
-		border-bottom: 1rpx solid #e0e0e0;
-	}
-
-	.filter-tabs {
-		display: flex;
-		gap: 16rpx;
-	}
-
-	.filter-tab {
-		padding: 12rpx 20rpx;
-		font-size: 26rpx;
-		color: #666666;
-		border-radius: 20rpx;
-		background-color: #f0f0f0;
-		transition: all 0.3s ease;
-	}
-
-	.filter-tab.active {
-		color: #007aff;
-		background-color: #e8f4fd;
+		padding: 20rpx 0;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+		overflow: hidden;
+		
+		.filter-tabs {
+			width: 100%;
+			white-space: nowrap;
+			
+			.tabs-content {
+				display: inline-flex;
+				padding: 0 20rpx;
+				
+				.filter-tab {
+					font-size: 28rpx;
+					color: #666666;
+					padding: 12rpx 24rpx;
+					border-radius: 24rpx;
+					transition: all 0.3s ease;
+					margin-right: 16rpx;
+					
+					&:last-child {
+						margin-right: 0;
+					}
+					
+					&.active {
+						background-color: #007aff;
+						color: #ffffff;
+					}
+				}
+			}
+		}
 	}
 
 	.sort-controls {
-		display: flex;
-		align-items: center;
-	}
-
-	.sort-trigger {
-		display: flex;
-		align-items: center;
-		gap: 8rpx;
-		padding: 12rpx 16rpx;
-		background-color: #f0f0f0;
-		border-radius: 20rpx;
-	}
-
-	.sort-text {
-		font-size: 26rpx;
-		color: #666666;
-	}
-
-	.sort-icon {
-		font-size: 20rpx;
-		color: #999999;
-	}
-
-	/* 资源列表 */
-	.resources-list {
-		background-color: #ffffff;
-		border-radius: 20rpx;
-		padding: 30rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-	}
-
-	.resource-item {
-		background-color: #ffffff;
-		border-radius: 16rpx;
-		padding: 32rpx;
-		margin-bottom: 16rpx;
-		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
-		transition: all 0.3s ease;
-		border-left: 6rpx solid transparent;
-	}
-
-	.resource-item.status-approved {
-		border-left-color: #34c759;
-	}
-
-	.resource-item.status-pending {
-		border-left-color: #ff9500;
-	}
-
-	.resource-item.status-rejected {
-		border-left-color: #ff3b30;
-	}
-
-	.resource-item:active {
-		transform: scale(0.98);
-	}
-
-	.resource-header {
-		display: flex;
-		align-items: flex-start;
-		margin-bottom: 16rpx;
-	}
-
-	.resource-icon {
-		width: 80rpx;
-		height: 80rpx;
-		border-radius: 16rpx;
-		background-color: #f0f0f0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-right: 24rpx;
 		flex-shrink: 0;
+		
+		.sort-trigger {
+			display: flex;
+			align-items: center;
+			gap: 8rpx;
+			padding: 12rpx 24rpx;
+			background-color: #f0f0f0;
+			border-radius: 24rpx;
+			transition: all 0.3s ease;
+			
+			&:active {
+				opacity: 0.8;
+			}
+			
+			.sort-text {
+				font-size: 26rpx;
+				color: #333333;
+			}
+			
+			.sort-icon {
+				font-size: 24rpx;
+				color: #666666;
+			}
+		}
 	}
 
-	.file-icon {
-		font-size: 36rpx;
-	}
-
-	.resource-info {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.resource-title {
-		font-size: 32rpx;
-		font-weight: 600;
-		color: #333333;
-		display: block;
-		margin-bottom: 8rpx;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.resource-filename {
-		font-size: 24rpx;
-		color: #999999;
-		display: block;
-		margin-bottom: 8rpx;
-	}
-
-	.resource-meta {
-		display: flex;
-		gap: 16rpx;
-		font-size: 22rpx;
-		color: #999999;
-	}
-
-	.resource-status {
-		padding: 6rpx 16rpx;
-		border-radius: 12rpx;
-		font-size: 22rpx;
-		color: #ffffff;
-		margin-left: 16rpx;
-	}
-
-	.resource-status.status-approved {
-		background-color: #34c759;
-	}
-
-	.resource-status.status-pending {
-		background-color: #ff9500;
-	}
-
-	.resource-status.status-rejected {
-		background-color: #ff3b30;
-	}
-
-	.resource-desc {
-		font-size: 28rpx;
-		color: #666666;
-		line-height: 1.5;
-		margin-bottom: 16rpx;
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		overflow: hidden;
-	}
-
-	.resource-tags {
-		display: flex;
-		gap: 12rpx;
-		margin-bottom: 20rpx;
-		flex-wrap: wrap;
-	}
-
-	.resource-tag {
-		padding: 6rpx 12rpx;
-		background-color: #f0f0f0;
-		border-radius: 12rpx;
-		font-size: 22rpx;
-		color: #666666;
-	}
-
-	.resource-stats {
-		display: flex;
-		gap: 32rpx;
-		margin-bottom: 24rpx;
-		padding: 16rpx 0;
-		border-top: 1rpx solid #f0f0f0;
-		border-bottom: 1rpx solid #f0f0f0;
-	}
-
-	.stat-group {
-		display: flex;
-		align-items: center;
-		gap: 8rpx;
-	}
-
-	.stat-icon {
-		font-size: 20rpx;
-	}
-
-	.stat-text {
-		font-size: 24rpx;
-		color: #666666;
-	}
-
-	.resource-actions {
-		display: flex;
-		gap: 16rpx;
-	}
-
-	.action-btn {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8rpx;
-		padding: 16rpx;
-		border-radius: 12rpx;
-		font-size: 24rpx;
-		border: none;
-	}
-
-	.action-btn.secondary {
-		background-color: #f0f0f0;
-		color: #666666;
-	}
-
-	.action-btn.danger {
-		background-color: #ff3b30;
-		color: #ffffff;
-	}
-
-	.btn-icon {
-		font-size: 20rpx;
-	}
-
-	.btn-text {
-		font-size: 24rpx;
+	.resources-list {
+		margin: 0;
+		padding: 0;
+		
+		.resource-item {
+			background-color: #ffffff;
+			border-radius: 16rpx;
+			padding: 32rpx;
+			margin-bottom: 24rpx;
+			box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+			transition: all 0.3s ease;
+			border-left: 6rpx solid transparent;
+		}
+		
+		.resource-actions {
+			display: flex;
+			gap: 24rpx;
+			margin-top: 24rpx;
+			
+			.action-btn {
+				flex: 1;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 12rpx;
+				padding: 16rpx 24rpx;
+				border-radius: 12rpx;
+				font-size: 24rpx;
+				border: none;
+				
+				&.secondary {
+					background-color: #f0f0f0;
+					color: #666666;
+				}
+				
+				&.danger {
+					background-color: #ff3b30;
+					color: #ffffff;
+				}
+				
+				.btn-icon {
+					font-size: 24rpx;
+				}
+				
+				.btn-text {
+					font-size: 24rpx;
+				}
+			}
+		}
 	}
 
 	/* 空状态 */
