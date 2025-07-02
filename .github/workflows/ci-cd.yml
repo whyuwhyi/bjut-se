@@ -342,63 +342,89 @@ jobs:
           # 健康检查 - 检查容器状态而不是HTTP端点
           max_attempts=6
           attempt=1
+          all_healthy=false
+          
           while [ $attempt -le $max_attempts ]; do
+            echo "检查第 $attempt/$max_attempts 次..."
+            
             # 检查所有服务是否健康
-            if docker-compose -f docker/docker-compose.prod.yml ps | grep -q "backend.*Up (healthy)" && \
-               docker-compose -f docker/docker-compose.prod.yml ps | grep -q "admin.*Up (healthy)" && \
-               docker-compose -f docker/docker-compose.prod.yml ps | grep -q "nginx.*Up (healthy)"; then
-              echo "✅ 所有容器服务正常"
+            backend_healthy=$(docker-compose -f docker/docker-compose.prod.yml ps backend | grep -c "Up.*healthy" || echo "0")
+            frontend_healthy=$(docker-compose -f docker/docker-compose.prod.yml ps frontend | grep -c "Up.*healthy" || echo "0")
+            admin_healthy=$(docker-compose -f docker/docker-compose.prod.yml ps admin-frontend | grep -c "Up.*healthy" || echo "0")
+            nginx_healthy=$(docker-compose -f docker/docker-compose.prod.yml ps nginx | grep -c "Up.*healthy" || echo "0")
+            mysql_healthy=$(docker-compose -f docker/docker-compose.prod.yml ps mysql | grep -c "Up.*healthy" || echo "0")
+            redis_healthy=$(docker-compose -f docker/docker-compose.prod.yml ps redis | grep -c "Up.*healthy" || echo "0")
+            
+            echo "容器健康状态: Backend($backend_healthy) Frontend($frontend_healthy) Admin($admin_healthy) Nginx($nginx_healthy) MySQL($mysql_healthy) Redis($redis_healthy)"
+            
+            if [ "$backend_healthy" = "1" ] && [ "$frontend_healthy" = "1" ] && [ "$admin_healthy" = "1" ] && [ "$nginx_healthy" = "1" ] && [ "$mysql_healthy" = "1" ] && [ "$redis_healthy" = "1" ]; then
+              echo "✅ 所有容器健康检查通过"
               
-              # 尝试访问Nginx（对外服务）
-              if curl -f http://localhost/ --connect-timeout 5 2>/dev/null; then
-                echo "✅ 前端服务可访问"
-              fi
-              
-              # 尝试访问管理后台
-              if curl -f http://localhost/admin/ --connect-timeout 5 2>/dev/null; then
-                echo "✅ 管理后台可访问"
-              fi
-              
-              echo "✅ 部署成功！"
-              
-              # 强制清理浏览器和CDN缓存
-              echo "清理缓存..."
-              
-              # 通过在主页添加时间戳参数来强制浏览器更新
-              TIMESTAMP=$(date +%s)
-              curl -s "http://localhost/?v=$TIMESTAMP" > /dev/null || true
-              curl -s "http://localhost/admin/?v=$TIMESTAMP" > /dev/null || true
-              
-              # 如果使用Cloudflare，可以通过API清理缓存（需要配置API密钥）
-              # curl -X POST "https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache" \
-              #   -H "Authorization: Bearer {api_token}" \
-              #   -H "Content-Type: application/json" \
-              #   --data '{"purge_everything":true}'
-              
-              echo "缓存清理完成"
-              
-              # 清理旧备份（保留最近3个）
-              cd ..
-              echo "清理旧备份..."
-              BACKUP_COUNT=$(ls -1d backup-* 2>/dev/null | wc -l)
-              echo "当前备份数量: $BACKUP_COUNT"
-              if [ "$BACKUP_COUNT" -gt 3 ]; then
-                echo "保留最近3个备份，删除其他备份"
-                ls -dt backup-* | tail -n +4 | xargs rm -rf 2>/dev/null || true
-                echo "清理完成，剩余备份:"
-                ls -dt backup-* 2>/dev/null || echo "无备份文件"
+              # 额外检查：确保API可用
+              if curl -f http://localhost/api/v1/health --connect-timeout 10 --max-time 30 2>/dev/null; then
+                echo "✅ 后端API健康检查通过"
               else
-                echo "备份数量未超过限制，无需清理"
+                echo "⚠️ 后端API健康检查失败，但容器状态正常，继续部署"
               fi
-              cd current
-              exit 0
+              
+              # 检查前端页面
+              if curl -f http://localhost/ --connect-timeout 10 --max-time 30 2>/dev/null; then
+                echo "✅ 前端服务可访问"
+              else
+                echo "⚠️ 前端服务访问失败"
+              fi
+              
+              # 检查管理后台
+              if curl -f http://localhost/admin/ --connect-timeout 10 --max-time 30 2>/dev/null; then
+                echo "✅ 管理后台可访问"
+              else
+                echo "⚠️ 管理后台访问失败"
+              fi
+              
+              all_healthy=true
+              break
             else
-              echo "尝试 $attempt/$max_attempts: 容器尚未完全就绪，等待15秒..."
-              docker-compose -f docker/docker-compose.prod.yml ps
+              echo "容器尚未完全健康，等待15秒..."
               sleep 15
               attempt=$((attempt + 1))
             fi
           done
+          
+          if [ "$all_healthy" = "true" ]; then
+            echo "✅ 部署成功！"
+            
+            # 强制清理浏览器和CDN缓存
+            echo "清理缓存..."
+            
+            # 通过在主页添加时间戳参数来强制浏览器更新
+            TIMESTAMP=$(date +%s)
+            curl -s "http://localhost/?v=$TIMESTAMP" > /dev/null || true
+            curl -s "http://localhost/admin/?v=$TIMESTAMP" > /dev/null || true
+            
+            # 如果使用Cloudflare，可以通过API清理缓存（需要配置API密钥）
+            # curl -X POST "https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache" \
+            #   -H "Authorization: Bearer {api_token}" \
+            #   -H "Content-Type: application/json" \
+            #   --data '{"purge_everything":true}'
+            
+            echo "缓存清理完成"
+            
+            # 清理旧备份（保留最近3个）
+            cd ..
+            echo "清理旧备份..."
+            BACKUP_COUNT=$(ls -1d backup-* 2>/dev/null | wc -l)
+            echo "当前备份数量: $BACKUP_COUNT"
+            if [ "$BACKUP_COUNT" -gt 3 ]; then
+              echo "保留最近3个备份，删除其他备份"
+              ls -dt backup-* | tail -n +4 | xargs rm -rf 2>/dev/null || true
+              echo "清理完成，剩余备份:"
+              ls -dt backup-* 2>/dev/null || echo "无备份文件"
+            else
+              echo "备份数量未超过限制，无需清理"
+            fi
+            cd current
+            exit 0
+          fi
           
           echo "❌ 部署失败，服务健康检查未通过，开始回滚..."
           docker-compose -f docker/docker-compose.prod.yml logs --tail=50

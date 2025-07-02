@@ -275,6 +275,8 @@
 							return {
 								id: item.id,
 								title: item.title,
+								author: item.uploaderName || '匿名用户',
+								downloads: item.downloadCount || 0,
 								fileType: this.getFileExtension(item.files?.[0]?.file_name),
 								uploaderName: item.uploaderName || '匿名用户',
 								downloadCount: item.downloadCount || 0
