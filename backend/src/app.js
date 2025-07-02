@@ -51,6 +51,17 @@ app.use('/api', limiter)
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
+// 捕获 body parser 错误，遇到非法JSON或Content-Type错误时返回500
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(500).json({
+      success: false,
+      message: '服务器内部错误（请求体解析失败）'
+    })
+  }
+  next(err)
+})
+
 // 静态文件服务
 app.use('/uploads', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');

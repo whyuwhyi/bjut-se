@@ -13,7 +13,7 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  setupFilesAfterEnv: ['<rootDir>/src/tests/setup.js'],
+  // setupFilesAfterEnv: ['<rootDir>/src/tests/setup.js'], // 注释掉全局setup
   testTimeout: 10000,
   verbose: true
 }

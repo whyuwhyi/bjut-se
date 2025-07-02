@@ -1,4 +1,4 @@
-const { StudyPlan, StudyTask, SubTask, StudyRecord, User } = require('../models')
+const { StudyPlan, StudyTask, SubTask, User } = require('../models')
 const { Op } = require('sequelize')
 
 // 获取用户的学习计划列表
@@ -87,15 +87,6 @@ const createStudyPlan = async (req, res) => {
       progress_percent: 0
     })
 
-    // 记录学习活动
-    await StudyRecord.create({
-      user_phone: phone_number,
-      plan_id,
-      activity_type: 'plan_create',
-      duration_minutes: 0,
-      experience_gained: 15,
-      study_date: new Date()
-    })
 
     res.json({
       success: true,
@@ -250,37 +241,47 @@ const getStudyProgress = async (req, res) => {
       startDate.setDate(startDate.getDate() - 365)
     }
 
-    const records = await StudyRecord.findAll({
+    // 获取用户学习计划统计
+    const plans = await StudyPlan.findAll({
       where: {
         user_phone: phone_number,
-        study_date: {
+        created_at: {
           [Op.gte]: startDate
         }
       },
-      order: [['study_date', 'ASC']]
+      include: [
+        {
+          model: StudyTask,
+          as: 'tasks',
+          include: [
+            {
+              model: SubTask,
+              as: 'subtasks'
+            }
+          ]
+        }
+      ]
     })
 
-    // 按日期分组统计
-    const dailyStats = {}
-    const currentDate = new Date(startDate)
-    
-    while (currentDate <= new Date()) {
-      const dateStr = currentDate.toISOString().split('T')[0]
-      dailyStats[dateStr] = {
-        date: dateStr,
-        minutes: 0,
-        activities: 0,
-        experience: 0
-      }
-      currentDate.setDate(currentDate.getDate() + 1)
-    }
+    // 统计计划和任务完成情况
+    let totalPlans = plans.length
+    let completedPlans = plans.filter(p => p.status === 'completed').length
+    let totalTasks = 0
+    let completedTasks = 0
+    let totalSubtasks = 0
+    let completedSubtasks = 0
 
-    records.forEach(record => {
-      const dateStr = record.study_date
-      if (dailyStats[dateStr]) {
-        dailyStats[dateStr].minutes += record.duration_minutes
-        dailyStats[dateStr].activities += 1
-        dailyStats[dateStr].experience += record.experience_gained
+    plans.forEach(plan => {
+      if (plan.tasks) {
+        totalTasks += plan.tasks.length
+        completedTasks += plan.tasks.filter(t => t.status === 'completed').length
+        
+        plan.tasks.forEach(task => {
+          if (task.subtasks) {
+            totalSubtasks += task.subtasks.length
+            completedSubtasks += task.subtasks.filter(st => st.completed).length
+          }
+        })
       }
     })
 
@@ -288,10 +289,13 @@ const getStudyProgress = async (req, res) => {
       success: true,
       data: {
         period,
-        daily_stats: Object.values(dailyStats),
-        total_minutes: records.reduce((sum, r) => sum + r.duration_minutes, 0),
-        total_activities: records.length,
-        total_experience: records.reduce((sum, r) => sum + r.experience_gained, 0)
+        total_plans: totalPlans,
+        completed_plans: completedPlans,
+        total_tasks: totalTasks,
+        completed_tasks: completedTasks,
+        total_subtasks: totalSubtasks,
+        completed_subtasks: completedSubtasks,
+        completion_rate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
       }
     })
   } catch (error) {

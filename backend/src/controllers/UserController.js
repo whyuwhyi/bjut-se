@@ -166,7 +166,7 @@ class UserController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          message: '输入数据验证失败',
+          message: '登录失败：输入数据验证失败',
           errors: errors.array()
         })
       }
@@ -640,10 +640,16 @@ class UserController {
         if (existingFollow.status === 'active') {
           // 取消关注
           await existingFollow.update({ status: 'cancelled' })
+          // 新增：取关时自减
+          await User.decrement('following_count', { where: { phone_number: follower_phone }, min: 0 })
+          await User.decrement('follower_count', { where: { phone_number: following_phone }, min: 0 })
           message = '已取消关注'
         } else {
           // 重新关注
           await existingFollow.update({ status: 'active' })
+          // 新增：重新关注时自增
+          await User.increment('following_count', { where: { phone_number: follower_phone } })
+          await User.increment('follower_count', { where: { phone_number: following_phone } })
           isFollowing = true
           message = '关注成功'
         }
@@ -656,6 +662,9 @@ class UserController {
           following_phone,
           status: 'active'
         })
+        // 新增：新关注时自增
+        await User.increment('following_count', { where: { phone_number: follower_phone } })
+        await User.increment('follower_count', { where: { phone_number: following_phone } })
         isFollowing = true
         message = '关注成功'
       }
@@ -680,30 +689,29 @@ class UserController {
   async getUserStats(req, res) {
     try {
       const phone_number = req.user.phone_number
+      
+      // 先检查用户是否存在
+      const user = await User.findByPk(phone_number)
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        })
+      }
 
-      // 并行获取各种统计数据
-      const [
-        resourceCount,
-        postCount,
-        collectionCount,
-        followingCount,
-        followerCount
-      ] = await Promise.all([
-        Resource.count({ where: { publisher_phone: phone_number, status: { [Op.in]: ['draft', 'pending', 'published', 'rejected'] } } }),
-        Post.count({ where: { author_phone: phone_number, status: 'active' } }),
-        Collection.count({ where: { user_phone: phone_number, status: 'active' } }),
-        UserFollow.count({ where: { follower_phone: phone_number, status: 'active' } }),
-        UserFollow.count({ where: { following_phone: phone_number, status: 'active' } })
-      ])
+      // 获取收藏数统计（User模型中没有这个字段，需要手动查询）
+      const collectionCount = await Collection.count({ 
+        where: { user_phone: phone_number, status: 'active' } 
+      })
 
       res.json({
         success: true,
         data: {
-          resourceCount: resourceCount,
-          postCount: postCount,
+          resourceCount: user.resource_count,
+          postCount: user.post_count,
           collectionCount: collectionCount,
-          followingCount: followingCount,
-          followerCount: followerCount
+          followingCount: user.following_count,
+          followerCount: user.follower_count
         }
       })
     } catch (error) {

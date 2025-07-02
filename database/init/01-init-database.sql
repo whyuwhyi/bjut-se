@@ -42,6 +42,10 @@ CREATE TABLE users (
     gender ENUM('M', 'F', 'U') DEFAULT 'U' COMMENT '性别',
     role ENUM('user', 'admin') DEFAULT 'user' COMMENT '用户角色',
     status ENUM('active', 'inactive', 'banned') DEFAULT 'active' COMMENT '用户状态',
+    post_count INT DEFAULT 0 COMMENT '发帖数',
+    resource_count INT DEFAULT 0 COMMENT '资源数',
+    follower_count INT DEFAULT 0 COMMENT '粉丝数',
+    following_count INT DEFAULT 0 COMMENT '关注数',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='用户信息表';
@@ -257,52 +261,19 @@ CREATE TABLE sub_tasks (
     subtask_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '子任务ID',
     task_id VARCHAR(9) NOT NULL COMMENT '关联学习任务ID',
     title VARCHAR(200) NOT NULL COMMENT '子任务标题',
+    description TEXT COMMENT '详细描述',
     completed BOOLEAN DEFAULT FALSE COMMENT '是否已完成',
     sort_order INT DEFAULT 0 COMMENT '排序顺序',
+    deadline DATE COMMENT '截止日期',
+    priority ENUM('high', 'medium', 'low') DEFAULT 'medium' COMMENT '优先级：high-高优先级，medium-中优先级，low-低优先级',
+    estimated_minutes INT DEFAULT 0 COMMENT '预计完成时间(分钟)',
+    notes TEXT COMMENT '备注',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (task_id) REFERENCES study_tasks(task_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='子任务表';
 
--- 18. 学习记录表
-CREATE TABLE study_records (
-    record_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
-    user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
-    plan_id VARCHAR(9) COMMENT '关联学习计划ID',
-    task_id VARCHAR(9) COMMENT '关联学习任务ID',
-    resource_id VARCHAR(9) COMMENT '关联资源ID',
-    post_id VARCHAR(9) COMMENT '关联帖子ID',
-    activity_type ENUM('resource_view', 'resource_download', 'task_complete', 'plan_create', 'post_view', 'post_create', 'comment_create') NOT NULL COMMENT '活动类型',
-    duration_minutes INT DEFAULT 0 COMMENT '学习时长(分钟)',
-    experience_gained INT DEFAULT 0 COMMENT '获得经验值',
-    study_date DATE NOT NULL COMMENT '学习日期',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
-    FOREIGN KEY (plan_id) REFERENCES study_plans(plan_id) ON DELETE SET NULL,
-    FOREIGN KEY (task_id) REFERENCES study_tasks(task_id) ON DELETE SET NULL,
-    FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE SET NULL,
-    FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='学习记录表';
-
--- 19. 学习目标表
-CREATE TABLE study_goals (
-    goal_id VARCHAR(9) PRIMARY KEY COMMENT '学习目标ID',
-    user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
-    title VARCHAR(200) NOT NULL COMMENT '目标标题',
-    description TEXT COMMENT '目标描述',
-    target_value INT NOT NULL COMMENT '目标数值',
-    current_value INT DEFAULT 0 COMMENT '当前进度',
-    unit VARCHAR(20) DEFAULT '次' COMMENT '计量单位',
-    goal_type ENUM('daily', 'weekly', 'monthly', 'custom') NOT NULL COMMENT '目标类型',
-    deadline DATE COMMENT '截止日期',
-    status ENUM('active', 'completed', 'paused', 'expired') DEFAULT 'active' COMMENT '目标状态',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='学习目标表';
-
--- 20. 通知表
+-- 18. 通知表
 CREATE TABLE notifications (
     notification_id VARCHAR(9) PRIMARY KEY COMMENT '通知ID',
     receiver_phone VARCHAR(11) NOT NULL COMMENT '接收者手机号',
@@ -475,11 +446,22 @@ INSERT INTO study_tasks (task_id, plan_id, title, description, deadline, priorit
 ('500000002', '400000001', '实践Vue项目', '开发完整的Vue.js应用', '2025-07-15', 'high', 'in_progress', 40, 12, '["Vue.js", "实践"]', NOW(), NOW()),
 ('500000003', '400000002', '数组算法练习', '练习数组相关算法题', '2025-06-30', 'medium', 'in_progress', 15, 8, '["算法", "数组"]', NOW(), NOW());
 
--- 插入学习记录
-INSERT INTO study_records (user_phone, plan_id, task_id, resource_id, activity_type, duration_minutes, experience_gained, study_date, created_at) VALUES
-('13800138002', '400000001', '500000001', '123456789', 'resource_view', 120, 10, CURDATE(), NOW()),
-('13800138002', '400000001', '500000001', NULL, 'task_complete', 60, 20, CURDATE(), NOW()),
-('13800138003', '400000002', '500000003', NULL, 'plan_create', 30, 15, CURDATE(), NOW());
+-- 插入子任务
+INSERT INTO sub_tasks (task_id, title, description, completed, sort_order, deadline, priority, estimated_minutes, notes, created_at, updated_at) VALUES
+-- Vue.js基础学习子任务
+('500000001', '学习Vue实例和数据绑定', '掌握Vue实例创建和双向数据绑定机制', TRUE, 1, '2025-06-20', 'high', 120, '重点关注响应式原理', NOW(), NOW()),
+('500000001', '掌握Vue组件基础', '学习组件的创建、props传递和事件处理', TRUE, 2, '2025-06-25', 'high', 180, '多练习父子组件通信', NOW(), NOW()),
+('500000001', '学习Vue指令系统', '掌握v-if、v-for、v-model等常用指令', TRUE, 3, '2025-06-28', 'medium', 90, '注意指令的性能影响', NOW(), NOW()),
+-- Vue项目实践子任务
+('500000002', '项目环境搭建', '配置开发环境和项目脚手架', TRUE, 1, '2025-07-05', 'high', 60, '使用Vue CLI或Vite', NOW(), NOW()),
+('500000002', '设计项目架构', '规划项目目录结构和组件设计', FALSE, 2, '2025-07-08', 'high', 120, '考虑可维护性和扩展性', NOW(), NOW()),
+('500000002', '实现核心功能', '完成项目的主要业务逻辑', FALSE, 3, '2025-07-12', 'high', 480, '按模块逐步实现', NOW(), NOW()),
+('500000002', '项目测试和优化', '进行功能测试和性能优化', FALSE, 4, '2025-07-15', 'medium', 180, '重点关注用户体验', NOW(), NOW()),
+-- 数组算法练习子任务
+('500000003', '基础数组操作', '练习数组遍历、搜索、排序等基本操作', TRUE, 1, '2025-06-25', 'medium', 120, '熟练掌握基础API', NOW(), NOW()),
+('500000003', '双指针技巧', '学习双指针解决数组问题的技巧', FALSE, 2, '2025-06-28', 'high', 150, '多练习不同类型的双指针题目', NOW(), NOW()),
+('500000003', '滑动窗口算法', '掌握滑动窗口在数组中的应用', FALSE, 3, '2025-06-30', 'medium', 180, '注意边界条件处理', NOW(), NOW());
+
 
 -- 插入通知
 INSERT INTO notifications (notification_id, receiver_phone, sender_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES

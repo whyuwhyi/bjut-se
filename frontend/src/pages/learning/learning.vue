@@ -927,8 +927,8 @@ export default {
 	position: fixed;
 	right: 30rpx;
 	bottom: 120rpx;
-	width: 100rpx;
-	height: 100rpx;
+	width: 120rpx;
+	height: 120rpx;
 	border-radius: 50%;
 	background: rgba(0, 122, 255, 0.1);
 	display: flex;
@@ -944,8 +944,8 @@ export default {
 }
 
 .create-icon {
-	width: 48rpx;
-	height: 48rpx;
+	width: 60rpx;
+	height: 60rpx;
 }
 
 </style>

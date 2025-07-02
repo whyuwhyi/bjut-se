@@ -1,4 +1,4 @@
-const { User, Resource, Post, Notification, Comment, Collection, StudyRecord, UserFollow, ResourceReport, PostReport } = require('../models');
+const { User, Resource, Post, Notification, Comment, Collection, UserFollow, ResourceReport, PostReport } = require('../models');
 const { Op } = require('sequelize');
 
 class AdminController {
@@ -188,14 +188,7 @@ class AdminController {
       }
       console.log(`Deleted ${collections.length} collections`);
 
-      // 5. 删除用户的学习记录
-      const studyRecords = await StudyRecord.findAll({ where: { user_phone: phone } });
-      for (const studyRecord of studyRecords) {
-        await studyRecord.destroy();
-      }
-      console.log(`Deleted ${studyRecords.length} study records`);
-
-      // 6. 删除关注关系（作为关注者）
+      // 5. 删除关注关系（作为关注者）
       const followings = await UserFollow.findAll({ where: { follower_phone: phone } });
       for (const follow of followings) {
         await follow.destroy();
@@ -703,6 +696,11 @@ class AdminController {
         reviewed_at: new Date()
       });
 
+      // 新增：删除资源后自减用户资源数
+      if (resource.publisher_phone) {
+        await User.decrement('resource_count', { where: { phone_number: resource.publisher_phone }, min: 0 })
+      }
+
       // 发送通知给资源发布者
       await Notification.create({
         notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
@@ -917,7 +915,16 @@ class AdminController {
         });
       }
 
+      const previousStatus = post.status;
       await post.update({ status });
+
+      // 如果帖子被删除（从active/hidden状态变为deleted），需要递减用户的帖子计数
+      if (status === 'deleted' && ['active', 'hidden'].includes(previousStatus)) {
+        await User.decrement('post_count', { 
+          where: { phone_number: post.author_phone }, 
+          min: 0 
+        });
+      }
 
       // 如果隐藏或删除帖子，发送通知给作者
       if (status !== 'active') {
@@ -1025,10 +1032,18 @@ class AdminController {
 
       // 根据处理动作更新帖子状态
       if (report.post) {
+        const previousStatus = report.post.status;
         if (action === 'hide_post') {
           await report.post.update({ status: 'hidden' });
         } else if (action === 'delete_post') {
           await report.post.update({ status: 'deleted' });
+          // 如果帖子被删除（从active/hidden状态变为deleted），需要递减用户的帖子计数
+          if (['active', 'hidden'].includes(previousStatus)) {
+            await User.decrement('post_count', { 
+              where: { phone_number: report.post.author_phone }, 
+              min: 0 
+            });
+          }
         }
       }
 
