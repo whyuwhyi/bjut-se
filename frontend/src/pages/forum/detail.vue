@@ -464,6 +464,53 @@ export default {
 		
 		viewUserProfile(userPhone, userInfo) {
 			navigateToUserProfile(userPhone, userInfo)
+		},
+		
+		async toggleCollection() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
+				}
+				
+				// 立即更新UI状态，提供即时反馈
+				const newCollectedState = !this.isCollected
+				this.isCollected = newCollectedState
+				
+				const response = await uni.request({
+					url: `${config.apiBaseUrl}/posts/${this.postId}/favorite`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						type: 'post'
+					}
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.isCollected = response.data.data.isCollected
+					uni.showToast({
+						title: this.isCollected ? '收藏成功' : '已取消收藏',
+						icon: 'success'
+					})
+				} else {
+					// 如果请求失败，恢复原始状态
+					this.isCollected = !newCollectedState
+					throw new Error(response.data.message || '操作失败')
+				}
+			} catch (error) {
+				console.error('收藏操作失败:', error)
+				uni.showToast({
+					title: error.message || '收藏操作失败',
+					icon: 'none'
+				})
+			}
 		}
 	}
 }

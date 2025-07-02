@@ -3,6 +3,7 @@ const PostTag = require('../models/PostTag')
 const PostTagRelation = require('../models/PostTagRelation')
 const Comment = require('../models/Comment')
 const User = require('../models/User')
+const Collection = require('../models/Collection')
 const { Op } = require('sequelize')
 
 class PostController {
@@ -423,6 +424,109 @@ class PostController {
         success: false,
         message: '删除帖子失败',
         errors: [error.message]
+      })
+    }
+  }
+
+  // 切换收藏状态
+  static async toggleFavorite(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { postId } = req.params
+      const { type = 'post' } = req.body
+
+      // 检查帖子是否存在
+      const post = await Post.findOne({ where: { post_id: postId } })
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: '帖子不存在'
+        })
+      }
+
+      // 查找现有收藏记录
+      const existingCollection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: postId,
+          collection_type: 'post'
+        }
+      })
+
+      let isCollected = false
+
+      if (existingCollection) {
+        // 如果已收藏，切换状态
+        if (existingCollection.status === 'active') {
+          await existingCollection.update({ status: 'cancelled' })
+          isCollected = false
+          // 更新收藏计数
+          await Post.decrement('collection_count', { where: { post_id: postId } })
+        } else {
+          await existingCollection.update({ status: 'active' })
+          isCollected = true
+          // 更新收藏计数
+          await Post.increment('collection_count', { where: { post_id: postId } })
+        }
+      } else {
+        // 如果没有收藏记录，创建新的
+        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
+        await Collection.create({
+          collection_id: collectionId,
+          user_phone: userPhone,
+          content_id: postId,
+          collection_type: 'post',
+          status: 'active'
+        })
+        isCollected = true
+        // 更新收藏计数
+        await Post.increment('collection_count', { where: { post_id: postId } })
+      }
+
+      res.json({
+        success: true,
+        message: isCollected ? '收藏成功' : '取消收藏成功',
+        data: {
+          isCollected
+        }
+      })
+    } catch (error) {
+      console.error('切换收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '操作失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 检查收藏状态
+  static async checkFavoriteStatus(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { postId } = req.params
+
+      const collection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: postId,
+          collection_type: 'post',
+          status: 'active'
+        }
+      })
+
+      res.json({
+        success: true,
+        data: {
+          isCollected: !!collection
+        }
+      })
+    } catch (error) {
+      console.error('检查收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '检查收藏状态失败',
+        error: error.message
       })
     }
   }

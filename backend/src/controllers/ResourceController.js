@@ -628,6 +628,109 @@ class ResourceController {
     }
   }
 
+  // 切换收藏状态
+  async toggleFavorite(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { resourceId } = req.params
+      const { type = 'resource' } = req.body
+
+      // 检查资源是否存在
+      const resource = await Resource.findByPk(resourceId)
+      if (!resource) {
+        return res.status(404).json({
+          success: false,
+          message: '资源不存在'
+        })
+      }
+
+      // 查找现有收藏记录
+      const existingCollection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource'
+        }
+      })
+
+      let isCollected = false
+
+      if (existingCollection) {
+        // 如果已收藏，切换状态
+        if (existingCollection.status === 'active') {
+          await existingCollection.update({ status: 'cancelled' })
+          isCollected = false
+          // 更新收藏计数
+          await Resource.decrement('collection_count', { where: { resource_id: resourceId } })
+        } else {
+          await existingCollection.update({ status: 'active' })
+          isCollected = true
+          // 更新收藏计数
+          await Resource.increment('collection_count', { where: { resource_id: resourceId } })
+        }
+      } else {
+        // 如果没有收藏记录，创建新的
+        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
+        await Collection.create({
+          collection_id: collectionId,
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource',
+          status: 'active'
+        })
+        isCollected = true
+        // 更新收藏计数
+        await Resource.increment('collection_count', { where: { resource_id: resourceId } })
+      }
+
+      res.json({
+        success: true,
+        message: isCollected ? '收藏成功' : '取消收藏成功',
+        data: {
+          isCollected
+        }
+      })
+    } catch (error) {
+      console.error('切换收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '操作失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 检查收藏状态
+  async checkFavoriteStatus(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { resourceId } = req.params
+
+      const collection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource',
+          status: 'active'
+        }
+      })
+
+      res.json({
+        success: true,
+        data: {
+          isCollected: !!collection
+        }
+      })
+    } catch (error) {
+      console.error('检查收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '检查收藏状态失败',
+        error: error.message
+      })
+    }
+  }
+
   // 生成收藏ID
   generateCollectionId() {
     return Math.floor(100000000 + Math.random() * 900000000).toString()
