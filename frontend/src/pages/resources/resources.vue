@@ -145,6 +145,7 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.categories = response.data.data
+					console.log('分类数据', this.categories)
 				}
 			} catch (error) {
 				console.error('加载分类失败:', error)
@@ -212,6 +213,8 @@ export default {
 		selectCategory(index) {
 			this.selectedCategoryIndex = index
 			this.loadResources()
+			console.log('当前选中分类', this.selectedCategoryIndex)
+			console.log('赋值后的 categoryId', this.categories[this.selectedCategoryIndex]?.category_id)
 		},
 		
 		

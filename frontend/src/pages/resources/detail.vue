@@ -266,7 +266,7 @@ export default {
 						resource_id: data.resource_id,
 						title: data.resource_name,
 						description: data.description,
-						category: data.category?.category_name || '未分类',
+						category: typeof data.category === 'string' ? data.category : (data.category?.category_name || '未分类'),
 						uploaderName: data.publisher?.nickname || data.publisher?.name || '匿名用户',
 						uploadTime: new Date(data.created_at),
 						viewCount: data.view_count || 0,
