@@ -281,53 +281,76 @@ export default {
 <style lang="scss" scoped>
 .profile-container {
 	min-height: 100vh;
-	padding: 30rpx;
-	padding-bottom: 160rpx;
+	padding: 20rpx;
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 1024rpx;
+	margin: 0 auto;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+	}
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
 }
 
 .profile-card {
-	background: linear-gradient(135deg, #BEE3F8 0%, #90CDF4 100%);
-	padding: 40rpx 30rpx;
-	color: white;
-	border-radius: 30rpx;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+	width: 100%;
+	background: #F0F7FF;
+	border-radius: 24rpx;
+	padding: 32rpx;
+	margin-bottom: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
 	
 	.profile-header {
 		display: flex;
 		align-items: center;
-		margin-bottom: 40rpx;
+		margin-bottom: 32rpx;
 		
 		.avatar {
 			width: 120rpx;
 			height: 120rpx;
-			border-radius: 50%;
-			border: 4rpx solid rgba(255, 255, 255, 0.3);
-			margin-right: 30rpx;
+			border-radius: 60rpx;
+			margin-right: 24rpx;
+			background: #f0f0f0;
 		}
 		
 		.user-info {
 			flex: 1;
 			
 			.username {
-				display: block;
 				font-size: 36rpx;
 				font-weight: bold;
-				margin-bottom: 10rpx;
+				color: #333;
+				margin-bottom: 8rpx;
+				display: block;
 			}
 			
 			.user-title {
-				display: block;
 				font-size: 26rpx;
-				opacity: 0.8;
-				margin-bottom: 15rpx;
+				color: #666;
+				display: block;
 			}
-			
 		}
 		
 		.edit-btn {
-			padding: 15rpx;
-			background: rgba(255, 255, 255, 0.2);
-			border-radius: 50%;
+			width: 64rpx;
+			height: 64rpx;
+			border-radius: 32rpx;
+			background: #f8f8f8;
+			display: flex;
+			align-items: center;
+			justify-content: center;
 			
 			.edit-icon {
 				font-size: 32rpx;
@@ -338,86 +361,92 @@ export default {
 	.profile-stats {
 		display: flex;
 		justify-content: space-around;
+		padding-top: 24rpx;
+		border-top: 2rpx solid #f0f0f0;
 		
 		.stat-item {
-			text-align: center;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
 			
 			.stat-number {
-				display: block;
-				font-size: 36rpx;
+				font-size: 32rpx;
 				font-weight: bold;
+				color: #333;
 				margin-bottom: 8rpx;
 			}
 			
 			.stat-label {
 				font-size: 24rpx;
-				opacity: 0.8;
+				color: #666;
 			}
 		}
 	}
 }
 
 .menu-section {
-	margin: 20rpx;
+	width: 100%;
 	
 	.menu-group {
 		background: white;
-		border-radius: 20rpx;
-		margin-bottom: 20rpx;
-		overflow: hidden;
+		border-radius: 24rpx;
+		padding: 32rpx;
+		margin-bottom: 32rpx;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 		
 		.group-title {
-			display: block;
 			font-size: 28rpx;
 			font-weight: bold;
 			color: #333;
-			padding: 30rpx 30rpx 20rpx;
-			background: #fafafa;
+			margin-bottom: 24rpx;
+			display: block;
 		}
 		
 		.menu-item {
 			display: flex;
 			align-items: center;
-			padding: 30rpx;
-			border-bottom: 1rpx solid #f0f0f0;
+			padding: 24rpx 0;
+			border-bottom: 2rpx solid #f0f0f0;
 			
 			&:last-child {
 				border-bottom: none;
+				padding-bottom: 0;
+			}
+			
+			&:first-child {
+				padding-top: 0;
 			}
 			
 			.menu-icon {
-				font-size: 32rpx;
-				margin-right: 25rpx;
-				width: 40rpx;
+				font-size: 36rpx;
+				margin-right: 20rpx;
 			}
 			
 			.menu-text {
 				flex: 1;
-				font-size: 30rpx;
+				font-size: 28rpx;
 				color: #333;
 			}
 			
 			.menu-badge {
+				min-width: 40rpx;
+				height: 40rpx;
+				padding: 0 12rpx;
 				background: #ff3b30;
+				border-radius: 20rpx;
 				color: white;
-				font-size: 20rpx;
-				padding: 4rpx 12rpx;
-				border-radius: 15rpx;
-				margin-right: 15rpx;
-			}
-			
-			.menu-extra {
 				font-size: 24rpx;
-				color: #999;
-				margin-right: 15rpx;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				margin-right: 16rpx;
 			}
 			
 			.menu-arrow {
 				font-size: 28rpx;
-				color: #ccc;
+				color: #999;
 			}
 		}
 	}
 }
-
 </style>
