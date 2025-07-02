@@ -64,7 +64,7 @@
 					:maxlength="200"
 					auto-height
 				></textarea>
-				<button class="submit-btn" @click="handleSubmitComment">{{ sending ? '发送中...' : '发表' }}</button>
+				<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
 				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
 					<text class="cancel-text">取消回复</text>
 				</view>
@@ -260,6 +260,8 @@ export default {
 		},
 		
 		async handleSubmitComment() {
+			if (this.sending) return;
+			this.sending = true;
 			const token = uni.getStorageSync('token')
 			if (!token) {
 				uni.showToast({ title: '请先登录', icon: 'none' })
@@ -270,7 +272,6 @@ export default {
 				return
 			}
 			try {
-				this.sending = true
 				const data = {
 					content: this.commentText.trim()
 				}

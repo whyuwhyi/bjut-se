@@ -146,8 +146,12 @@ export default {
 		}
 	},
 	
-	onLoad() {
+	onLoad(options) {
 		this.loadPopularTags()
+		// 编辑模式下加载原帖内容
+		if (options.mode === 'edit' && options.id) {
+			this.loadPostDetail(options.id)
+		}
 	},
 	
 	methods: {
@@ -302,6 +306,33 @@ export default {
 				})
 			} else {
 				uni.navigateBack()
+			}
+		},
+		
+		async loadPostDetail(postId) {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({ title: '请先登录', icon: 'none' })
+					return
+				}
+				const response = await uni.request({
+					url: `${this.$config.apiBaseUrl}/posts/${postId}`,
+					method: 'GET',
+					header: {
+						'Authorization': `Bearer ${token}`
+					}
+				})
+				if (response.statusCode === 200 && response.data.success) {
+					const post = response.data.data
+					this.form.title = post.title || ''
+					this.form.content = post.content || ''
+					this.form.tags = (post.tags || []).map(tag => tag.tag_name)
+				} else {
+					uni.showToast({ title: '加载原帖失败', icon: 'none' })
+				}
+			} catch (error) {
+				uni.showToast({ title: '加载原帖失败', icon: 'none' })
 			}
 		}
 	}

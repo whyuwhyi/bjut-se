@@ -17,11 +17,30 @@ const request = (options) => {
     headers['Authorization'] = `Bearer ${token}`
   }
   
-  return uni.request({
-    url: `${config.apiBaseUrl}${options.url}`,
-    method: options.method || 'GET',
-    header: headers,
-    data: options.data
+  return new Promise((resolve, reject) => {
+    uni.request({
+      url: `${config.apiBaseUrl}${options.url}`,
+      method: options.method || 'GET',
+      header: headers,
+      data: options.data,
+      success: (response) => {
+        if (response.statusCode === 401) {
+          // 登录过期，清除token并跳转登录页
+          uni.removeStorageSync('token')
+          uni.removeStorageSync('user')
+          uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
+          setTimeout(() => {
+            uni.redirectTo({ url: '/pages/login/login' })
+          }, 1000)
+          reject(new Error('登录已过期，请重新登录'))
+        } else {
+          resolve(response)
+        }
+      },
+      fail: (error) => {
+        reject(error)
+      }
+    })
   })
 }
 
