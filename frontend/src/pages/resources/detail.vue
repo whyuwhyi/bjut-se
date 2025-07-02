@@ -120,11 +120,12 @@
 			<!-- 评论输入区域 -->
 			<view class="comment-input-area">
 				<textarea 
-					class="comment-textarea" 
-					v-model="commentText" 
+					class="comment-textarea"
+					v-model="commentText"
 					:placeholder="replyTarget ? `回复 ${replyTarget.userName}：` : '写下你的评论...'"
 					:maxlength="200"
-					auto-height
+					:style="{height: commentTextareaHeight + 'px'}"
+					@input="adjustCommentTextareaHeight"
 				></textarea>
 				<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
 				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
@@ -233,7 +234,8 @@ export default {
 			sending: false,
 			sharePopupVisible: false,
 			qrCodeVisible: false,
-			qrCodeDataUrl: ''
+			qrCodeDataUrl: '',
+			commentTextareaHeight: 40
 		}
 	},
 	
@@ -789,6 +791,16 @@ export default {
 				icon: 'success',
 				duration: 3000
 			})
+		},
+
+		adjustCommentTextareaHeight(e) {
+			// 兼容uni-app和web
+			const textarea = e.detail && e.detail.height ? e : e.target;
+			if (textarea && textarea.scrollHeight) {
+				this.commentTextareaHeight = textarea.scrollHeight;
+			} else if (e.detail && e.detail.height) {
+				this.commentTextareaHeight = e.detail.height;
+			}
 		}
 	}
 }
@@ -1143,6 +1155,9 @@ export default {
 				font-size: 26rpx;
 				color: #333;
 				line-height: 1.5;
+				word-break: break-all;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
 			}
 			.comment-footer {
 				display: flex;
@@ -1205,6 +1220,9 @@ export default {
 								font-size: 24rpx;
 								color: #333;
 								line-height: 1.5;
+								word-break: break-all;
+								white-space: pre-wrap;
+								overflow-wrap: anywhere;
 							}
 						}
 					}

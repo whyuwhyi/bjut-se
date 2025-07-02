@@ -628,6 +628,7 @@ export default {
 			display: flex;
 			align-items: flex-start;
 			margin-bottom: 20rpx;
+			min-width: 0;
 			
 			.file-preview {
 				position: relative;
@@ -658,9 +659,14 @@ export default {
 			
 			.resource-info {
 				flex: 1;
+				min-width: 0;
 				
 				.resource-title {
 					display: block;
+					max-width: 100%;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
 					font-size: 32rpx;
 					font-weight: bold;
 					color: #333;
@@ -714,6 +720,13 @@ export default {
 		
 		.resource-description {
 			.description-text {
+				display: -webkit-box;
+				max-width: 100%;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: normal;
 				font-size: 26rpx;
 				color: #666;
 				line-height: 1.5;
