@@ -85,9 +85,6 @@
 							<text class="tag-name">{{ tag.tag_name }}</text>
 						</view>
 					</view>
-					<view class="comment-count">
-						<text class="comment-text">💬 {{ post.comment_count }}</text>
-					</view>
 				</view>
 			</view>
 		</view>
@@ -278,9 +275,14 @@ export default {
 <style lang="scss" scoped>
 .forum-container {
 	min-height: 100vh;
-	padding: 30rpx;
+	padding: 20rpx;
 	padding-bottom: 160rpx;
 	background: transparent !important;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 1024rpx;
+	margin: 0 auto;
 	
 	&::before {
 		content: '';
@@ -311,14 +313,18 @@ export default {
 
 .top-section {
 	background: white;
-	padding: 20rpx;
-	border-bottom: 1rpx solid #f0f0f0;
+	padding: 32rpx;
+	border-radius: 24rpx;
+	margin-bottom: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 	
 	.search-bar {
 		display: flex;
 		align-items: center;
 		background: #f8f8f8;
-		border-radius: 50rpx;
+		border-radius: 24rpx;
 		padding: 0 30rpx;
 		margin-bottom: 20rpx;
 		
@@ -374,7 +380,7 @@ export default {
 			align-items: center;
 			justify-content: center;
 			background: #f8f8f8;
-			border-radius: 8rpx;
+			border-radius: 24rpx;
 			padding: 15rpx 20rpx;
 			
 			.sort-text {
@@ -392,14 +398,16 @@ export default {
 }
 
 .posts-list {
-	padding: 20rpx;
+	padding: 0;
+	width: 100%;
+	box-sizing: border-box;
 	
 	.post-item {
 		background: white;
-		border-radius: 20rpx;
-		padding: 30rpx;
-		margin-bottom: 20rpx;
-		box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+		border-radius: 24rpx;
+		padding: 32rpx;
+		margin-bottom: 32rpx;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 		
 		.post-header {
 			display: flex;
@@ -485,13 +493,6 @@ export default {
 					.tag-name {
 						font-size: 22rpx;
 					}
-				}
-			}
-			
-			.comment-count {
-				.comment-text {
-					font-size: 22rpx;
-					color: #999;
 				}
 			}
 		}
