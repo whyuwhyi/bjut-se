@@ -11,7 +11,7 @@
 					<image class="avatar" :src="userProfile.avatar_url || '/static/images/default-avatar.png'" mode="aspectFill"></image>
 					<view class="user-info">
 						<text class="username">{{ displayName }}</text>
-						<text class="user-bio" v-if="userProfile.bio">{{ userProfile.bio }}</text>
+						<text class="user-bio" v-if="showBio">{{ userProfile.bio }}</text>
 						<text class="join-date">加入时间：{{ formatDate(userProfile.created_at) }}</text>
 					</view>
 				</view>
@@ -52,11 +52,11 @@
 			<!-- 联系信息 -->
 			<view class="contact-section" v-if="hasContactInfo">
 				<view class="section-title">📞 联系方式</view>
-				<view class="contact-item" v-if="userProfile.email">
+				<view class="contact-item" v-if="showEmail">
 					<text class="contact-label">邮箱：</text>
 					<text class="contact-value">{{ userProfile.email }}</text>
 				</view>
-				<view class="contact-item" v-if="userProfile.student_id">
+				<view class="contact-item" v-if="showStudentId">
 					<text class="contact-label">学号：</text>
 					<text class="contact-value">{{ userProfile.student_id }}</text>
 				</view>
@@ -95,16 +95,35 @@ export default {
 		},
 		
 		showRealName() {
-			// 如果没有隐私设置或者show_real_name为true，则显示真实姓名
-			return !this.userProfile.privacy_settings || this.userProfile.privacy_settings.show_real_name !== false
+			// 后端已经根据隐私设置过滤了数据，直接检查字段是否存在
+			return !!this.userProfile.name
 		},
 		
 		showStats() {
-			return !this.userProfile.privacy_settings || this.userProfile.privacy_settings.show_stats !== false
+			// 检查统计字段是否存在（后端根据隐私设置返回）
+			return this.userProfile.hasOwnProperty('resource_count') || 
+			       this.userProfile.hasOwnProperty('post_count') || 
+			       this.userProfile.hasOwnProperty('follower_count') || 
+			       this.userProfile.hasOwnProperty('following_count')
+		},
+		
+		showEmail() {
+			// 后端已经根据隐私设置过滤了邮箱，直接检查是否存在
+			return !!this.userProfile.email
+		},
+		
+		showStudentId() {
+			// 后端已经根据隐私设置过滤了学号，直接检查是否存在
+			return !!this.userProfile.student_id
+		},
+		
+		showBio() {
+			// 后端已经根据隐私设置过滤了简介，直接检查是否存在
+			return !!this.userProfile.bio
 		},
 		
 		hasContactInfo() {
-			return this.userProfile.email || this.userProfile.student_id
+			return this.showEmail || this.showStudentId
 		}
 	},
 	
