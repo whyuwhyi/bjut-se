@@ -285,101 +285,68 @@ export default {
 
 <style lang="scss" scoped>
 .forum-container {
+	padding: 32rpx;
 	min-height: 100vh;
-	padding: 20rpx;
-	padding-bottom: 160rpx;
-	background: transparent !important;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	max-width: 1024rpx;
-	margin: 0 auto;
-	
-	&::before {
-		content: '';
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: -1;
-		background-color: #FAEED1;
-		background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
-		background-size: 400% 400%;
-		animation: backgroundPan 15s ease infinite;
-	}
-}
-
-@keyframes backgroundPan {
-	0% {
-		background-position: 0% 50%;
-	}
-	50% {
-		background-position: 100% 50%;
-	}
-	100% {
-		background-position: 0% 50%;
-	}
+	background: #f8f8f8;
 }
 
 .top-section {
-	background: white;
-	padding: 32rpx;
-	border-radius: 24rpx;
 	margin-bottom: 32rpx;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-	width: 100%;
-	box-sizing: border-box;
 	
 	.search-bar {
 		display: flex;
 		align-items: center;
-		background: #f8f8f8;
+		background: white;
 		border-radius: 24rpx;
-		padding: 0 30rpx;
-		margin-bottom: 20rpx;
+		padding: 20rpx;
+		margin-bottom: 24rpx;
 		
 		.search-icon {
-			font-size: 32rpx;
-			margin-right: 20rpx;
+			margin-right: 15rpx;
+			font-size: 28rpx;
 			color: #999;
 		}
 		
 		.search-input {
 			flex: 1;
-			height: 80rpx;
 			font-size: 28rpx;
+			color: #333;
+			
+			&::placeholder {
+				color: #999;
+			}
 		}
 	}
 	
 	.tag-filter {
-		margin-bottom: 20rpx;
+		margin-bottom: 24rpx;
 		
 		.tag-scroll {
+			width: 100%;
 			white-space: nowrap;
+		}
+		
+		.tag-list {
+			display: inline-flex;
+			gap: 12rpx;
 			
-			.tag-list {
-				display: flex;
-				gap: 12rpx;
+			.tag-item {
+				padding: 12rpx 24rpx;
+				background: #f8f8f8;
+				border-radius: 30rpx;
+				white-space: nowrap;
 				
-				.tag-item {
-					padding: 12rpx 24rpx;
-					background: #f8f8f8;
-					border-radius: 30rpx;
-					white-space: nowrap;
-					
-					&.active {
-						background: #007aff;
-						
-						.tag-text {
-							color: white;
-						}
-					}
+				&.active {
+					background: #007aff;
 					
 					.tag-text {
-						font-size: 26rpx;
-						color: #666;
+						color: white;
 					}
+				}
+				
+				.tag-text {
+					font-size: 26rpx;
+					color: #666;
 				}
 			}
 		}
@@ -390,7 +357,7 @@ export default {
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			background: #f8f8f8;
+			background: white;
 			border-radius: 24rpx;
 			padding: 15rpx 20rpx;
 			

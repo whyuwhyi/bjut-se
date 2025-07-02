@@ -100,14 +100,14 @@
 				],
 				quickAccess: [
 					{
-						icon: require('@/static/icons/post.png'),
-						text: '发布帖子',
-						url: '/pages/forum/create'
-					},
-					{
 						icon: require('@/static/icons/upload.png'),
 						text: '上传资源',
 						url: '/pages/resources/upload'
+					},
+					{
+						icon: require('@/static/icons/post.png'),
+						text: '发布帖子',
+						url: '/pages/forum/create'
 					},
 					{
 						icon: require('@/static/icons/create-plan.png'),

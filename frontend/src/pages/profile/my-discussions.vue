@@ -339,31 +339,47 @@ export default {
 <style lang="scss" scoped>
 .my-discussions-container {
 	min-height: 100vh;
-	padding: 30rpx;
-	padding-bottom: 160rpx;
+	padding: 20rpx;
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+	}
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
 }
 
 .stats-section {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	padding: 40rpx 20rpx;
+	background: #F0F7FF;
+	border-radius: 20rpx;
+	padding: 30rpx;
+	margin-bottom: 20rpx;
 	display: flex;
-	justify-content: space-around;
+	justify-content: space-between;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	
 	.stat-item {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
+		flex: 1;
+		text-align: center;
 		
 		.stat-number {
-			font-size: 48rpx;
+			display: block;
+			font-size: 36rpx;
 			font-weight: bold;
-			color: white;
-			margin-bottom: 10rpx;
+			color: #333;
+			margin-bottom: 8rpx;
 		}
 		
 		.stat-label {
 			font-size: 24rpx;
-			color: rgba(255, 255, 255, 0.8);
+			color: #666;
 		}
 	}
 }

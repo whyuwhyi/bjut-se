@@ -961,57 +961,63 @@ export default {
 	display: flex;
 	padding: 30rpx;
 	gap: 20rpx;
+	justify-content: space-between;
+	background: white;
+	border-radius: 20rpx;
+	margin: 20rpx 0;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	
 	.action-btn {
 		flex: 1;
+		height: 120rpx; /* 固定高度 */
+		min-width: 140rpx; /* 最小宽度 */
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding: 20rpx;
+		justify-content: center;
+		padding: 16rpx 10rpx;
 		background: white;
-		border: 2rpx solid #e0e0e0;
-		border-radius: 15rpx;
-		font-size: 26rpx;
+		border: none; /* 移除边框 */
+		border-radius: 12rpx;
 		transition: all 0.3s ease;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-		
-		&.primary {
-			border-color: #e0e0e0;
-			color: #333;
-			
-			&:active {
-				border-color: #007aff;
-				color: #007aff;
-			}
-		}
-		
-		&.favorited {
-			background: #fff2f2;
-			border-color: #ff4757;
-			color: #ff4757;
-			transition: all 0.3s ease;
-			
-			.btn-icon {
-				transform: scale(1.2);
-				transition: transform 0.3s ease;
-			}
-		}
-
-		&.report-btn {
-			&:active {
-				border-color: #ff6b6b;
-				color: #ff6b6b;
-				background: #fff5f5;
-			}
-		}
 		
 		.btn-icon {
-			font-size: 32rpx;
-			margin-bottom: 8rpx;
+			font-size: 40rpx;
+			margin-bottom: 12rpx;
+			line-height: 1;
 		}
 		
 		.btn-text {
 			font-size: 24rpx;
+			line-height: 1;
+			white-space: nowrap;
+			color: #666;
+		}
+		
+		&.primary {
+			.btn-text {
+				color: #333;
+			}
+			
+			&:active {
+				opacity: 0.8;
+			}
+		}
+		
+		&.favorited {
+			.btn-icon {
+				transform: scale(1.1);
+				transition: transform 0.3s ease;
+			}
+			
+			.btn-text {
+				color: #ff4757;
+			}
+		}
+		
+		&:active {
+			opacity: 0.8;
+			transform: scale(0.98);
 		}
 	}
 }
