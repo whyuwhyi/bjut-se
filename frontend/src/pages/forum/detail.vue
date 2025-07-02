@@ -355,7 +355,11 @@ export default {
 		},
 		shareToFriend() {
 			this.closeSharePopup()
-			uni.showToast({ title: '请在微信内使用原生分享功能', icon: 'none' })
+			uni.showModal({
+				title: '分享给好友',
+				content: '请点击"复制链接"并粘贴到微信/QQ等聊天工具发送给好友。',
+				showCancel: false
+			})
 		},
 		copyPostLink() {
 			this.closeSharePopup()

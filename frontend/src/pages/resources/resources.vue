@@ -183,7 +183,11 @@ export default {
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
-					this.resources = response.data.data.resources || []
+					// 确保每个资源都带有 isFavorited 字段
+					this.resources = (response.data.data.resources || []).map(item => ({
+						...item,
+						isFavorited: typeof item.isFavorited === 'boolean' ? item.isFavorited : false
+					}))
 				} else {
 					uni.showToast({
 						title: '加载失败',
@@ -253,8 +257,10 @@ export default {
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
-					// 确保状态与服务器返回一致
-					item.isFavorited = response.data.data.isCollected
+					// 用接口返回的 isCollected 字段修正
+					if (typeof response.data.data.isCollected !== 'undefined') {
+						item.isFavorited = response.data.data.isCollected
+					}
 					uni.showToast({
 						title: response.data.message,
 						icon: 'success'
