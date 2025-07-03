@@ -1,74 +1,74 @@
 <template>
 	<view>
-	<view class="forum-container">
-		<!-- 高级搜索组件 -->
-		<AdvancedSearch 
-			type="post"
-			placeholder="搜索帖子..."
-			:loading="loading"
-			@search="handleAdvancedSearch"
-		/>
+		<view class="forum-container">
+			<!-- 高级搜索组件 -->
+			<AdvancedSearch 
+				type="post"
+				placeholder="搜索帖子..."
+				:loading="loading"
+				@search="handleAdvancedSearch"
+			/>
 
-		<!-- 帖子列表 -->
-		<view class="posts-list">
-			<view 
-				class="post-item" 
-				v-for="(post, index) in posts" 
-				:key="post.post_id"
-				@click="viewPost(post)"
-			>
-				<view class="post-header">
-					<view class="author-info">
-						<image 
-							class="avatar" 
-							:src="post.author.avatar_url || '/static/images/default-avatar.png'" 
-							mode="aspectFill"
-							@click.stop="viewUserProfile(post.author.phone_number, post.author)"
-						></image>
-						<view class="author-details">
-							<text class="author-name">{{ post.author.nickname || post.author.name }}</text>
-							<text class="post-time">{{ formatTime(post.created_at) }}</text>
+			<!-- 帖子列表 -->
+			<view class="posts-list">
+				<view 
+					class="post-item" 
+					v-for="(post, index) in posts" 
+					:key="post.post_id"
+					@click="viewPost(post)"
+				>
+					<view class="post-header">
+						<view class="author-info">
+							<image 
+								class="avatar" 
+								:src="post.author.avatar_url || '/static/images/default-avatar.png'" 
+								mode="aspectFill"
+								@click.stop="viewUserProfile(post.author.phone_number, post.author)"
+							></image>
+							<view class="author-details">
+								<text class="author-name">{{ post.author.nickname || post.author.name }}</text>
+								<text class="post-time">{{ formatTime(post.created_at) }}</text>
+							</view>
+						</view>
+						<view class="post-stats">
+							<text class="stat-item">👁️ {{ post.view_count }}</text>
+							<text class="stat-item">💬 {{ post.comment_count || 0 }}</text>
+							<text class="stat-item">❤️ {{ post.collection_count || 0 }}</text>
 						</view>
 					</view>
-					<view class="post-stats">
-						<text class="stat-item">👁️ {{ post.view_count }}</text>
-						<text class="stat-item">💬 {{ post.comment_count || 0 }}</text>
-						<text class="stat-item">❤️ {{ post.collection_count || 0 }}</text>
+					
+					<view class="post-content">
+						<text class="post-title">{{ post.title }}</text>
+						<text class="post-excerpt">{{ getExcerpt(post.content) }}</text>
 					</view>
-				</view>
-				
-				<view class="post-content">
-					<text class="post-title">{{ post.title }}</text>
-					<text class="post-excerpt">{{ getExcerpt(post.content) }}</text>
-				</view>
-				
-				<view class="post-footer" v-if="post.tags && post.tags.length > 0">
-					<view class="post-tags">
-						<view 
-							class="post-tag" 
-							v-for="tag in post.tags" 
-							:key="tag.tag_id"
-							:style="{ backgroundColor: tag.tag_color + '20', color: tag.tag_color }"
-						>
-							<text class="tag-name">{{ tag.tag_name }}</text>
+					
+					<view class="post-footer" v-if="post.tags && post.tags.length > 0">
+						<view class="post-tags">
+							<view 
+								class="post-tag" 
+								v-for="tag in post.tags" 
+								:key="tag.tag_id"
+								:style="{ backgroundColor: tag.tag_color + '20', color: tag.tag_color }"
+							>
+								<text class="tag-name">{{ tag.tag_name }}</text>
+							</view>
 						</view>
 					</view>
 				</view>
 			</view>
-		</view>
 
-		<!-- 加载更多 -->
-		<view class="load-more" v-if="hasMore && !loading">
-			<button class="load-more-btn" @click="loadMore">加载更多</button>
-		</view>
-		
-		<!-- 加载中提示 -->
-		<view class="loading" v-if="loading">
-			<text class="loading-text">加载中...</text>
+			<!-- 加载更多 -->
+			<view class="load-more" v-if="hasMore && !loading">
+				<button class="load-more-btn" @click="loadMore">加载更多</button>
+			</view>
+			
+			<!-- 加载中提示 -->
+			<view class="loading" v-if="loading">
+				<text class="loading-text">加载中...</text>
 			</view>
 		</view>
 		
-		<!-- 发布按钮 -->
+		<!-- 发布按钮 - 移到外层 -->
 		<view class="create-post-btn" @click="goToCreate">
 			<image class="create-icon" src="/static/icons/post.png" mode="aspectFit"></image>
 		</view>
@@ -203,13 +203,36 @@ export default {
 
 <style lang="scss" scoped>
 .forum-container {
-	min-height: 100vh;
 	padding: 20rpx;
-	background: #f5f5f5;
+	min-height: 100vh;
+	background-color: #f5f5f5;
+	position: relative;
+}
+
+.create-post-btn {
+	position: fixed;
+	right: 40rpx;
+	bottom: 160rpx;
+	width: 120rpx;
+	height: 120rpx;
+	border-radius: 50%;
+	background: rgba(0, 122, 255, 0.1);
 	display: flex;
-	flex-direction: column;
-	width: 100%;
-	box-sizing: border-box;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.15);
+	z-index: 100;
+	transition: all 0.3s ease;
+	
+	.create-icon {
+		width: 60rpx;
+		height: 60rpx;
+	}
+	
+	&:active {
+		transform: scale(0.95);
+		background: rgba(0, 122, 255, 0.2);
+	}
 }
 
 .posts-list {
@@ -322,32 +345,6 @@ export default {
 				}
 			}
 		}
-	}
-}
-
-.create-post-btn {
-	position: fixed;
-	right: 40rpx;
-	bottom: 120rpx;
-	width: 120rpx;
-	height: 120rpx;
-	background: rgba(0, 122, 255, 0.1);
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.15);
-	z-index: 100;
-	transition: all 0.3s ease;
-	
-	&:active {
-		transform: scale(0.95);
-		background: rgba(0, 122, 255, 0.2);
-	}
-	
-	.create-icon {
-		width: 60rpx;
-		height: 60rpx;
 	}
 }
 

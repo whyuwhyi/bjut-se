@@ -1,56 +1,48 @@
 <template>
 	<view class="resources-container">
-		<!-- 顶部搜索和过滤区域 -->
-		<view class="top-section">
-			<!-- 搜索栏 -->
-			<view class="search-bar">
-				<text class="search-icon">🔍</text>
-				<input 
-					class="search-input" 
-					type="text"
-					placeholder="搜索资源..." 
-					:value="searchKeyword"
-					@input="handleSearchInput"
-					@confirm="handleSearch"
-				/>
-			</view>
-			
-			<!-- 分类过滤 -->
-			<view class="category-filter">
-				<scroll-view class="category-scroll" scroll-x="true">
-					<view class="category-list">
-						<view 
-							class="category-item" 
-							:class="{ active: selectedCategory === null }"
-							@click="selectCategory(null)"
-						>
-							<text class="category-text">全部</text>
-						</view>
-						<view 
-							class="category-item" 
-							v-for="category in categories" 
-							:key="category.id"
-							:class="{ active: selectedCategory === category.id }"
-							@click="selectCategory(category.id)"
-						>
-							<text class="category-text">{{ category.name }}</text>
-						</view>
+		<!-- 高级搜索组件 -->
+		<AdvancedSearch 
+			type="resource"
+			placeholder="搜索学习资源..."
+			:loading="loading"
+			@search="handleAdvancedSearch"
+		/>
+
+		<!-- 分类过滤 -->
+		<view class="category-filter">
+			<scroll-view class="category-scroll" scroll-x="true">
+				<view class="category-list">
+					<view 
+						class="category-item" 
+						:class="{ active: selectedCategory === null }"
+						@click="selectCategory(null)"
+					>
+						<text class="category-text">全部</text>
 					</view>
-				</scroll-view>
-			</view>
-			
-			<!-- 排序选项 -->
-			<view class="sort-section">
-				<picker 
-					:value="sortIndex" 
-					:range="sortOptions" 
-					@change="handleSortChange"
-					class="sort-picker"
-				>
-					<view class="sort-text">{{ sortOptions[sortIndex] }}</view>
-					<text class="sort-icon">▼</text>
-				</picker>
-			</view>
+					<view 
+						class="category-item" 
+						v-for="category in categories" 
+						:key="category.category_id"
+						:class="{ active: selectedCategory === category.category_id }"
+						@click="selectCategory(category.category_id)"
+					>
+						<text class="category-text">{{ category.category_name }}</text>
+					</view>
+				</view>
+			</scroll-view>
+		</view>
+		
+		<!-- 排序选项 -->
+		<view class="sort-section">
+			<picker 
+				:value="sortIndex" 
+				:range="sortOptions" 
+				@change="handleSortChange"
+				class="sort-picker"
+			>
+				<view class="sort-text">{{ sortOptions[sortIndex] }}</view>
+				<text class="sort-icon">▼</text>
+			</picker>
 		</view>
 
 		<!-- 资源列表 -->
@@ -126,7 +118,7 @@ export default {
 			loading: false,
 			categories: [],
 			selectedCategory: null,
-			searchKeyword: '',
+			searchParams: {},
 			sortOptions: ['最新发布', '最多下载', '最高评分', '最多收藏'],
 			sortIndex: 0
 		}
@@ -139,10 +131,19 @@ export default {
 	
 	onShow() {
 		// 页面显示时重新加载资源列表，确保收藏状态同步
-		this.loadResources()
+		this.page = 1
+		this.loadResources(true)
 	},
 	
 	methods: {
+		// 处理高级搜索
+		handleAdvancedSearch(searchParams) {
+			this.searchParams = searchParams
+			this.page = 1
+			this.hasMore = true
+			this.loadResources(true)
+		},
+		
 		async loadCategories() {
 			try {
 				const response = await uni.request({
@@ -152,19 +153,21 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.categories = response.data.data
+					console.log('加载到的分类数据:', this.categories)
+				} else {
+					console.error('加载分类失败:', response.data)
+					uni.showToast({
+						title: '加载分类失败',
+						icon: 'none'
+					})
 				}
 			} catch (error) {
 				console.error('加载分类失败:', error)
+				uni.showToast({
+					title: '加载分类失败',
+					icon: 'none'
+				})
 			}
-		},
-		
-		handleSearchInput(e) {
-			this.searchKeyword = e.detail.value
-		},
-		
-		handleSearch() {
-			this.page = 1
-			this.loadResources(true)
 		},
 		
 		selectCategory(categoryId) {
@@ -189,148 +192,113 @@ export default {
 					limit: this.limit,
 					...this.searchParams
 				}
+				
+				// 添加分类过滤
+				if (this.selectedCategory) {
+					params.category = this.selectedCategory
+				}
+				
+				// 添加排序
+				switch (this.sortIndex) {
+					case 0: // 最新发布
+						params.sort = 'created_at'
+						params.order = 'desc'
+						break
+					case 1: // 最多下载
+						params.sort = 'download_count'
+						params.order = 'desc'
+						break
+					case 2: // 最高评分
+						params.sort = 'rating'
+						params.order = 'desc'
+						break
+					case 3: // 最多收藏
+						params.sort = 'collection_count'
+						params.order = 'desc'
+						break
+				}
+				
 				const token = uni.getStorageSync('token')
 				const headers = {}
 				if (token) {
 					headers['Authorization'] = `Bearer ${token}`
 				}
+				
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources`,
 					method: 'GET',
-					header: headers,
-					data: params
+					data: params,
+					header: headers
 				})
+				
 				if (response.statusCode === 200 && response.data.success) {
-					const list = (response.data.data.resources || []).map(item => ({
-						...item,
-						isFavorited: typeof item.isFavorited === 'boolean' ? item.isFavorited : false
-					}))
+					const { resources, pagination } = response.data.data
+					
 					if (refresh) {
-						this.resources = list
-						this.page = 2
+						this.resources = resources
 					} else {
-						this.resources = [...this.resources, ...list]
-						this.page += 1
+						this.resources = [...this.resources, ...resources]
 					}
-					this.hasMore = list.length === this.limit
+					
+					this.hasMore = pagination.currentPage < pagination.totalPages
+					this.page = pagination.currentPage + 1
 				} else {
-					uni.showToast({ title: '加载失败', icon: 'none' })
+					uni.showToast({
+						title: response.data.message || '加载失败',
+						icon: 'none'
+					})
 				}
 			} catch (error) {
-				console.error('加载资源列表错误:', error)
-				uni.showToast({ title: '网络错误', icon: 'none' })
+				console.error('加载资源列表失败:', error)
+				uni.showToast({
+					title: '网络错误',
+					icon: 'none'
+				})
 			} finally {
 				this.loading = false
 			}
 		},
 		
-		async toggleFavorite(item) {
-			try {
-				const token = uni.getStorageSync('token')
-				if (!token) {
-					uni.showToast({
-						title: '请先登录',
-						icon: 'none'
-					})
-					return
-				}
-				// 乐观更新
-				const originalState = item.isFavorited
-				item.isFavorited = !item.isFavorited
-				// 本地同步更新收藏数
-				const originalCount = item.collection_count || 0
-				item.collection_count = originalState ? originalCount - 1 : originalCount + 1
-
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${item.id}/favorite`,
-					method: 'POST',
-					header: {
-						'Authorization': `Bearer ${token}`,
-						'Content-Type': 'application/json'
-					},
-					data: {
-						type: 'resource'
-					}
-				})
-
-				if (response.statusCode === 200 && response.data.success) {
-					// 用接口返回的 isCollected 字段修正
-					if (typeof response.data.data.isCollected !== 'undefined') {
-						item.isFavorited = response.data.data.isCollected
-					}
-					// 用接口返回的收藏数修正（如果有）
-					if (typeof response.data.data.collection_count !== 'undefined') {
-						item.collection_count = response.data.data.collection_count
-					}
-					uni.showToast({
-						title: response.data.message,
-						icon: 'success'
-					})
-				} else {
-					// 操作失败，恢复原来的状态和收藏数
-					item.isFavorited = originalState
-					item.collection_count = originalCount
-					uni.showToast({
-						title: '操作失败',
-						icon: 'none'
-					})
-				}
-			} catch (error) {
-				// 网络错误，恢复原来的状态和收藏数
-				item.isFavorited = originalState
-				item.collection_count = originalCount
-				console.error('收藏操作错误:', error)
-				uni.showToast({
-					title: '网络错误',
-					icon: 'none'
-				})
-			}
-		},
-		
-		viewResource(item) {
+		viewResource(resource) {
 			uni.navigateTo({
-				url: `./detail?id=${item.id}`
+				url: `./detail?id=${resource.resource_id}`
 			})
 		},
 		
 		goToUpload() {
+			const token = uni.getStorageSync('token')
+			if (!token) {
+				uni.showToast({
+					title: '请先登录',
+					icon: 'none'
+				})
+				return
+			}
+			
 			uni.navigateTo({
 				url: './upload'
 			})
 		},
 		
 		getFileIcon(fileType) {
-			const iconMap = {
-				'pdf': '📄',
-				'doc': '📝',
-				'ppt': '📊',
-				'zip': '📦',
-				'video': '🎥'
-			}
-			return iconMap[fileType] || '📁'
+			if (!fileType) return '📄'
+			
+			const type = fileType.toLowerCase()
+			if (['jpg', 'jpeg', 'png', 'gif'].includes(type)) return '🖼️'
+			if (['doc', 'docx'].includes(type)) return '📝'
+			if (['xls', 'xlsx'].includes(type)) return '📊'
+			if (['ppt', 'pptx'].includes(type)) return '📊'
+			if (['pdf'].includes(type)) return '📑'
+			if (['zip', 'rar', '7z'].includes(type)) return '📦'
+			if (['mp4', 'avi', 'mov'].includes(type)) return '🎬'
+			if (['mp3', 'wav', 'ogg'].includes(type)) return '🎵'
+			return '📄'
 		},
 		
 		formatTime(time) {
-			if (!time) return '未知时间'
-			
-			// 确保 time 是 Date 对象
-			const date = new Date(time)
-			if (isNaN(date.getTime())) {
-				return '时间格式错误'
-			}
-			
-			const now = new Date()
-			const diff = now - date
-			const day = 24 * 60 * 60 * 1000
-			
-			if (diff < day) {
-				const hours = Math.floor(diff / (60 * 60 * 1000))
-				return hours > 0 ? `${hours}小时前` : '刚刚'
-			} else if (diff < 7 * day) {
-				return `${Math.floor(diff / day)}天前`
-			} else {
-				return date.toLocaleDateString()
-			}
+			if (!time) return ''
+			const { formatTime } = require('@/utils/time.js')
+			return formatTime(time)
 		}
 	}
 }
@@ -342,176 +310,137 @@ export default {
 	background-color: #f5f5f5;
 	min-height: 100vh;
 	
-	.top-section {
+	.category-filter {
+		margin: 20rpx 0;
 		background-color: #fff;
 		border-radius: 16rpx;
 		padding: 20rpx;
-		margin-bottom: 20rpx;
 		box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
 		
-		.search-bar {
-			display: flex;
-			align-items: center;
-			background-color: #f5f5f5;
-			border-radius: 30rpx;
-			padding: 10rpx 20rpx;
-			margin-bottom: 20rpx;
+		.category-scroll {
+			white-space: nowrap;
 			
-			.search-icon {
-				margin-right: 10rpx;
-				font-size: 32rpx;
-			}
-			
-			.search-input {
-				flex: 1;
-				height: 60rpx;
-				font-size: 28rpx;
-				background: transparent;
-			}
-		}
-		
-		.category-filter {
-			margin-bottom: 20rpx;
-			
-			.category-scroll {
-				white-space: nowrap;
+			.category-list {
+				display: inline-flex;
+				padding: 10rpx 0;
 				
-				.category-list {
-					display: inline-flex;
-					padding: 10rpx 0;
+				.category-item {
+					display: inline-block;
+					padding: 10rpx 30rpx;
+					margin-right: 20rpx;
+					background-color: #f5f5f5;
+					border-radius: 30rpx;
+					transition: all 0.3s;
 					
-					.category-item {
-						display: inline-block;
-						padding: 10rpx 30rpx;
-						margin-right: 20rpx;
-						background-color: #f5f5f5;
-						border-radius: 30rpx;
-						transition: all 0.3s;
-						
-						&.active {
-							background-color: #007aff;
-							
-							.category-text {
-								color: #fff;
-							}
-						}
+					&.active {
+						background-color: #007aff;
 						
 						.category-text {
-							font-size: 26rpx;
-							color: #333;
-						}
-						
-						&:last-child {
-							margin-right: 0;
+							color: #fff;
 						}
 					}
-				}
-			}
-		}
-		
-		.sort-section {
-			display: flex;
-			justify-content: flex-end;
-			align-items: center;
-			
-			.sort-picker {
-				display: flex;
-				align-items: center;
-				padding: 10rpx 20rpx;
-				background-color: #f5f5f5;
-				border-radius: 20rpx;
-				
-				.sort-text {
-					font-size: 26rpx;
-					color: #333;
-					margin-right: 10rpx;
-				}
-				
-				.sort-icon {
-					font-size: 24rpx;
-					color: #666;
+					
+					.category-text {
+						font-size: 26rpx;
+						color: #333;
+					}
+					
+					&:last-child {
+						margin-right: 0;
+					}
 				}
 			}
 		}
 	}
-
-	.resources-list {
-		width: 100%;
+	
+	.sort-section {
+		margin-bottom: 20rpx;
+		background-color: #fff;
+		border-radius: 16rpx;
+		padding: 20rpx;
+		box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
 		
-		.resource-item {
-			width: 100%;
-			background: white;
-			border-radius: 24rpx;
-			padding: 32rpx;
-			margin-bottom: 32rpx;
-			box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-			box-sizing: border-box;
-			transition: all 0.3s ease;
+		.sort-picker {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 10rpx 20rpx;
+			background-color: #f5f5f5;
+			border-radius: 30rpx;
 			
-			&:active {
-				transform: scale(0.98);
-				background-color: #f8f8f8;
+			.sort-text {
+				font-size: 26rpx;
+				color: #333;
 			}
+			
+			.sort-icon {
+				font-size: 24rpx;
+				color: #666;
+				margin-left: 10rpx;
+			}
+		}
+	}
+	
+	.resources-list {
+		.resource-item {
+			background: #fff;
+			border-radius: 16rpx;
+			padding: 20rpx;
+			margin-bottom: 20rpx;
+			box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
 			
 			.resource-header {
 				display: flex;
-				align-items: flex-start;
 				margin-bottom: 20rpx;
 				
 				.file-preview {
 					position: relative;
-					width: 80rpx;
-					height: 80rpx;
+					width: 120rpx;
+					height: 120rpx;
 					margin-right: 20rpx;
 					border-radius: 12rpx;
 					overflow: hidden;
-					background: rgba(0, 122, 255, 0.1);
 					
 					.thumbnail-image {
 						width: 100%;
 						height: 100%;
-						background: #f0f0f0;
+						object-fit: cover;
 					}
 					
 					.file-type-overlay {
 						position: absolute;
-						bottom: 2rpx;
-						right: 2rpx;
-						font-size: 20rpx;
-						background: rgba(0, 0, 0, 0.6);
-						color: white;
-						padding: 4rpx 6rpx;
-						border-radius: 6rpx;
+						bottom: 0;
+						left: 0;
+						right: 0;
+						padding: 4rpx;
+						background: rgba(0, 0, 0, 0.5);
+						color: #fff;
+						font-size: 24rpx;
+						text-align: center;
 					}
 				}
 				
 				.resource-info {
 					flex: 1;
-					min-width: 0;
 					
 					.resource-title {
-						display: block;
 						font-size: 32rpx;
 						font-weight: bold;
 						color: #333;
-						margin-bottom: 12rpx;
-						line-height: 1.4;
-						overflow: hidden;
-						text-overflow: ellipsis;
-						white-space: nowrap;
+						margin-bottom: 10rpx;
 					}
 					
 					.resource-tags {
 						display: flex;
 						flex-wrap: wrap;
-						gap: 8rpx;
+						gap: 10rpx;
 						
 						.tag {
-							padding: 6rpx 12rpx;
-							background: rgba(0, 122, 255, 0.1);
+							font-size: 24rpx;
 							color: #007aff;
-							border-radius: 16rpx;
-							font-size: 22rpx;
+							background: rgba(0, 122, 255, 0.1);
+							padding: 4rpx 12rpx;
+							border-radius: 20rpx;
 						}
 					}
 				}
@@ -521,12 +450,12 @@ export default {
 				display: flex;
 				justify-content: space-between;
 				align-items: center;
-				margin-bottom: 16rpx;
+				margin-bottom: 20rpx;
 				
 				.meta-info {
 					display: flex;
-					flex-direction: column;
-					gap: 6rpx;
+					align-items: center;
+					gap: 20rpx;
 					
 					.author, .upload-time {
 						font-size: 24rpx;
@@ -536,56 +465,33 @@ export default {
 				
 				.resource-stats {
 					display: flex;
-					gap: 16rpx;
+					gap: 20rpx;
 					
 					.stat-item {
 						font-size: 24rpx;
-						color: #999;
+						color: #666;
 					}
 				}
 			}
 			
 			.resource-description {
 				.description-text {
-					font-size: 26rpx;
+					font-size: 28rpx;
 					color: #666;
 					line-height: 1.5;
-					display: -webkit-box;
-					-webkit-line-clamp: 2;
-					-webkit-box-orient: vertical;
-					overflow: hidden;
-					text-overflow: ellipsis;
 				}
 			}
 		}
 	}
-
-	.load-more {
-		padding: 30rpx;
-		text-align: center;
-		
-		.load-more-btn {
-			padding: 20rpx 40rpx;
-			background: #007aff;
-			color: white;
-			border: none;
-			border-radius: 25rpx;
-			font-size: 28rpx;
-			
-			&:active {
-				background: #0066cc;
-			}
-		}
-	}
-
+	
 	.upload-btn {
 		position: fixed;
 		right: 40rpx;
 		bottom: 160rpx;
 		width: 120rpx;
 		height: 120rpx;
-		background: rgba(0, 122, 255, 0.1);
 		border-radius: 50%;
+		background: rgba(0, 122, 255, 0.1);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -593,34 +499,31 @@ export default {
 		z-index: 100;
 		transition: all 0.3s ease;
 		
-		&:active {
-			transform: scale(0.95);
-			background: rgba(0, 122, 255, 0.2);
-		}
-		
 		.upload-icon {
 			width: 60rpx;
 			height: 60rpx;
 		}
+		
+		&:active {
+			transform: scale(0.95);
+			background: rgba(0, 122, 255, 0.2);
+		}
 	}
-
+	
 	.load-more {
-		width: 100%;
-		padding: 20rpx 0;
+		padding: 20rpx;
 		text-align: center;
 		
 		.load-more-btn {
 			display: inline-block;
-			padding: 16rpx 32rpx;
-			background: #007aff;
-			color: white;
+			padding: 10rpx 30rpx;
+			font-size: 28rpx;
+			color: #666;
+			background: #f5f5f5;
 			border-radius: 30rpx;
-			font-size: 26rpx;
-			border: none;
 			
 			&:active {
-				transform: scale(0.98);
-				background: #0056b3;
+				opacity: 0.8;
 			}
 		}
 	}
