@@ -1,7 +1,20 @@
 <template>
 	<view class="resource-detail-container">
-		<!-- 资源头部信息 -->
-		<view class="resource-header">
+		<!-- 加载状态 -->
+		<view v-if="!resource.id && resource.title === '加载中...' && !loadError" class="loading-container">
+			<text class="loading-text">加载中...</text>
+		</view>
+		
+		<!-- 错误状态 -->
+		<view v-else-if="loadError" class="error-container">
+			<text class="error-text">{{ loadError }}</text>
+			<button class="retry-btn" @click="loadResourceDetail">重试</button>
+		</view>
+		
+		<!-- 资源详情内容 -->
+		<template v-else-if="resource.id">
+			<!-- 资源头部信息 -->
+			<view class="resource-header">
 			<view class="resource-icon-section">
 				<image :src="getFileIcon(resource.fileType)" class="file-icon-large"></image>
 				<view class="file-info">
@@ -190,13 +203,14 @@
 		</view>
 
 		<!-- 举报弹窗 -->
-		<ReportModal 
-			ref="reportModal"
-			content-type="resource"
-			:content-id="resourceId"
-			:content-title="resource.title"
-			@reported="onReported"
-		/>
+			<ReportModal 
+				ref="reportModal"
+				content-type="resource"
+				:content-id="resourceId"
+				:content-title="resource.title"
+				@reported="onReported"
+			/>
+		</template>
 	</view>
 </template>
 
@@ -214,6 +228,7 @@ export default {
 	data() {
 		return {
 			resourceId: '',
+			loadError: null,
 			resource: {
 				id: '',
 				resource_id: '',
@@ -271,6 +286,7 @@ export default {
 	methods: {
 		async loadResourceDetail() {
 			try {
+				this.loadError = null
 				uni.showLoading({ title: '加载中...' })
 				
 				const response = await uni.request({
@@ -310,7 +326,10 @@ export default {
 					
 					console.log('处理后的资源数据:', this.resource)
 				} else {
-					throw new Error('获取资源详情失败')
+					this.loadError = response.data.message || '获取资源详情失败'
+					// 重置resource到初始状态，但清空id以触发错误状态显示
+					this.resource.id = ''
+					this.resource.title = '加载中...'
 				}
 				
 				// 检查收藏状态
@@ -322,11 +341,11 @@ export default {
 				uni.hideLoading()
 			} catch (error) {
 				console.error('加载资源详情错误:', error)
+				this.loadError = '网络错误，请检查网络连接'
+				// 重置resource到初始状态，但清空id以触发错误状态显示
+				this.resource.id = ''
+				this.resource.title = '加载中...'
 				uni.hideLoading()
-				uni.showToast({
-					title: '加载失败',
-					icon: 'none'
-				})
 			}
 		},
 		
@@ -1385,5 +1404,29 @@ export default {
 	font-size: 28rpx;
 	color: #856404;
 	font-weight: 500;
+}
+
+.loading-container, .error-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 100rpx 40rpx;
+	text-align: center;
+}
+
+.loading-text, .error-text {
+	font-size: 32rpx;
+	color: #666;
+	margin-bottom: 20rpx;
+}
+
+.retry-btn {
+	background: #007aff;
+	color: white;
+	border: none;
+	border-radius: 8rpx;
+	padding: 20rpx 40rpx;
+	font-size: 28rpx;
 }
 </style>

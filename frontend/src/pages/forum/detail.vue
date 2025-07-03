@@ -1,7 +1,18 @@
 <template>
 	<view class="detail-container">
+		<!-- 加载状态 -->
+		<view v-if="!post && !loadError" class="loading-container">
+			<text class="loading-text">加载中...</text>
+		</view>
+		
+		<!-- 错误状态 -->
+		<view v-else-if="loadError" class="error-container">
+			<text class="error-text">{{ loadError }}</text>
+			<button class="retry-btn" @click="loadPostDetail">重试</button>
+		</view>
+		
 		<!-- 帖子详情 -->
-		<view class="post-detail" v-if="post">
+		<view class="post-detail" v-else-if="post">
 			<view class="post-header">
 				<view class="author-info">
 					<image class="avatar" :src="post.author.avatar_url || '/static/images/default-avatar.png'" mode="aspectFill" @click.stop="viewUserProfile(post.author.phone_number, post.author)"></image>
@@ -152,6 +163,7 @@ export default {
 		return {
 			postId: '',
 			post: null,
+			loadError: null,
 			commentText: '',
 			comments: [],
 			page: 1,
@@ -185,6 +197,7 @@ export default {
 	methods: {
 		async loadPostDetail() {
 			try {
+				this.loadError = null
 				const response = await uni.request({
 					url: `${config.apiBaseUrl}/posts/${this.postId}`,
 					method: 'GET'
@@ -202,20 +215,11 @@ export default {
 					// 检查是否已收藏
 					this.checkCollectionStatus()
 				} else {
-					uni.showToast({
-						title: '帖子不存在',
-						icon: 'none'
-					})
-					setTimeout(() => {
-						uni.navigateBack()
-					}, 1500)
+					this.loadError = response.data.message || '帖子不存在'
 				}
 			} catch (error) {
 				console.error('加载帖子详情失败:', error)
-				uni.showToast({
-					title: '网络错误',
-					icon: 'none'
-				})
+				this.loadError = '网络错误，请检查网络连接'
 			}
 		},
 		
@@ -956,5 +960,29 @@ export default {
 	font-size: 24rpx;
 	color: #888;
 	margin-bottom: 10rpx;
+}
+
+.loading-container, .error-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 100rpx 40rpx;
+	text-align: center;
+}
+
+.loading-text, .error-text {
+	font-size: 32rpx;
+	color: #666;
+	margin-bottom: 20rpx;
+}
+
+.retry-btn {
+	background: #007aff;
+	color: white;
+	border: none;
+	border-radius: 8rpx;
+	padding: 20rpx 40rpx;
+	font-size: 28rpx;
 }
 </style>
