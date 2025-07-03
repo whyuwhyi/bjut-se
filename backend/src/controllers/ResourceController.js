@@ -1,84 +1,160 @@
 const { Resource, User, File, Collection, Comment, Rating, Category, Notification } = require('../models')
 const idGenerator = require('../utils/IdGenerator')
+const searchHelper = require('../utils/SearchHelper')
+const searchCache = require('../utils/RedisSearchCache')
 const { Op } = require('sequelize')
 
 class ResourceController {
-  // 获取资源列表（支持分页、筛选、排序）
+  // 获取资源列表（支持智能搜索、高级筛选、排序）
   async getResources(req, res) {
     try {
       const {
         page = 1,
         limit = 10,
         categories,
-        sortBy = 'created_at',
+        sortBy = 'relevance',
         sortOrder = 'DESC',
         search,
-        status = 'published'
+        status = 'published',
+        // 新增高级筛选参数
+        dateFrom,
+        dateTo,
+        minRating,
+        maxRating,
+        minViews,
+        maxViews,
+        fileTypes
       } = req.query
 
       const userPhone = req.user?.phone_number // 获取当前用户手机号（如果已登录）
+      
+      // 构建缓存键参数（排除用户相关信息）
+      const cacheParams = {
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 10,
+        categories,
+        sortBy,
+        sortOrder,
+        search,
+        status,
+        dateFrom,
+        dateTo,
+        minRating: minRating ? parseFloat(minRating) : undefined,
+        maxRating: maxRating ? parseFloat(maxRating) : undefined,
+        minViews: minViews ? parseInt(minViews) : undefined,
+        maxViews: maxViews ? parseInt(maxViews) : undefined,
+        fileTypes
+      }
+      
+      // 尝试从缓存获取结果
+      const cachedResult = await searchCache.get('search', cacheParams)
+      if (cachedResult) {
+        // 需要为缓存结果添加用户特定的收藏状态
+        let resourcesWithFavorites = cachedResult.resources
+        if (userPhone && cachedResult.resources.length > 0) {
+          try {
+            // 获取用户的收藏记录
+            const userCollections = await Collection.findAll({
+              where: {
+                user_phone: userPhone,
+                collection_type: 'resource',
+                status: 'active'
+              },
+              attributes: ['content_id']
+            })
+            
+            const collectedIds = userCollections.map(c => c.content_id)
+            
+            resourcesWithFavorites = cachedResult.resources.map(resource => ({
+              ...resource,
+              isFavorited: collectedIds.includes(resource.id || resource.resource_id)
+            }))
+          } catch (error) {
+            console.error('添加收藏状态失败:', error)
+            resourcesWithFavorites = cachedResult.resources.map(r => ({ ...r, isFavorited: false }))
+          }
+        } else {
+          resourcesWithFavorites = cachedResult.resources.map(r => ({ ...r, isFavorited: false }))
+        }
+        
+        return res.json({
+          success: true,
+          data: {
+            ...cachedResult,
+            resources: resourcesWithFavorites
+          }
+        })
+      }
       const offset = (page - 1) * limit
       const where = { status }
       const include = [
         {
           model: User,
           as: 'publisher',
-          attributes: ['name', 'nickname']
+          attributes: ['name', 'nickname', 'avatar_url']
         },
         {
           model: File,
           as: 'files',
           attributes: ['file_id', 'file_name', 'file_type', 'file_size']
+        },
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['category_id', 'category_name', 'category_value', 'icon']
         }
       ]
 
-      // 分类关联
-      include.push({
-        model: Category,
-        as: 'category',
-        attributes: ['category_id', 'category_name', 'category_value', 'icon']
-      })
-
-      // 搜索条件
+      // 智能搜索条件 - 使用JOIN查询支持关联表搜索
       if (search) {
-        where[Op.or] = [
-          { resource_name: { [Op.like]: `%${search}%` } },
-          { description: { [Op.like]: `%${search}%` } }
-        ]
-      }
-
-      // 分类筛选
-      if (categories) {
-        const categoryList = categories.split(',')
-        where.category_id = {
-          [Op.in]: categoryList
+        console.log('资源搜索词:', search)
+        const searchCondition = searchHelper.buildResourceSearchCondition(search, {
+          includeRelated: true // 启用关联表搜索，配合subQuery: false使用
+        })
+        console.log('资源搜索条件结果:', searchCondition)
+        if (searchCondition && (Object.keys(searchCondition).length > 0 || Object.getOwnPropertySymbols(searchCondition).length > 0)) {
+          Object.assign(where, searchCondition)
+          console.log('应用搜索条件后的where:', where)
+        } else {
+          console.log('搜索条件为空，未应用')
         }
       }
 
-      // 排序处理
-      let order = []
-      switch (sortBy) {
-        case 'download':
-          order = [['download_count', sortOrder]]
-          break
-        case 'rating':
-          order = [['rating', sortOrder]]
-          break
-        case 'view':
-          order = [['view_count', sortOrder]]
-          break
-        case 'latest':
-        default:
-          order = [['created_at', sortOrder]]
-          break
+      // 高级筛选条件
+      const advancedFilters = searchHelper.buildAdvancedFilters({
+        categories,
+        status: [status],
+        dateFrom,
+        dateTo,
+        minRating,
+        maxRating,
+        minViews,
+        maxViews
+      })
+      Object.assign(where, advancedFilters)
+
+      // 文件类型筛选
+      if (fileTypes) {
+        const typeList = fileTypes.split(',').map(t => t.trim()).filter(t => t)
+        if (typeList.length > 0) {
+          include[1].where = {
+            file_type: { [Op.in]: typeList }
+          }
+          include[1].required = true
+        }
       }
+
+      // 智能排序处理
+      const order = searchHelper.buildSortCondition(sortBy, sortOrder, search)
 
       const { count, rows } = await Resource.findAndCountAll({
         where,
         include,
         order,
         limit: parseInt(limit),
-        offset: parseInt(offset)
+        offset: parseInt(offset),
+        distinct: true, // 避免JOIN重复计数
+        subQuery: false // 禁用子查询，使用JOIN查询
       })
 
       // 如果用户已登录，获取收藏状态
@@ -95,10 +171,10 @@ class ResourceController {
         userCollections = collections.map(c => c.content_id)
       }
 
-      // 格式化返回数据
-      const resources = rows.map(resource => {
+      // 格式化返回数据并计算相关性评分
+      let resources = rows.map(resource => {
         const data = resource.toJSON()
-        return {
+        const formatted = {
           id: data.resource_id,
           title: data.resource_name,
           description: data.description,
@@ -110,21 +186,59 @@ class ResourceController {
           isFavorited: userCollections.includes(data.resource_id),
           files: data.files || [],
           category: data.category?.category_name || '未分类',
-          collection_count: data.collection_count || 0
+          collection_count: data.collection_count || 0,
+          // 新增字段
+          publisherAvatar: data.publisher?.avatar_url,
+          categoryInfo: data.category,
+          fileCount: data.files?.length || 0
         }
+
+        // 计算相关性评分（如果有搜索词）
+        if (search) {
+          formatted.relevanceScore = searchHelper.calculateRelevanceScore({
+            resource_name: data.resource_name,
+            description: data.description,
+            category_name: data.category?.category_name,
+            publisher_name: data.publisher?.nickname || data.publisher?.name,
+            view_count: data.view_count,
+            download_count: data.download_count,
+            collection_count: data.collection_count,
+            rating: data.rating
+          }, search, 'resource')
+
+          // 高亮搜索关键词
+          formatted.titleHighlighted = searchHelper.highlightKeywords(formatted.title, search)
+          formatted.descriptionHighlighted = searchHelper.highlightKeywords(formatted.description, search)
+        }
+
+        return formatted
       })
+
+      // 如果有搜索词且按相关性排序，重新排序结果
+      if (search && sortBy === 'relevance') {
+        resources.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
+      }
+
+      const responseData = {
+        resources,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      }
+      
+      // 将结果存储到缓存（不包含用户特定的收藏状态）
+      const cacheData = {
+        resources: resources.map(r => ({ ...r, isFavorited: undefined })),
+        pagination: responseData.pagination
+      }
+      await searchCache.set('search', cacheParams, cacheData)
 
       res.json({
         success: true,
-        data: {
-          resources,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total: count,
-            totalPages: Math.ceil(count / limit)
-          }
-        }
+        data: responseData
       })
     } catch (error) {
       console.error('获取资源列表错误:', error)
@@ -236,6 +350,9 @@ class ResourceController {
       })
       // 新增：发布资源后自增用户资源数
       await User.increment('resource_count', { where: { phone_number: userPhone } })
+
+      // 清除相关缓存
+      await searchCache.invalidate('resource', 'create')
 
       res.status(201).json({
         success: true,
@@ -431,6 +548,9 @@ class ResourceController {
         action_params: { resourceId: resource.resource_id }
       })
 
+      // 清除相关缓存
+      await searchCache.invalidate('resource', 'update')
+      
       res.json({
         success: true,
         message: action === 'approve' ? '资源审核通过' : '资源已拒绝',
@@ -678,6 +798,9 @@ class ResourceController {
       // 软删除：将状态改为archived
       await resource.update({ status: 'archived' })
 
+      // 清除相关缓存
+      await searchCache.invalidate('resource', 'delete')
+
       res.status(200).json({
         success: true,
         message: '删除资源成功'
@@ -795,9 +918,134 @@ class ResourceController {
     }
   }
 
+  // 获取搜索建议
+  async getSearchSuggestions(req, res) {
+    try {
+      const { q: searchTerm } = req.query
+      
+      // 这里可以从数据库获取热门搜索关键词和用户搜索历史
+      // 暂时使用模拟数据
+      const hotKeywords = [
+        '数据结构', '算法', '计算机网络', '操作系统', '数据库',
+        '机器学习', '深度学习', '前端开发', '后端开发', 'Python'
+      ]
+      
+      const searchHistory = [] // 可以从用户session或数据库获取
+      
+      const suggestions = searchHelper.generateSearchSuggestions(
+        searchTerm, 
+        searchHistory, 
+        hotKeywords
+      )
+      
+      res.json({
+        success: true,
+        data: {
+          suggestions,
+          hotKeywords: hotKeywords.slice(0, 5)
+        }
+      })
+    } catch (error) {
+      console.error('获取搜索建议错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '获取搜索建议失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 获取高级筛选选项
+  async getFilterOptions(req, res) {
+    try {
+      // 获取所有分类
+      const categories = await Category.findAll({
+        where: { status: 'active' },
+        attributes: ['category_id', 'category_name', 'icon'],
+        order: [['sort_order', 'ASC'], ['category_name', 'ASC']]
+      })
+
+      // 获取文件类型统计
+      const fileTypes = await File.findAll({
+        attributes: ['file_type'],
+        group: ['file_type'],
+        raw: true
+      })
+
+      // 获取评分范围
+      const ratingRange = await Resource.findOne({
+        attributes: [
+          [require('sequelize').fn('MIN', require('sequelize').col('rating')), 'minRating'],
+          [require('sequelize').fn('MAX', require('sequelize').col('rating')), 'maxRating']
+        ],
+        raw: true
+      })
+
+      res.json({
+        success: true,
+        data: {
+          categories: categories.map(cat => ({
+            id: cat.category_id,
+            name: cat.category_name,
+            icon: cat.icon
+          })),
+          fileTypes: fileTypes.map(ft => ft.file_type).filter(Boolean),
+          ratingRange: {
+            min: parseFloat(ratingRange?.minRating || 0),
+            max: parseFloat(ratingRange?.maxRating || 5)
+          },
+          sortOptions: [
+            { value: 'relevance', label: '相关性' },
+            { value: 'latest', label: '最新发布' },
+            { value: 'download', label: '下载最多' },
+            { value: 'rating', label: '评分最高' },
+            { value: 'view', label: '浏览最多' },
+            { value: 'collection', label: '收藏最多' }
+          ]
+        }
+      })
+    } catch (error) {
+      console.error('获取筛选选项错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '获取筛选选项失败',
+        error: error.message
+      })
+    }
+  }
+
   // 生成收藏ID
   generateCollectionId() {
     return idGenerator.generateResourceId()
+  }
+  
+  // 为资源列表添加用户收藏状态
+  async addFavoriteStatus(resources, userPhone) {
+    if (!userPhone || !resources.length) {
+      return resources.map(r => ({ ...r, isFavorited: false }))
+    }
+    
+    try {
+      // 获取用户的收藏记录
+      const userCollections = await Collection.findAll({
+        where: {
+          user_phone: userPhone,
+          collection_type: 'resource',
+          status: 'active'
+        },
+        attributes: ['content_id']
+      })
+      
+      const collectedIds = userCollections.map(c => c.content_id)
+      
+      return resources.map(resource => ({
+        ...resource,
+        isFavorited: collectedIds.includes(resource.id || resource.resource_id)
+      }))
+    } catch (error) {
+      console.error('添加收藏状态失败:', error)
+      return resources.map(r => ({ ...r, isFavorited: false }))
+    }
   }
 }
 

@@ -885,20 +885,51 @@ const handleReviewAction = (resource: any, action: 'approve' | 'reject') => {
   reviewForm.comment = ''
 }
 
-const downloadFile = (file: any) => {
-  // 使用原有的下载API路由：/api/v1/resources/:resourceId/files/:fileId/download
-  const downloadUrl = `/api/v1/resources/${detailDialog.resource.resource_id}/files/${file.file_id}/download`
-  
-  // 创建临时链接下载
-  const link = document.createElement('a')
-  link.href = downloadUrl
-  link.download = file.file_name
-  link.target = '_blank'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  
-  ElMessage.success('开始下载文件')
+const downloadFile = async (file: any) => {
+  try {
+    // 获取管理员token
+    const token = localStorage.getItem('admin_token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    // 使用原有的下载API路由：/api/v1/resources/:resourceId/files/:fileId/download
+    const downloadUrl = `/api/v1/resources/${detailDialog.resource.resource_id}/files/${file.file_id}/download`
+    
+    ElMessage.info('开始下载文件...')
+    
+    // 使用fetch下载文件，包含授权头
+    const response = await fetch(downloadUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/octet-stream'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`下载失败: ${response.status} ${response.statusText}`)
+    }
+    
+    // 获取文件blob
+    const blob = await response.blob()
+    
+    // 创建下载链接
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = file.file_name || 'download'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('文件下载成功')
+  } catch (error: any) {
+    console.error('下载文件失败:', error)
+    ElMessage.error(error.message || '下载文件失败')
+  }
 }
 
 onMounted(() => {

@@ -346,6 +346,56 @@ CREATE TABLE feedbacks (
   FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户反馈表';
 
+-- 11. 搜索统计表
+CREATE TABLE search_statistics (
+  id INT AUTO_INCREMENT PRIMARY KEY COMMENT '统计ID',
+  search_term VARCHAR(255) NOT NULL COMMENT '搜索关键词',
+  search_type ENUM('resource', 'post', 'mixed') NOT NULL COMMENT '搜索类型',
+  search_count INT DEFAULT 1 COMMENT '搜索次数',
+  result_count INT DEFAULT 0 COMMENT '搜索结果数量',
+  user_phone VARCHAR(11) COMMENT '搜索用户（可为空表示游客搜索）',
+  search_filters JSON COMMENT '搜索筛选条件',
+  response_time_ms INT COMMENT '响应时间（毫秒）',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '首次搜索时间',
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后搜索时间',
+  INDEX idx_search_term (search_term),
+  INDEX idx_search_type (search_type),
+  INDEX idx_search_count (search_count),
+  INDEX idx_created_at (created_at),
+  FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='搜索统计表';
+
+-- 12. 热门搜索关键词表
+CREATE TABLE hot_keywords (
+  id INT AUTO_INCREMENT PRIMARY KEY COMMENT '关键词ID',
+  keyword VARCHAR(255) NOT NULL UNIQUE COMMENT '关键词',
+  search_count INT DEFAULT 0 COMMENT '搜索次数',
+  result_count INT DEFAULT 0 COMMENT '平均结果数量',
+  category ENUM('resource', 'post', 'mixed') DEFAULT 'mixed' COMMENT '主要搜索类别',
+  last_searched_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '最后搜索时间',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  INDEX idx_search_count (search_count DESC),
+  INDEX idx_last_searched (last_searched_at DESC),
+  INDEX idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='热门搜索关键词表';
+
+-- ================================================================
+-- 全文索引创建
+-- ================================================================
+
+-- 为资源表添加全文索引
+ALTER TABLE resources ADD FULLTEXT INDEX ft_resource_content (resource_name, description);
+
+-- 为帖子表添加全文索引
+ALTER TABLE posts ADD FULLTEXT INDEX ft_post_content (title, content);
+
+-- 为分类表添加全文索引
+ALTER TABLE categories ADD FULLTEXT INDEX ft_category_name (category_name);
+
+-- 为标签表添加全文索引
+ALTER TABLE post_tags ADD FULLTEXT INDEX ft_tag_name (tag_name);
+
 -- ================================================================
 -- 第三部分：测试数据插入 - 严格控制数量匹配
 -- ================================================================
@@ -500,6 +550,29 @@ INSERT INTO resource_reports (report_id, resource_id, reporter_phone, reason, de
 
 INSERT INTO post_reports (report_id, post_id, reporter_phone, reason, description, status, created_at, updated_at) VALUES
 ('700000003', '100000002', '13800138003', 'spam', '帖子内容涉嫌灌水', 'pending', NOW(), NOW());
+
+-- 插入搜索统计测试数据
+INSERT INTO search_statistics (search_term, search_type, search_count, result_count, user_phone, response_time_ms, created_at, updated_at) VALUES
+('数据结构', 'resource', 25, 8, '13800138002', 45, DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY)),
+('算法', 'resource', 18, 12, '13800138003', 38, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+('前端开发', 'post', 15, 6, '13800138002', 52, DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 1 HOUR)),
+('Vue.js', 'mixed', 22, 14, NULL, 41, DATE_SUB(NOW(), INTERVAL 6 DAY), DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+('Python', 'resource', 30, 20, '13800138003', 35, DATE_SUB(NOW(), INTERVAL 10 DAY), DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
+('机器学习', 'post', 12, 5, '13800138002', 48, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+('计算机网络', 'resource', 8, 3, NULL, 42, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 2 HOUR));
+
+-- 插入热门搜索关键词测试数据
+INSERT INTO hot_keywords (keyword, search_count, result_count, category, last_searched_at, created_at, updated_at) VALUES
+('数据结构', 45, 12, 'resource', DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 30 DAY), NOW()),
+('算法', 38, 15, 'resource', DATE_SUB(NOW(), INTERVAL 2 HOUR), DATE_SUB(NOW(), INTERVAL 25 DAY), NOW()),
+('Python', 52, 25, 'mixed', DATE_SUB(NOW(), INTERVAL 30 MINUTE), DATE_SUB(NOW(), INTERVAL 40 DAY), NOW()),
+('前端开发', 28, 18, 'post', DATE_SUB(NOW(), INTERVAL 3 HOUR), DATE_SUB(NOW(), INTERVAL 20 DAY), NOW()),
+('Vue.js', 31, 20, 'mixed', DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 15 DAY), NOW()),
+('机器学习', 22, 8, 'post', DATE_SUB(NOW(), INTERVAL 4 HOUR), DATE_SUB(NOW(), INTERVAL 12 DAY), NOW()),
+('计算机网络', 15, 6, 'resource', DATE_SUB(NOW(), INTERVAL 6 HOUR), DATE_SUB(NOW(), INTERVAL 8 DAY), NOW()),
+('操作系统', 18, 10, 'resource', DATE_SUB(NOW(), INTERVAL 8 HOUR), DATE_SUB(NOW(), INTERVAL 6 DAY), NOW()),
+('数据库', 25, 14, 'mixed', DATE_SUB(NOW(), INTERVAL 2 HOUR), DATE_SUB(NOW(), INTERVAL 10 DAY), NOW()),
+('深度学习', 20, 7, 'post', DATE_SUB(NOW(), INTERVAL 5 HOUR), DATE_SUB(NOW(), INTERVAL 5 DAY), NOW());
 
 -- ================================================================
 -- 第四部分：数据一致性更新 - 确保评论数和收藏数正确

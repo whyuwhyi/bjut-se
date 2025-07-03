@@ -1,47 +1,12 @@
 <template>
 	<view class="resources-container">
-		<!-- 顶部搜索和筛选区域 -->
-		<view class="top-section">
-			<!-- 搜索栏 -->
-			<view class="search-bar">
-				<text class="search-icon">🔍</text>
-				<input class="search-input" placeholder="搜索学习资源..." v-model="searchKeyword" @input="handleSearch"/>
-			</view>
-			
-			<!-- 分类筛选 -->
-			<view class="category-filter" v-if="categories.length > 0">
-				<scroll-view class="category-scroll" scroll-x="true">
-					<view class="category-list">
-						<view 
-							class="category-item" 
-							:class="{ active: selectedCategoryIndex === -1 }"
-							@click="selectCategory(-1)"
-						>
-							<text class="category-text">全部</text>
-						</view>
-						<view 
-							class="category-item" 
-							:class="{ active: selectedCategoryIndex === index }"
-							v-for="(category, index) in categories" 
-							:key="category.category_id"
-							@click="selectCategory(index)"
-						>
-							<text class="category-text">{{ category.category_name }}</text>
-						</view>
-					</view>
-				</scroll-view>
-			</view>
-			
-			<!-- 排序选择 -->
-			<view class="sort-section">
-				<picker :value="selectedSortIndex" :range="sortNames" @change="sortChange">
-					<view class="sort-picker">
-						<text class="sort-text">{{ sortNames[selectedSortIndex] }}</text>
-						<text class="sort-icon">▼</text>
-					</view>
-				</picker>
-			</view>
-		</view>
+		<!-- 高级搜索组件 -->
+		<AdvancedSearch 
+			type="resource"
+			placeholder="搜索学习资源..."
+			:loading="loading"
+			@search="handleAdvancedSearch"
+		/>
 
 		<!-- 资源列表 -->
 		<view class="resources-list">
@@ -96,36 +61,25 @@
 </template>
 
 <script>
+import AdvancedSearch from '@/components/AdvancedSearch.vue'
+
 export default {
+	components: {
+		AdvancedSearch
+	},
+	
 	data() {
 		return {
-			searchKeyword: '',
-			currentSort: 'latest',
-			categories: [],
-			sortOptions: [
-				{ label: '最新上传', value: 'latest' },
-				{ label: '下载最多', value: 'download' },
-				{ label: '评分最高', value: 'rating' },
-				{ label: '浏览最多', value: 'view' }
-			],
-			selectedCategoryIndex: -1,
-			selectedSortIndex: 0,
 			resources: [],
 			page: 1,
 			limit: 6,
 			hasMore: true,
-			loading: false
-		}
-	},
-	
-	computed: {
-		sortNames() {
-			return this.sortOptions.map(sort => sort.label)
+			loading: false,
+			searchParams: {}
 		}
 	},
 	
 	onLoad() {
-		this.loadCategories()
 		this.loadResources()
 	},
 	
@@ -135,21 +89,12 @@ export default {
 	},
 	
 	methods: {
-		// 加载分类列表
-		async loadCategories() {
-			try {
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/categories`,
-					method: 'GET'
-				})
-				
-				if (response.statusCode === 200 && response.data.success) {
-					this.categories = response.data.data
-					console.log('分类数据', this.categories)
-				}
-			} catch (error) {
-				console.error('加载分类失败:', error)
-			}
+		// 处理高级搜索
+		handleAdvancedSearch(searchParams) {
+			this.searchParams = searchParams
+			this.page = 1
+			this.hasMore = true
+			this.loadResources(true)
 		},
 		
 		// 加载资源列表
@@ -160,13 +105,7 @@ export default {
 				const params = {
 					page: refresh ? 1 : this.page,
 					limit: this.limit,
-					sortBy: this.currentSort
-				}
-				if (this.selectedCategoryIndex >= 0 && this.categories[this.selectedCategoryIndex]) {
-					params.categories = this.categories[this.selectedCategoryIndex].category_id
-				}
-				if (this.searchKeyword) {
-					params.search = this.searchKeyword
+					...this.searchParams
 				}
 				const token = uni.getStorageSync('token')
 				const headers = {}
@@ -201,28 +140,6 @@ export default {
 			} finally {
 				this.loading = false
 			}
-		},
-		handleSearch() {
-			this.page = 1
-			this.hasMore = true
-			this.loadResources(true)
-		},
-		
-
-		// 分类选择
-		selectCategory(index) {
-			this.selectedCategoryIndex = index
-			this.loadResources()
-			console.log('当前选中分类', this.selectedCategoryIndex)
-			console.log('赋值后的 categoryId', this.categories[this.selectedCategoryIndex]?.category_id)
-		},
-		
-		
-		// 排序选择
-		sortChange(e) {
-			this.selectedSortIndex = e.detail.value
-			this.currentSort = this.sortOptions[e.detail.value].value
-			this.loadResources()
 		},
 		
 		
@@ -368,246 +285,6 @@ export default {
 	}
 }
 
-.top-section {
-	background: white;
-	padding: 32rpx;
-	border-radius: 24rpx;
-	margin-bottom: 32rpx;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-	width: 100%;
-	box-sizing: border-box;
-	
-	.search-bar {
-		display: flex;
-		align-items: center;
-		background: #f8f8f8;
-		border-radius: 24rpx;
-		padding: 0 30rpx;
-		margin-bottom: 20rpx;
-		
-		.search-icon {
-			font-size: 32rpx;
-			margin-right: 20rpx;
-			color: #999;
-		}
-		
-		.search-input {
-			flex: 1;
-			height: 80rpx;
-			font-size: 28rpx;
-		}
-	}
-	
-	.category-filter {
-		margin-top: 20rpx;
-		
-		.category-scroll {
-			.category-list {
-				display: flex;
-				gap: 12rpx;
-				padding: 0 20rpx;
-				
-				.category-item {
-					padding: 12rpx 24rpx;
-					background: rgba(0, 122, 255, 0.1);
-					border-radius: 30rpx;
-					white-space: nowrap;
-					flex-shrink: 0;
-					transition: all 0.3s ease;
-					
-					&.active {
-						background: #007aff;
-						
-						.category-text {
-							color: white;
-						}
-					}
-					
-					.category-text {
-						font-size: 26rpx;
-						color: #007aff;
-					}
-				}
-			}
-		}
-	}
-	
-	.sort-section {
-		margin-top: 20rpx;
-		
-		.sort-picker {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			background: rgba(0, 122, 255, 0.1);
-			border-radius: 8rpx;
-			padding: 15rpx 20rpx;
-			
-			.sort-text {
-				font-size: 26rpx;
-				color: #007aff;
-			}
-			
-			.sort-icon {
-				font-size: 20rpx;
-				color: #007aff;
-			}
-		}
-	}
-	
-	.filter-section {
-		margin-top: 20rpx;
-		
-		.filter-row {
-			display: flex;
-			gap: 15rpx;
-			margin-bottom: 15rpx;
-			
-			&:last-child {
-				margin-bottom: 0;
-			}
-			
-			.filter-item {
-				flex: 1;
-				display: flex;
-				flex-direction: column;
-				gap: 8rpx;
-				
-				&.sort-item {
-					flex: 2;
-				}
-				
-				.filter-label {
-					font-size: 24rpx;
-					color: #666;
-					font-weight: 500;
-				}
-				
-				.picker-view {
-					background: #f8f8f8;
-					border: 1rpx solid #e0e0e0;
-					border-radius: 8rpx;
-					padding: 15rpx 20rpx;
-					font-size: 26rpx;
-					color: #333;
-					text-align: center;
-					
-					&:active {
-						background: #eeeeee;
-					}
-				}
-			}
-		}
-	}
-	
-	.quick-filters {
-		display: flex;
-		align-items: center;
-		gap: 20rpx;
-		
-		.category-scroll {
-			flex: 1;
-			white-space: nowrap;
-			
-			.category-list {
-				display: flex;
-				gap: 12rpx;
-				
-				.category-item {
-					padding: 12rpx 24rpx;
-					background: #f8f8f8;
-					border-radius: 30rpx;
-					white-space: nowrap;
-					
-					&.active {
-						background: #007aff;
-						
-						.category-text {
-							color: white;
-						}
-					}
-					
-					.category-text {
-						font-size: 26rpx;
-						color: #666;
-					}
-				}
-			}
-		}
-		
-		.filter-controls {
-			display: flex;
-			gap: 12rpx;
-			
-			.filter-btn, .sort-btn {
-				display: flex;
-				align-items: center;
-				padding: 12rpx 16rpx;
-				background: #f8f8f8;
-				border-radius: 30rpx;
-				min-width: 80rpx;
-				
-				.filter-text, .sort-text {
-					font-size: 24rpx;
-					color: #666;
-					margin-right: 8rpx;
-				}
-				
-				.filter-icon, .sort-icon {
-					font-size: 20rpx;
-					color: #999;
-				}
-			}
-			
-			.sort-btn {
-				background: #e3f2fd;
-				
-				.sort-text {
-					color: #1976d2;
-				}
-				
-				.sort-icon {
-					color: #1976d2;
-				}
-			}
-		}
-	}
-	
-	.active-filters {
-		display: flex;
-		align-items: center;
-		gap: 12rpx;
-		margin-top: 20rpx;
-		flex-wrap: wrap;
-		
-		.filter-tag {
-			display: flex;
-			align-items: center;
-			background: #007aff;
-			color: white;
-			padding: 8rpx 16rpx;
-			border-radius: 20rpx;
-			
-			.tag-text {
-				font-size: 22rpx;
-				margin-right: 8rpx;
-			}
-			
-			.tag-close {
-				font-size: 20rpx;
-				font-weight: bold;
-			}
-		}
-		
-		.clear-all {
-			padding: 8rpx 16rpx;
-			background: #ff4757;
-			color: white;
-			border-radius: 20rpx;
-			font-size: 22rpx;
-		}
-	}
-}
 
 .resources-list {
 	padding: 0;
@@ -734,6 +411,24 @@ export default {
 				color: #666;
 				line-height: 1.5;
 			}
+		}
+	}
+}
+
+.load-more {
+	padding: 30rpx;
+	text-align: center;
+	
+	.load-more-btn {
+		padding: 20rpx 40rpx;
+		background: #007aff;
+		color: white;
+		border: none;
+		border-radius: 25rpx;
+		font-size: 28rpx;
+		
+		&:active {
+			background: #0066cc;
 		}
 	}
 }

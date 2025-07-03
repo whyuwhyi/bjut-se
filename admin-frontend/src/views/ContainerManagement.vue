@@ -113,6 +113,15 @@
               <el-icon><Coin /></el-icon>
               数据库
             </el-button>
+            <el-button 
+              v-if="isRedisContainer(container)"
+              @click="showCacheManagement(container)"
+              type="info" 
+              size="small"
+            >
+              <el-icon><DataBoard /></el-icon>
+              缓存
+            </el-button>
           </el-button-group>
         </div>
       </div>
@@ -396,6 +405,203 @@
       </div>
     </el-dialog>
 
+    <!-- Redis缓存管理弹窗 -->
+    <el-dialog 
+      v-model="cacheDialogVisible" 
+      title="Redis缓存管理" 
+      width="80%"
+      top="5vh"
+    >
+      <div class="cache-management">
+        <el-tabs v-model="cacheActiveTab" type="border-card">
+          <!-- 缓存统计 -->
+          <el-tab-pane label="缓存统计" name="stats">
+            <div class="cache-stats">
+              <div class="stats-header">
+                <el-button @click="loadCacheStats" :loading="cacheStatsLoading">
+                  <el-icon><Refresh /></el-icon>
+                  刷新统计
+                </el-button>
+              </div>
+              
+              <div v-if="cacheStats" class="stats-content">
+                <el-descriptions title="Redis缓存信息" :column="2" border>
+                  <el-descriptions-item label="缓存类型">
+                    <el-tag :type="cacheStats.type === 'redis' ? 'success' : 'warning'">
+                      {{ cacheStats.type === 'redis' ? 'Redis分布式缓存' : '内存缓存(降级)' }}
+                    </el-tag>
+                  </el-descriptions-item>
+                  
+                  <el-descriptions-item v-if="cacheStats.totalKeys" label="总键数">
+                    {{ cacheStats.totalKeys }}
+                  </el-descriptions-item>
+                  
+                  <el-descriptions-item v-if="cacheStats.searchCacheKeys" label="搜索缓存键数">
+                    {{ cacheStats.searchCacheKeys }}
+                  </el-descriptions-item>
+                  
+                  <el-descriptions-item v-if="cacheStats.totalEntries" label="内存缓存条目">
+                    {{ cacheStats.totalEntries }}
+                  </el-descriptions-item>
+                  
+                  <el-descriptions-item v-if="cacheStats.cacheKeyPrefix" label="缓存键前缀">
+                    {{ cacheStats.cacheKeyPrefix }}
+                  </el-descriptions-item>
+                  
+                  <el-descriptions-item v-if="cacheStats.memoryInfo?.used_memory_human" label="已用内存">
+                    {{ cacheStats.memoryInfo.used_memory_human }}
+                  </el-descriptions-item>
+                  
+                  <el-descriptions-item v-if="cacheStats.memoryInfo?.used_memory_peak_human" label="峰值内存">
+                    {{ cacheStats.memoryInfo.used_memory_peak_human }}
+                  </el-descriptions-item>
+                  
+                  <el-descriptions-item v-if="cacheStats.memoryInfo?.maxmemory_human" label="最大内存">
+                    {{ cacheStats.memoryInfo.maxmemory_human }}
+                  </el-descriptions-item>
+                </el-descriptions>
+                
+                <div v-if="cacheStats.error" class="error-info">
+                  <el-alert
+                    title="缓存状态异常"
+                    :description="cacheStats.error"
+                    type="error"
+                    show-icon
+                    :closable="false"
+                  />
+                </div>
+                
+                <div v-if="cacheStats.stats" class="fallback-info">
+                  <el-alert
+                    title="降级模式"
+                    :description="cacheStats.stats"
+                    type="warning"
+                    show-icon
+                    :closable="false"
+                  />
+                </div>
+              </div>
+              
+              <div v-if="!cacheStats && !cacheStatsLoading" class="empty-stats">
+                <p>点击刷新按钮获取缓存统计信息</p>
+              </div>
+            </div>
+          </el-tab-pane>
+          
+          <!-- 缓存操作 -->
+          <el-tab-pane label="缓存操作" name="operations">
+            <div class="cache-operations">
+              <div class="operation-section">
+                <h4>清除缓存</h4>
+                <p class="operation-desc">清除指定类型的缓存数据，释放内存空间</p>
+                <div class="operation-buttons">
+                  <el-button 
+                    @click="clearCacheType('search')" 
+                    :loading="cacheOperationLoading"
+                    type="warning"
+                  >
+                    清除搜索缓存
+                  </el-button>
+                  <el-button 
+                    @click="clearCacheType('suggestion')" 
+                    :loading="cacheOperationLoading"
+                    type="warning"
+                  >
+                    清除建议缓存
+                  </el-button>
+                  <el-button 
+                    @click="clearCacheType('filter')" 
+                    :loading="cacheOperationLoading"
+                    type="warning"
+                  >
+                    清除筛选缓存
+                  </el-button>
+                  <el-button 
+                    @click="clearCacheType('all')" 
+                    :loading="cacheOperationLoading"
+                    type="danger"
+                  >
+                    清除所有缓存
+                  </el-button>
+                </div>
+              </div>
+              
+              <el-divider />
+              
+              <div class="operation-section">
+                <h4>缓存预热</h4>
+                <p class="operation-desc">预加载热门搜索结果到缓存中，提高响应速度</p>
+                <div class="operation-buttons">
+                  <el-button 
+                    @click="warmupCache" 
+                    :loading="cacheOperationLoading"
+                    type="primary"
+                  >
+                    <el-icon><Loading /></el-icon>
+                    启动缓存预热
+                  </el-button>
+                </div>
+              </div>
+              
+              <el-divider />
+              
+              <div class="operation-section">
+                <h4>手动失效</h4>
+                <p class="operation-desc">手动失效特定实体相关的缓存</p>
+                <div class="invalidate-form">
+                  <el-select v-model="invalidateEntity" placeholder="选择实体类型" style="width: 150px;">
+                    <el-option label="资源" value="resource" />
+                    <el-option label="帖子" value="post" />
+                    <el-option label="分类" value="category" />
+                    <el-option label="标签" value="tag" />
+                  </el-select>
+                  <el-select v-model="invalidateAction" placeholder="选择操作" style="width: 120px; margin: 0 10px;">
+                    <el-option label="更新" value="update" />
+                    <el-option label="创建" value="create" />
+                    <el-option label="删除" value="delete" />
+                  </el-select>
+                  <el-button 
+                    @click="invalidateCacheManual" 
+                    :loading="cacheOperationLoading"
+                    type="info"
+                    :disabled="!invalidateEntity"
+                  >
+                    失效缓存
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </el-tab-pane>
+          
+          <!-- 缓存监控 -->
+          <el-tab-pane label="性能监控" name="monitor">
+            <div class="cache-monitor">
+              <div class="monitor-content">
+                <el-alert
+                  title="功能开发中"
+                  description="缓存性能监控功能正在开发中，将提供实时的缓存命中率、响应时间等指标监控"
+                  type="info"
+                  show-icon
+                  :closable="false"
+                />
+                
+                <div class="placeholder-chart">
+                  <h4>即将支持的功能：</h4>
+                  <ul>
+                    <li>缓存命中率实时监控</li>
+                    <li>缓存大小变化趋势</li>
+                    <li>热门搜索关键词统计</li>
+                    <li>缓存性能指标图表</li>
+                    <li>自动缓存策略建议</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+      </div>
+    </el-dialog>
+
     <!-- 系统信息弹窗 -->
     <el-dialog 
       v-model="systemDialogVisible" 
@@ -449,7 +655,9 @@ import {
   Search,
   FolderOpened,
   Grid,
-  List
+  List,
+  DataBoard,
+  Loading
 } from '@element-plus/icons-vue'
 import * as adminApi from '@/api/admin'
 
@@ -477,6 +685,7 @@ const actionLoading = reactive<{ [key: string]: boolean }>({})
 const detailDialogVisible = ref(false)
 const dbDialogVisible = ref(false)
 const systemDialogVisible = ref(false)
+const cacheDialogVisible = ref(false)
 
 // 选中的容器和详情
 const selectedContainer = ref<any>(null)
@@ -511,6 +720,14 @@ const totalRows = ref(0)
 
 // 系统信息
 const systemStats = ref<any>(null)
+
+// 缓存管理
+const cacheActiveTab = ref('stats')
+const cacheStats = ref<any>(null)
+const cacheStatsLoading = ref(false)
+const cacheOperationLoading = ref(false)
+const invalidateEntity = ref('')
+const invalidateAction = ref('update')
 
 onMounted(() => {
   loadContainers()
@@ -558,6 +775,12 @@ const isDbContainer = (container: Container) => {
          container.name.includes('mysql') ||
          container.name.includes('database') ||
          container.name.includes('db')
+}
+
+const isRedisContainer = (container: Container) => {
+  return container.image.includes('redis') || 
+         container.name.includes('redis') ||
+         container.name.includes('cache')
 }
 
 const startContainer = async (id: string) => {
@@ -805,6 +1028,115 @@ const handleSizeChange = (size: number) => {
 const handleCurrentChange = (page: number) => {
   currentPage.value = page
   loadTableData()
+}
+
+// 缓存管理方法
+const showCacheManagement = (container: Container) => {
+  selectedContainer.value = container
+  cacheDialogVisible.value = true
+  cacheActiveTab.value = 'stats'
+  
+  // 自动加载缓存统计
+  loadCacheStats()
+}
+
+const loadCacheStats = async () => {
+  cacheStatsLoading.value = true
+  try {
+    const response = await adminApi.getCacheStats()
+    cacheStats.value = response.data.data
+    ElMessage.success('缓存统计加载成功')
+  } catch (error: any) {
+    ElMessage.error('加载缓存统计失败: ' + error.message)
+    cacheStats.value = null
+  } finally {
+    cacheStatsLoading.value = false
+  }
+}
+
+const clearCacheType = async (type: string) => {
+  try {
+    const typeNames: { [key: string]: string } = {
+      'search': '搜索缓存',
+      'suggestion': '建议缓存', 
+      'filter': '筛选缓存',
+      'all': '所有缓存'
+    }
+    
+    await ElMessageBox.confirm(
+      `确定要清除${typeNames[type]}吗？此操作不可恢复。`, 
+      '确认清除缓存', 
+      {
+        type: 'warning',
+        confirmButtonText: '确定清除',
+        cancelButtonText: '取消'
+      }
+    )
+    
+    cacheOperationLoading.value = true
+    await adminApi.clearCache(type)
+    ElMessage.success(`${typeNames[type]}清除成功`)
+    
+    // 刷新统计
+    await loadCacheStats()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('清除缓存失败: ' + error.message)
+    }
+  } finally {
+    cacheOperationLoading.value = false
+  }
+}
+
+const warmupCache = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '缓存预热将加载热门搜索结果，可能需要一些时间。是否继续？',
+      '确认缓存预热',
+      {
+        type: 'info',
+        confirmButtonText: '开始预热',
+        cancelButtonText: '取消'
+      }
+    )
+    
+    cacheOperationLoading.value = true
+    await adminApi.warmupCache()
+    ElMessage.success('缓存预热完成')
+    
+    // 刷新统计
+    await loadCacheStats()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('缓存预热失败: ' + error.message)
+    }
+  } finally {
+    cacheOperationLoading.value = false
+  }
+}
+
+const invalidateCacheManual = async () => {
+  if (!invalidateEntity.value) {
+    ElMessage.warning('请选择实体类型')
+    return
+  }
+  
+  try {
+    cacheOperationLoading.value = true
+    await adminApi.invalidateCache(invalidateEntity.value, invalidateAction.value)
+    ElMessage.success(`${invalidateEntity.value} 相关缓存已失效`)
+    
+    // 刷新统计
+    await loadCacheStats()
+    
+    // 重置表单
+    invalidateEntity.value = ''
+    invalidateAction.value = 'update'
+  } catch (error: any) {
+    ElMessage.error('缓存失效操作失败: ' + error.message)
+  } finally {
+    cacheOperationLoading.value = false
+  }
 }
 </script>
 
@@ -1152,5 +1484,100 @@ const handleCurrentChange = (page: number) => {
   height: 200px;
   color: #909399;
   font-size: 14px;
+}
+
+/* 缓存管理样式 */
+.cache-management {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.cache-stats {
+  padding: 16px;
+}
+
+.stats-header {
+  margin-bottom: 16px;
+}
+
+.stats-content {
+  margin-top: 16px;
+}
+
+.error-info, .fallback-info {
+  margin-top: 16px;
+}
+
+.empty-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #909399;
+  font-size: 14px;
+}
+
+.cache-operations {
+  padding: 16px;
+}
+
+.operation-section {
+  margin-bottom: 24px;
+}
+
+.operation-section h4 {
+  margin: 0 0 8px 0;
+  color: #303133;
+  font-size: 16px;
+}
+
+.operation-desc {
+  margin: 0 0 16px 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.invalidate-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cache-monitor {
+  padding: 16px;
+}
+
+.monitor-content {
+  text-align: center;
+}
+
+.placeholder-chart {
+  margin-top: 24px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.placeholder-chart h4 {
+  margin: 0 0 12px 0;
+  color: #303133;
+}
+
+.placeholder-chart ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #606266;
+}
+
+.placeholder-chart li {
+  margin-bottom: 6px;
 }
 </style>

@@ -1,50 +1,12 @@
 <template>
 	<view class="forum-container">
-		<!-- 顶部搜索和筛选区域 -->
-		<view class="top-section">
-			<!-- 搜索栏 -->
-			<view class="search-bar">
-				<text class="search-icon">🔍</text>
-				<input class="search-input" placeholder="搜索帖子..." v-model="searchKeyword" @input="handleSearch"/>
-			</view>
-			
-			<!-- 标签筛选 -->
-			<view class="tag-filter" v-if="tags.length > 0">
-				<scroll-view class="tag-scroll" scroll-x="true">
-					<view class="tag-list">
-						<view 
-							class="tag-item" 
-							:class="{ active: selectedTag === '' }"
-							@click="selectTag('')"
-						>
-							<text class="tag-text">全部</text>
-						</view>
-						<view 
-							class="tag-item" 
-							:class="{ active: selectedTag === tag.tag_name }"
-							:style="{ backgroundColor: selectedTag === tag.tag_name ? tag.tag_color : '#f8f8f8' }"
-							v-for="tag in tags" 
-							:key="tag.tag_id"
-							@click="selectTag(tag.tag_name)"
-						>
-							<text class="tag-text" :style="{ color: selectedTag === tag.tag_name ? '#fff' : '#666' }">
-								{{ tag.tag_name }}
-							</text>
-						</view>
-					</view>
-				</scroll-view>
-			</view>
-			
-			<!-- 排序选择 -->
-			<view class="sort-section">
-				<picker :value="selectedSortIndex" :range="sortNames" @change="sortChange">
-					<view class="sort-picker">
-						<text class="sort-text">{{ sortNames[selectedSortIndex] }}</text>
-						<text class="sort-icon">▼</text>
-					</view>
-				</picker>
-			</view>
-		</view>
+		<!-- 高级搜索组件 -->
+		<AdvancedSearch 
+			type="post"
+			placeholder="搜索帖子..."
+			:loading="loading"
+			@search="handleAdvancedSearch"
+		/>
 
 		<!-- 帖子列表 -->
 		<view class="posts-list">
@@ -114,36 +76,24 @@
 <script>
 import { navigateToUserProfile } from '@/utils/userUtils'
 import config from '@/utils/config'
+import AdvancedSearch from '@/components/AdvancedSearch.vue'
 
 export default {
-	data() {
-		return {
-			searchKeyword: '',
-			selectedTag: '',
-			currentSort: 'latest',
-			sortOptions: [
-				{ label: '最新发布', value: 'latest' },
-				{ label: '浏览最多', value: 'view' },
-				{ label: '收藏最多', value: 'collection' },
-				{ label: '评论最多', value: 'comment' }
-			],
-			selectedSortIndex: 0,
-			posts: [],
-			tags: [],
-			loading: false,
-			page: 1,
-			hasMore: true
-		}
+	components: {
+		AdvancedSearch
 	},
 	
-	computed: {
-		sortNames() {
-			return this.sortOptions.map(sort => sort.label)
+	data() {
+		return {
+			posts: [],
+			loading: false,
+			page: 1,
+			hasMore: true,
+			searchParams: {}
 		}
 	},
 	
 	onLoad() {
-		this.loadTags()
 		this.loadPosts()
 	},
 	
@@ -152,19 +102,12 @@ export default {
 			navigateToUserProfile(userPhone, userInfo)
 		},
 		
-		async loadTags() {
-			try {
-				const response = await uni.request({
-					url: `${config.apiBaseUrl}/posts/tags`,
-					method: 'GET'
-				})
-				
-				if (response.statusCode === 200 && response.data.success) {
-					this.tags = response.data.data
-				}
-			} catch (error) {
-				console.error('加载标签失败:', error)
-			}
+		// 处理高级搜索
+		handleAdvancedSearch(searchParams) {
+			this.searchParams = searchParams
+			this.page = 1
+			this.hasMore = true
+			this.loadPosts(true)
 		},
 		
 		async loadPosts(refresh = false) {
@@ -176,15 +119,7 @@ export default {
 				const params = {
 					page: refresh ? 1 : this.page,
 					limit: 6,
-					sortBy: this.currentSort
-				}
-				
-				if (this.searchKeyword) {
-					params.search = this.searchKeyword
-				}
-				
-				if (this.selectedTag) {
-					params.tag = this.selectedTag
+					...this.searchParams
 				}
 				
 				const response = await uni.request({
@@ -228,26 +163,6 @@ export default {
 			}
 		},
 		
-		handleSearch() {
-			this.page = 1
-			this.hasMore = true
-			this.loadPosts(true)
-		},
-		
-		selectTag(tagName) {
-			this.selectedTag = tagName
-			this.page = 1
-			this.hasMore = true
-			this.loadPosts(true)
-		},
-		
-		sortChange(e) {
-			this.selectedSortIndex = e.detail.value
-			this.currentSort = this.sortOptions[e.detail.value].value
-			this.page = 1
-			this.hasMore = true
-			this.loadPosts(true)
-		},
 		
 		viewPost(post) {
 			uni.navigateTo({
@@ -291,90 +206,6 @@ export default {
 	background: linear-gradient(to bottom, #FFF8DB, #FAEED1);
 }
 	
-.top-section {
-	margin-bottom: 32rpx;
-	
-	.search-bar {
-		display: flex;
-		align-items: center;
-		background: white;
-		border-radius: 24rpx;
-		padding: 20rpx;
-		margin-bottom: 24rpx;
-		
-		.search-icon {
-			margin-right: 15rpx;
-			font-size: 28rpx;
-			color: #999;
-		}
-		
-		.search-input {
-			flex: 1;
-			font-size: 28rpx;
-			color: #333;
-			
-			&::placeholder {
-				color: #999;
-			}
-		}
-	}
-	
-	.tag-filter {
-		margin-bottom: 24rpx;
-		
-		.tag-scroll {
-			width: 100%;
-			white-space: nowrap;
-		}
-		
-		.tag-list {
-			display: inline-flex;
-			gap: 12rpx;
-			
-			.tag-item {
-				padding: 12rpx 24rpx;
-				background: #f8f8f8;
-				border-radius: 30rpx;
-				white-space: nowrap;
-				
-				&.active {
-					background: #007aff;
-					
-					.tag-text {
-						color: white;
-					}
-				}
-				
-				.tag-text {
-					font-size: 26rpx;
-					color: #666;
-				}
-			}
-		}
-	}
-	
-	.sort-section {
-		.sort-picker {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			background: white;
-			border-radius: 24rpx;
-			padding: 15rpx 20rpx;
-			
-			.sort-text {
-				font-size: 26rpx;
-				color: #333;
-				margin-right: 8rpx;
-			}
-			
-			.sort-icon {
-				font-size: 20rpx;
-				color: #999;
-			}
-		}
-	}
-}
 
 .posts-list {
 	padding: 0;
