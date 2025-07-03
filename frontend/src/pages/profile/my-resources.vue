@@ -26,19 +26,19 @@
 
 		<!-- 筛选和排序 -->
 		<view class="filter-container">
-			<view class="filter-section">
+		<view class="filter-section">
 				<scroll-view class="filter-tabs" scroll-x="true" show-scrollbar="false">
 					<view class="tabs-content">
-						<text 
-							class="filter-tab" 
-							:class="{ active: selectedStatus === index }"
-							v-for="(status, index) in statusFilters" 
-							:key="index"
-							@click="selectStatus(index)"
-						>
-							{{ status.name }}
-						</text>
-					</view>
+				<text 
+					class="filter-tab" 
+					:class="{ active: selectedStatus === index }"
+					v-for="(status, index) in statusFilters" 
+					:key="index"
+					@click="selectStatus(index)"
+				>
+					{{ status.name }}
+				</text>
+			</view>
 				</scroll-view>
 			</view>
 			
@@ -182,20 +182,20 @@
 				// 排序
 				const sort = this.sortOptions[this.selectedSort];
 				if (sort) {
-					resources.sort((a, b) => {
-						switch (sort.value) {
-							case 'upload_time_desc':
-								return new Date(b.uploadTime) - new Date(a.uploadTime);
-							case 'download_count_desc':
-								return b.downloadCount - a.downloadCount;
-							case 'view_count_desc':
-								return b.viewCount - a.viewCount;
-							case 'rating_desc':
-								return b.rating - a.rating;
-							default:
-								return 0;
-						}
-					});
+				resources.sort((a, b) => {
+					switch (sort.value) {
+						case 'upload_time_desc':
+							return new Date(b.uploadTime) - new Date(a.uploadTime);
+						case 'download_count_desc':
+							return b.downloadCount - a.downloadCount;
+						case 'view_count_desc':
+							return b.viewCount - a.viewCount;
+						case 'rating_desc':
+							return b.rating - a.rating;
+						default:
+							return 0;
+					}
+				});
 				}
 				
 				return resources;
@@ -260,19 +260,19 @@
 						// 直接转换数据
 						this.myResources = backendResources.map(resource => {
 							return {
-								id: resource.resource_id,
-								title: resource.resource_name,
-								description: resource.description,
-								status: this.mapBackendStatus(resource.status),
-								uploadTime: resource.created_at,
-								downloadCount: resource.download_count || 0,
-								viewCount: resource.view_count || 0,
+							id: resource.resource_id,
+							title: resource.resource_name,
+							description: resource.description,
+							status: this.mapBackendStatus(resource.status),
+							uploadTime: resource.created_at,
+							downloadCount: resource.download_count || 0,
+							viewCount: resource.view_count || 0,
 								rating: parseFloat(resource.rating) || 0,
-								files: resource.files || [],
-								fileName: resource.files && resource.files.length > 0 ? resource.files[0].file_name : '',
-								fileType: resource.files && resource.files.length > 0 ? this.getFileTypeFromName(resource.files[0].file_name) : '',
-								fileSize: resource.files && resource.files.length > 0 ? resource.files[0].file_size : 0,
-								tags: []
+							files: resource.files || [],
+							fileName: resource.files && resource.files.length > 0 ? resource.files[0].file_name : '',
+							fileType: resource.files && resource.files.length > 0 ? this.getFileTypeFromName(resource.files[0].file_name) : '',
+							fileSize: resource.files && resource.files.length > 0 ? resource.files[0].file_size : 0,
+							tags: []
 							}
 						});
 						
@@ -398,9 +398,9 @@
 
 					if (response.statusCode === 200 && response.data && response.data.success) {
 						// 从本地列表中移除
-						const index = this.myResources.findIndex(r => r.id === this.resourceToDelete.id);
-						if (index > -1) {
-							this.myResources.splice(index, 1);
+					const index = this.myResources.findIndex(r => r.id === this.resourceToDelete.id);
+					if (index > -1) {
+						this.myResources.splice(index, 1);
 						}
 						
 						uni.showToast({
@@ -419,7 +419,7 @@
 						icon: 'none'
 					});
 				}
-
+			
 				this.resourceToDelete = null;
 			},
 			
@@ -502,7 +502,7 @@
 		}
 		50% {
 			background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
-		}
+	}
 		100% {
 			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 		}
@@ -511,32 +511,32 @@
 	.stats-header {
 		margin-bottom: 32rpx;
 		padding: 0;
-		
-		.stats-card {
-			background-color: #ffffff;
-			border-radius: 16rpx;
-			padding: 32rpx;
+
+	.stats-card {
+		background-color: #ffffff;
+		border-radius: 16rpx;
+		padding: 32rpx;
 			box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
-			
-			.stats-grid {
-				display: grid;
+
+	.stats-grid {
+		display: grid;
 				grid-template-columns: repeat(4, 1fr);
 				gap: 24rpx;
-				
-				.stat-item {
-					text-align: center;
-					
-					.stat-value {
-						display: block;
+
+	.stat-item {
+		text-align: center;
+
+	.stat-value {
+		display: block;
 						font-size: 36rpx;
 						font-weight: bold;
 						color: #333333;
-						margin-bottom: 8rpx;
-					}
-					
-					.stat-label {
-						font-size: 24rpx;
-						color: #666666;
+		margin-bottom: 8rpx;
+	}
+
+	.stat-label {
+		font-size: 24rpx;
+		color: #666666;
 					}
 				}
 			}
@@ -557,21 +557,21 @@
 		padding: 20rpx 0;
 		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 		overflow: hidden;
-		
-		.filter-tabs {
+
+	.filter-tabs {
 			width: 100%;
 			white-space: nowrap;
 			
 			.tabs-content {
 				display: inline-flex;
 				padding: 0 20rpx;
-				
-				.filter-tab {
+
+	.filter-tab {
 					font-size: 28rpx;
-					color: #666666;
+		color: #666666;
 					padding: 12rpx 24rpx;
 					border-radius: 24rpx;
-					transition: all 0.3s ease;
+		transition: all 0.3s ease;
 					margin-right: 16rpx;
 					
 					&:last-child {
@@ -589,78 +589,78 @@
 
 	.sort-controls {
 		flex-shrink: 0;
-		
-		.sort-trigger {
-			display: flex;
-			align-items: center;
-			gap: 8rpx;
+
+	.sort-trigger {
+		display: flex;
+		align-items: center;
+		gap: 8rpx;
 			padding: 12rpx 24rpx;
-			background-color: #f0f0f0;
+		background-color: #f0f0f0;
 			border-radius: 24rpx;
 			transition: all 0.3s ease;
 			
 			&:active {
 				opacity: 0.8;
-			}
-			
-			.sort-text {
-				font-size: 26rpx;
+	}
+
+	.sort-text {
+		font-size: 26rpx;
 				color: #333333;
-			}
-			
-			.sort-icon {
+	}
+
+	.sort-icon {
 				font-size: 24rpx;
 				color: #666666;
-			}
+	}
 		}
 	}
 
 	.resources-list {
 		margin: 0;
 		padding: 0;
-		
-		.resource-item {
-			background-color: #ffffff;
-			border-radius: 16rpx;
-			padding: 32rpx;
+
+	.resource-item {
+		background-color: #ffffff;
+		border-radius: 16rpx;
+		padding: 32rpx;
 			margin-bottom: 24rpx;
-			box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
-			transition: all 0.3s ease;
-			border-left: 6rpx solid transparent;
-		}
-		
-		.resource-actions {
-			display: flex;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+		transition: all 0.3s ease;
+		border-left: 6rpx solid transparent;
+	}
+
+	.resource-actions {
+		display: flex;
 			gap: 24rpx;
 			margin-top: 24rpx;
-			
-			.action-btn {
-				flex: 1;
-				display: flex;
-				align-items: center;
-				justify-content: center;
+
+	.action-btn {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 				gap: 12rpx;
 				padding: 16rpx 24rpx;
-				border-radius: 12rpx;
-				font-size: 24rpx;
-				border: none;
-				
+		border-radius: 12rpx;
+		font-size: 24rpx;
+		border: none;
+
 				&.secondary {
-					background-color: #f0f0f0;
-					color: #666666;
-				}
-				
+		background-color: #f0f0f0;
+		color: #666666;
+	}
+
 				&.danger {
-					background-color: #ff3b30;
-					color: #ffffff;
-				}
-				
-				.btn-icon {
+		background-color: #ff3b30;
+		color: #ffffff;
+	}
+
+	.btn-icon {
 					font-size: 24rpx;
-				}
-				
-				.btn-text {
-					font-size: 24rpx;
+	}
+
+	.btn-text {
+		font-size: 24rpx;
 				}
 			}
 		}

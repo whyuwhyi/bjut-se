@@ -960,8 +960,8 @@ export default {
 		background: rgba(0, 122, 255, 0.2);
 	}
 }
-
-.create-icon {
+	
+	.create-icon {
 	width: 60rpx;
 	height: 60rpx;
 }
