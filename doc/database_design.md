@@ -343,16 +343,19 @@
 |--------|----------|----------|------|
 | notification_id | VARCHAR(9) | PRIMARY KEY | 9位数字的通知唯一标识符 |
 | receiver_phone | VARCHAR(11) | FK | 接收者手机号（为空表示广播通知，面向全体用户） |
-| type | ENUM('system','study','interaction','resource','announcement') | NOT NULL | 通知类型 |
+| type | ENUM('system','study','interaction','resource','announcement','follow_post','follow_resource','comment_reply','content_liked','content_commented','new_follower') | NOT NULL | 通知类型 |
 | priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
 | title | VARCHAR(200) | NOT NULL | 通知标题 |
 | content | TEXT | NOT NULL | 通知内容 |
 | action_type | ENUM('none','navigate','external_link') | DEFAULT 'none' | 动作类型 |
 | action_url | VARCHAR(500) | | 动作URL（页面路径或外部链接） |
 | action_params | JSON | | 动作参数（JSON格式） |
+| related_user_phone | VARCHAR(11) | FK | 相关用户手机号（如：内容发布者、评论者） |
+| related_content_id | VARCHAR(9) | | 相关内容ID（如：帖子ID、资源ID） |
+| related_content_type | ENUM('post','resource','comment') | | 相关内容类型 |
 | is_read | BOOLEAN | DEFAULT FALSE | 是否已读（仅用于个人通知） |
-| read_at | DATE | | 阅读时间（仅用于个人通知） |
-| expires_at | DATE | | 过期时间（可选） |
+| read_at | TIMESTAMP | | 阅读时间（仅用于个人通知） |
+| expires_at | TIMESTAMP | | 过期时间（可选） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
@@ -362,6 +365,23 @@
 - **interaction**: 互动通知（关注、评论等）
 - **resource**: 资源相关通知
 - **announcement**: 公告通知
+- **follow_post**: 关注用户发布新帖子通知
+- **follow_resource**: 关注用户发布新资源通知
+- **comment_reply**: 评论回复通知
+- **content_liked**: 内容被收藏通知
+- **content_commented**: 内容被评论通知
+- **new_follower**: 新粉丝关注通知
+
+**关联字段说明**:
+- **related_user_phone**: 相关用户，如内容发布者、评论者、关注者
+- **related_content_id**: 相关内容ID，可以是帖子ID、资源ID等
+- **related_content_type**: 相关内容类型，区分是帖子、资源还是评论
+
+**索引优化**:
+- `idx_receiver_type`: 按接收者和类型查询优化
+- `idx_related_user`: 按相关用户查询优化
+- `idx_related_content`: 按相关内容查询优化
+- `idx_created_at`: 按创建时间排序优化
 
 ### 6.2 广播通知已读状态表 (notification_reads)
 
@@ -430,23 +450,42 @@
 
 ### 8.1 用户反馈表 (feedbacks)
 
-用户对平台的意见建议收集。
+用户对平台的意见建议收集，支持管理员回复和处理跟踪。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| feedback_id | VARCHAR(9) | PRIMARY KEY | 反馈记录ID |
-| user_phone | VARCHAR(11) | FK | 用户手机号（外键，可为空支持匿名反馈） |
-| type | ENUM('bug','feature','improvement','complaint','other') | NOT NULL | 反馈类型 |
-| title | VARCHAR(200) | NOT NULL | 反馈标题 |
+| id | INT | PRIMARY KEY AUTO_INCREMENT | 反馈记录ID |
+| user_phone | VARCHAR(11) | NOT NULL, FK | 用户手机号（外键） |
+| type | VARCHAR(32) | NOT NULL | 反馈类型（bug/feature/ui/performance/content/other） |
 | content | TEXT | NOT NULL | 反馈内容 |
-| contact | VARCHAR(100) | | 联系方式（邮箱或手机号） |
-| status | ENUM('pending','processing','resolved','closed') | DEFAULT 'pending' | 处理状态 |
-| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
-| reply | TEXT | | 回复内容 |
-| processed_by | VARCHAR(11) | FK | 处理者手机号（外键） |
-| processed_at | DATE | | 处理时间 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+| contact | VARCHAR(64) | | 联系方式（可选） |
+| images | TEXT | | 图片URL数组，JSON字符串 |
+| status | VARCHAR(16) | DEFAULT 'pending' | 处理状态（pending/processing/resolved/closed） |
+| reply | TEXT | | 管理员回复内容 |
+| replied_by | VARCHAR(11) | FK | 回复管理员手机号（外键） |
+| replied_at | DATETIME | | 回复时间 |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**反馈类型说明**:
+- **bug**: 错误问题反馈
+- **feature**: 功能建议
+- **ui**: 界面体验问题
+- **performance**: 性能问题
+- **content**: 内容相关问题
+- **other**: 其他类型反馈
+
+**处理状态说明**:
+- **pending**: 待处理，新提交的反馈
+- **processing**: 处理中，管理员正在跟进
+- **resolved**: 已处理，问题已解决
+- **closed**: 已关闭，无需继续跟进
+
+**业务特性**:
+- 支持图片上传，便于问题描述
+- 完整的处理流程跟踪
+- 管理员回复自动通知用户
+- 处理状态变更时自动发送通知
 
 ---
 
@@ -551,7 +590,7 @@ post_reports.processed_by → users.phone_number
 
 -- 反馈相关
 feedbacks.user_phone → users.phone_number
-feedbacks.processed_by → users.phone_number
+feedbacks.replied_by → users.phone_number
 ```
 
 ---

@@ -42,6 +42,16 @@ const Feedback = sequelize.define('Feedback', {
     allowNull: true,
     comment: '管理员回复内容'
   },
+  replied_by: {
+    type: DataTypes.STRING(11),
+    allowNull: true,
+    comment: '回复管理员手机号'
+  },
+  replied_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '回复时间'
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

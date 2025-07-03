@@ -259,6 +259,13 @@ NotificationRead.belongsTo(Notification, {
   as: 'notification'
 })
 
+// 通知相关用户关系
+Notification.belongsTo(User, {
+  foreignKey: 'related_user_phone',
+  targetKey: 'phone_number',
+  as: 'relatedUser'
+})
+
 // 收藏-资源关系（基于content_id匹配）
 Collection.belongsTo(Resource, {
   foreignKey: 'content_id',
@@ -347,6 +354,18 @@ Feedback.belongsTo(User, {
   foreignKey: 'user_phone',
   targetKey: 'phone_number',
   as: 'user'
+})
+
+// 管理员 - 反馈回复关系
+User.hasMany(Feedback, {
+  foreignKey: 'replied_by',
+  sourceKey: 'phone_number',
+  as: 'repliedFeedbacks'
+})
+Feedback.belongsTo(User, {
+  foreignKey: 'replied_by',
+  targetKey: 'phone_number',
+  as: 'replier'
 })
 
 const models = {

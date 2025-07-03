@@ -1,5 +1,5 @@
 const { validationResult } = require('express-validator')
-const { Notification, User, NotificationRead } = require('../models')
+const { Notification, User, NotificationRead, Post, Resource } = require('../models')
 const idGenerator = require('../utils/IdGenerator')
 const { Op } = require('sequelize')
 
@@ -28,7 +28,14 @@ class NotificationController {
 
       // 添加筛选条件
       if (type) {
-        whereClause.type = type
+        if (type === 'interaction') {
+          // 互动类型包含新的 interaction 类型和旧的具体类型
+          whereClause.type = {
+            [Op.in]: ['interaction', 'follow_post', 'follow_resource', 'comment_reply', 'content_liked', 'content_commented', 'new_follower']
+          }
+        } else {
+          whereClause.type = type
+        }
       }
       if (priority) {
         whereClause.priority = priority
@@ -44,7 +51,7 @@ class NotificationController {
         }
       ]
 
-      // 查询通知并左连接已读状态
+      // 查询通知并左连接已读状态、相关用户信息
       const { count, rows: notifications } = await Notification.findAndCountAll({
         where: whereClause,
         include: [
@@ -53,6 +60,12 @@ class NotificationController {
             as: 'readByUsers',
             where: { user_phone: phone_number },
             required: false // LEFT JOIN
+          },
+          {
+            model: User,
+            as: 'relatedUser',
+            attributes: ['phone_number', 'name', 'nickname', 'avatar_url'],
+            required: false
           }
         ],
         order: [
@@ -134,7 +147,16 @@ class NotificationController {
               is_read: isRead,
               read_at: readAt,
               created_at: notification.created_at,
-              is_broadcast: isBroadcast
+              is_broadcast: isBroadcast,
+              // 新增关联信息
+              related_user_phone: notification.related_user_phone,
+              related_content_id: notification.related_content_id,
+              related_content_type: notification.related_content_type,
+              related_user: notification.relatedUser ? {
+                phone_number: notification.relatedUser.phone_number,
+                name: notification.relatedUser.nickname || notification.relatedUser.name,
+                avatar_url: notification.relatedUser.avatar_url
+              } : null
             };
           }).filter(n => n !== null), // 过滤掉不符合is_read条件的通知
           pagination: {
@@ -175,6 +197,12 @@ class NotificationController {
             as: 'readByUsers',
             where: { user_phone: phone_number },
             required: false
+          },
+          {
+            model: User,
+            as: 'relatedUser',
+            attributes: ['phone_number', 'name', 'nickname', 'avatar_url'],
+            required: false
           }
         ]
       })
@@ -211,7 +239,16 @@ class NotificationController {
             is_read: isRead,
             read_at: readAt,
             created_at: notification.created_at,
-            is_broadcast: isBroadcast
+            is_broadcast: isBroadcast,
+            // 新增关联信息
+            related_user_phone: notification.related_user_phone,
+            related_content_id: notification.related_content_id,
+            related_content_type: notification.related_content_type,
+            related_user: notification.relatedUser ? {
+              phone_number: notification.relatedUser.phone_number,
+              name: notification.relatedUser.nickname || notification.relatedUser.name,
+              avatar_url: notification.relatedUser.avatar_url
+            } : null
           }
         }
       })

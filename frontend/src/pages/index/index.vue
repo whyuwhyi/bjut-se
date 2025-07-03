@@ -25,7 +25,7 @@
 		<!-- 最新公告 -->
 		<view class="notice-section card">
 			<view class="section-header">
-				<text class="section-title">最新通知</text>
+				<text class="section-title">最新公告</text>
 				<text class="section-more" @click="navigateTo('/pages/notification/messages')">更多</text>
 			</view>
 			<view class="notice-list">
@@ -540,6 +540,48 @@
 
 	&:active {
 		transform: scale(0.98);
+	}
+	
+	.notice-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 12rpx;
+		
+		.notice-tag {
+			font-size: 20rpx;
+			color: white;
+			padding: 4rpx 12rpx;
+			border-radius: 8rpx;
+			
+			&.tag-high {
+				background-color: #ff3b30;
+			}
+			
+			&.tag-medium {
+				background-color: #ff9500;
+			}
+			
+			&.tag-low {
+				background-color: #34c759;
+			}
+		}
+		
+		.notice-time {
+			font-size: 22rpx;
+			color: #999;
+			flex-shrink: 0;
+		}
+	}
+	
+	.notice-title {
+		font-size: 26rpx;
+		color: #333;
+		line-height: 1.4;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		overflow: hidden;
 	}
 }
 

@@ -8,6 +8,7 @@ const path = require('path')
 const fs = require('fs').promises
 const twilio = require('twilio');
 const { Op } = require('sequelize');
+const NotificationService = require('../services/NotificationService')
 
 
 class UserController {
@@ -777,6 +778,13 @@ class UserController {
           await User.increment('follower_count', { where: { phone_number: following_phone } })
           isFollowing = true
           message = '关注成功'
+          
+          // 异步发送关注通知
+          try {
+            await NotificationService.notifyNewFollower(follower_phone, following_phone)
+          } catch (notificationError) {
+            console.error('发送关注通知失败:', notificationError)
+          }
         }
       } else {
         // 新关注
@@ -792,6 +800,13 @@ class UserController {
         await User.increment('follower_count', { where: { phone_number: following_phone } })
         isFollowing = true
         message = '关注成功'
+        
+        // 异步发送关注通知
+        try {
+          await NotificationService.notifyNewFollower(follower_phone, following_phone)
+        } catch (notificationError) {
+          console.error('发送关注通知失败:', notificationError)
+        }
       }
 
       res.json({

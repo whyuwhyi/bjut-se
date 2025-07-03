@@ -1276,6 +1276,34 @@ class AdminController {
         reviewed_at: new Date()
       });
 
+      // 发送审核结果通知给资源发布者
+      try {
+        const notificationId = idGenerator.generateNotificationId();
+        const isApproved = action === 'approve';
+        const title = isApproved ? '资源审核通过' : '资源审核被拒绝';
+        const content = isApproved 
+          ? `您的资源「${resource.resource_name}」审核通过，现已发布。${comment ? `审核意见：${comment}` : ''}`
+          : `您的资源「${resource.resource_name}」审核未通过。${comment ? `拒绝原因：${comment}` : '请根据审核意见修改后重新提交。'}`;
+        
+        await Notification.create({
+          notification_id: notificationId,
+          receiver_phone: resource.publisher_phone,
+          type: 'system',
+          priority: isApproved ? 'medium' : 'high',
+          title,
+          content,
+          action_type: 'navigate',
+          action_url: '/pages/resources/detail',
+          action_params: { resourceId: resource.resource_id },
+          related_user_phone: req.user.phone_number,
+          related_content_id: resource.resource_id,
+          related_content_type: 'resource'
+        });
+      } catch (notificationError) {
+        console.error('发送资源审核通知失败:', notificationError);
+        // 审核通知失败不影响审核流程，只记录错误
+      }
+
       res.json({
         success: true,
         message: `资源${action === 'approve' ? '审核通过' : '审核拒绝'}`
@@ -2208,6 +2236,12 @@ class AdminController {
             as: 'user',
             attributes: ['name', 'phone_number'],
             required: false
+          },
+          {
+            model: User,
+            as: 'replier',
+            attributes: ['name', 'phone_number'],
+            required: false
           }
         ],
         order: [['created_at', 'DESC']],
@@ -2299,6 +2333,7 @@ class AdminController {
     try {
       const { id } = req.params;
       const { status, reply } = req.body;
+      const adminPhone = req.user.phone_number;
 
       if (!['pending', 'processing', 'resolved', 'closed'].includes(status)) {
         return res.status(400).json({
@@ -2315,12 +2350,47 @@ class AdminController {
         });
       }
 
+      const oldStatus = feedback.status;
       const updateData = { status };
       if (reply !== undefined) {
         updateData.reply = reply;
+        updateData.replied_at = new Date();
+        updateData.replied_by = adminPhone;
       }
 
       await feedback.update(updateData);
+
+      // 如果反馈状态更新为已处理或已关闭，且有回复内容，发送通知给用户
+      if ((status === 'resolved' || status === 'closed') && reply && oldStatus !== status) {
+        try {
+          const notificationId = idGenerator.generateNotificationId();
+          
+          // 构建通知内容
+          const isResolved = status === 'resolved';
+          const title = isResolved ? '您的反馈已处理' : '您的反馈已关闭';
+          const content = `您的${feedback.type === 'bug' ? '问题反馈' : feedback.type === 'suggestion' ? '意见建议' : '其他反馈'}已${isResolved ? '处理完成' : '关闭'}。${reply ? `管理员回复：${reply}` : ''}`;
+          
+          await Notification.create({
+            notification_id: notificationId,
+            receiver_phone: feedback.user_phone,
+            type: 'system',
+            priority: isResolved ? 'medium' : 'low',
+            title,
+            content,
+            action_type: 'navigate',
+            action_url: '/pages/profile/feedback',
+            action_params: { feedbackId: feedback.id },
+            related_user_phone: adminPhone,
+            related_content_id: feedback.id.toString(),
+            related_content_type: null // 反馈没有对应的内容类型
+          });
+
+          console.log(`反馈处理通知已发送给用户 ${feedback.user_phone}，反馈ID: ${feedback.id}`);
+        } catch (notificationError) {
+          // 通知发送失败不影响反馈处理成功
+          console.error('发送反馈处理通知失败:', notificationError);
+        }
+      }
 
       res.json({
         success: true,
