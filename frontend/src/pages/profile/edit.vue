@@ -115,23 +115,6 @@
 			</view>
 		</view>
 
-		<!-- 兴趣标签 -->
-		<view class="interests-section">
-			<text class="section-title">兴趣标签</text>
-			<view class="interests-form">
-				<view class="tag-list">
-					<view class="interest-tag" 
-						v-for="(tag, index) in allTags" 
-						:key="index"
-						:class="{ 'selected': selectedTags.includes(tag) }"
-						@click="toggleTag(tag)">
-						<text class="tag-text">{{ tag }}</text>
-					</view>
-				</view>
-				<text class="tag-tip">最多选择5个标签</text>
-			</view>
-		</view>
-
 		<!-- 保存按钮 -->
 		<view class="save-section">
 			<view class="save-btn" :class="{ 'disabled': !canSave }" @click="saveProfile">
@@ -162,13 +145,6 @@ export default {
 			majorOptions: ['计算机科学与技术', '软件工程', '网络工程', '数据科学与大数据技术', '人工智能'],
 			gradeIndex: 2,
 			gradeOptions: ['大一', '大二', '大三', '大四', '研一', '研二', '研三'],
-			allTags: [
-				'前端开发', '后端开发', '移动开发', '人工智能', '数据分析',
-				'算法竞赛', '设计', 'UI/UX', '产品经理', '项目管理',
-				'机器学习', '深度学习', '区块链', '云计算', '大数据',
-				'游戏开发', '网络安全', '数据库', '运维', '测试'
-			],
-			selectedTags: ['前端开发', '算法竞赛'],
 			originalData: {}
 		}
 	},
@@ -212,6 +188,7 @@ export default {
 					this.userInfo = {
 						nickname: user.nickname || '',
 						avatar: user.avatar_url || '',
+						birthday: user.birthday || '',
 						name: user.name || '',
 						phone: user.phone_number || '',
 						email: user.email || '',
@@ -331,21 +308,6 @@ export default {
 			this.gradeIndex = e.detail.value
 		},
 		
-		toggleTag(tag) {
-			const index = this.selectedTags.indexOf(tag)
-			if (index > -1) {
-				this.selectedTags.splice(index, 1)
-			} else {
-				if (this.selectedTags.length >= 5) {
-					uni.showToast({
-						title: '最多选择5个标签',
-						icon: 'none'
-					})
-					return
-				}
-				this.selectedTags.push(tag)
-			}
-		},
 		
 		async saveProfile() {
 			if (!this.canSave) {
@@ -362,6 +324,30 @@ export default {
 			
 			try {
 				const token = uni.getStorageSync('token')
+				
+				// 验证生日
+				if (this.userInfo.birthday) {
+					const today = new Date();
+					const birthday = new Date(this.userInfo.birthday);
+					const ninetyYearsAgo = new Date();
+					ninetyYearsAgo.setFullYear(today.getFullYear() - 90);
+					
+					if (birthday > today) {
+						uni.showToast({
+							title: '生日不能是未来日期',
+							icon: 'none'
+						});
+						return;
+					}
+					
+					if (birthday < ninetyYearsAgo) {
+						uni.showToast({
+							title: '生日不能超过90年前',
+							icon: 'none'
+						});
+						return;
+					}
+				}
 				
 				// 构建保存数据
 				const profileData = {}
@@ -381,6 +367,9 @@ export default {
 				}
 				if (this.userInfo.bio !== undefined && this.userInfo.bio !== null) {
 					profileData.bio = this.userInfo.bio.trim()
+				}
+				if (this.userInfo.birthday) {
+					profileData.birthday = this.userInfo.birthday
 				}
 				
 				const response = await uni.request({
@@ -420,8 +409,7 @@ export default {
 		},
 		
 		checkUnsavedChanges() {
-			const hasChanges = JSON.stringify(this.userInfo) !== JSON.stringify(this.originalData) ||
-							  this.selectedTags.join(',') !== ['前端开发', '算法竞赛'].join(',')
+			const hasChanges = JSON.stringify(this.userInfo) !== JSON.stringify(this.originalData)
 			
 			if (hasChanges) {
 				uni.showModal({
@@ -581,48 +569,6 @@ export default {
 	}
 }
 
-.interests-section {
-	margin: 20rpx;
-	
-	.interests-form {
-		background: white;
-		border-radius: 15rpx;
-		padding: 30rpx;
-		
-		.tag-list {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 15rpx;
-			margin-bottom: 20rpx;
-			
-			.interest-tag {
-				padding: 12rpx 24rpx;
-				border-radius: 25rpx;
-				border: 2rpx solid #e0e0e0;
-				background: #f8f8f8;
-				
-				&.selected {
-					border-color: #007aff;
-					background: #e6f3ff;
-					
-					.tag-text {
-						color: #007aff;
-					}
-				}
-				
-				.tag-text {
-					font-size: 26rpx;
-					color: #666;
-				}
-			}
-		}
-		
-		.tag-tip {
-			font-size: 24rpx;
-			color: #999;
-		}
-	}
-}
 
 .save-section {
 	margin: 40rpx 20rpx 20rpx;

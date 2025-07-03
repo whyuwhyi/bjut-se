@@ -113,6 +113,7 @@
 
 <script>
 import { navigateToUserProfile } from '@/utils/userUtils'
+import config from '@/utils/config'
 
 export default {
 	data() {
@@ -154,7 +155,7 @@ export default {
 		async loadTags() {
 			try {
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/tags`,
+					url: `${config.apiBaseUrl}/posts/tags`,
 					method: 'GET'
 				})
 				
@@ -187,7 +188,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts`,
+					url: `${config.apiBaseUrl}/posts`,
 					method: 'GET',
 					data: params
 				})

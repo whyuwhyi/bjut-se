@@ -10,21 +10,12 @@ const Notification = sequelize.define('Notification', {
   },
   receiver_phone: {
     type: DataTypes.STRING(11),
-    allowNull: false,
-    references: {
-      model: 'users',
-      key: 'phone_number'
-    },
-    comment: '接收者手机号'
-  },
-  sender_phone: {
-    type: DataTypes.STRING(11),
     allowNull: true,
     references: {
       model: 'users',
       key: 'phone_number'
     },
-    comment: '发送者手机号（系统通知可为空）'
+    comment: '接收者手机号（为空表示广播通知，面向全体用户）'
   },
   type: {
     type: DataTypes.ENUM('system', 'study', 'interaction', 'resource', 'announcement'),

@@ -36,6 +36,10 @@
           <el-icon><ChatDotRound /></el-icon>
           <span>反馈管理</span>
         </el-menu-item>
+        <el-menu-item index="/containers">
+          <el-icon><Monitor /></el-icon>
+          <span>容器管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -83,7 +87,8 @@ import {
   Bell,
   ArrowDown,
   ChatLineRound,
-  ChatDotRound
+  ChatDotRound,
+  Monitor
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

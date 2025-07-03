@@ -54,6 +54,12 @@ const router = createRouter({
           name: 'FeedbackManagement',
           component: () => import('@/views/FeedbackManagement.vue'),
           meta: { title: '反馈管理' }
+        },
+        {
+          path: 'containers',
+          name: 'ContainerManagement',
+          component: () => import('@/views/ContainerManagement.vue'),
+          meta: { title: '容器管理' }
         }
       ]
     },

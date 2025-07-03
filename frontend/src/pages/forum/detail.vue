@@ -4,7 +4,7 @@
 		<view class="post-detail" v-if="post">
 			<view class="post-header">
 				<view class="author-info">
-					<image class="avatar" :src="post.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill"></image>
+					<image class="avatar" :src="post.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill" @click.stop="viewUserProfile(post.author.phone_number, post.author)"></image>
 					<view class="author-details">
 						<text class="author-name">{{ post.author.nickname || post.author.name }}</text>
 						<text class="post-time">{{ formatTime(post.created_at) }}</text>
@@ -62,7 +62,8 @@
 					v-model="commentText" 
 					:placeholder="replyTarget ? `回复 ${replyTarget.userName}：` : '写下你的评论...'"
 					:maxlength="200"
-					auto-height
+					:style="{height: commentTextareaHeight + 'px'}"
+					@input="adjustCommentTextareaHeight"
 				></textarea>
 				<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
 				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
@@ -72,7 +73,7 @@
 			<!-- 评论列表 -->
 			<view class="comment-list">
 				<view class="comment-item" v-for="(comment, index) in comments" :key="comment.comment_id">
-					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'"></image>
+					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(comment.userPhone, comment)"></image>
 					<view class="comment-content">
 						<view class="comment-header">
 							<text class="comment-username">{{ comment.userName }}</text>
@@ -87,7 +88,7 @@
 						<!-- 回复列表 -->
 						<view class="replies" v-if="comment.replies && comment.replies.length > 0">
 							<view class="reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
-								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'"></image>
+								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(reply.userPhone, reply)"></image>
 								<view class="reply-content-wrap">
 									<view class="reply-header">
 										<view class="reply-info">
@@ -139,6 +140,8 @@
 <script>
 import QRCode from 'qrcode'
 import ReportModal from '@/components/ReportModal.vue'
+import config from '@/utils/config'
+import { navigateToUserProfile } from '@/utils/userUtils'
 
 export default {
 	components: {
@@ -158,7 +161,8 @@ export default {
 			sharePopupVisible: false,
 			postQrCodeVisible: false,
 			postQrCodeDataUrl: '',
-			replyTarget: null
+			replyTarget: null,
+			commentTextareaHeight: 40
 		}
 	},
 	
@@ -181,7 +185,7 @@ export default {
 		async loadPostDetail() {
 			try {
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}`,
 					method: 'GET'
 				})
 				
@@ -213,7 +217,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/favorite-status?type=post`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}/favorite-status?type=post`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -232,19 +236,21 @@ export default {
 			try {
 				this.loadingComments = true
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/comments`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}/comments`,
 					method: 'GET'
 				})
 				if (response.statusCode === 200 && response.data.success) {
 					this.comments = (response.data.data.comments || []).map(comment => ({
 						comment_id: comment.comment_id,
 						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
+						userPhone: comment.author?.phone_number,
 						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
 						content: comment.content,
 						createTime: new Date(comment.created_at),
 						replies: (comment.replies || []).map(reply => ({
 							comment_id: reply.comment_id,
 							userName: reply.author?.nickname || reply.author?.name || '匿名用户',
+							userPhone: reply.author?.phone_number,
 							userAvatar: reply.author?.avatar_url || '/static/images/default-avatar.png',
 							content: reply.content,
 							createTime: new Date(reply.created_at),
@@ -279,7 +285,7 @@ export default {
 					data.parent_comment_id = this.replyTarget.comment_id
 				}
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/comments`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}/comments`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -312,7 +318,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/posts/${this.postId}/favorite`,
+					url: `${config.apiBaseUrl}/posts/${this.postId}/favorite`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -444,6 +450,67 @@ export default {
 				icon: 'success',
 				duration: 3000
 			})
+		},
+
+		adjustCommentTextareaHeight(e) {
+			// 兼容uni-app和web
+			const textarea = e.detail && e.detail.height ? e : e.target;
+			if (textarea && textarea.scrollHeight) {
+				this.commentTextareaHeight = textarea.scrollHeight;
+			} else if (e.detail && e.detail.height) {
+				this.commentTextareaHeight = e.detail.height;
+			}
+		},
+		
+		viewUserProfile(userPhone, userInfo) {
+			navigateToUserProfile(userPhone, userInfo)
+		},
+		
+		async toggleCollection() {
+			try {
+				const token = uni.getStorageSync('token')
+				if (!token) {
+					uni.showToast({
+						title: '请先登录',
+						icon: 'none'
+					})
+					return
+				}
+				
+				// 立即更新UI状态，提供即时反馈
+				const newCollectedState = !this.isCollected
+				this.isCollected = newCollectedState
+				
+				const response = await uni.request({
+					url: `${config.apiBaseUrl}/posts/${this.postId}/favorite`,
+					method: 'POST',
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Content-Type': 'application/json'
+					},
+					data: {
+						type: 'post'
+					}
+				})
+				
+				if (response.statusCode === 200 && response.data.success) {
+					this.isCollected = response.data.data.isCollected
+					uni.showToast({
+						title: this.isCollected ? '收藏成功' : '已取消收藏',
+						icon: 'success'
+					})
+				} else {
+					// 如果请求失败，恢复原始状态
+					this.isCollected = !newCollectedState
+					throw new Error(response.data.message || '操作失败')
+				}
+			} catch (error) {
+				console.error('收藏操作失败:', error)
+				uni.showToast({
+					title: error.message || '收藏操作失败',
+					icon: 'none'
+				})
+			}
 		}
 	}
 }
@@ -709,6 +776,9 @@ export default {
 				font-size: 26rpx;
 				color: #333;
 				line-height: 1.5;
+				word-break: break-all;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
 			}
 			.comment-footer {
 				display: flex;
@@ -771,6 +841,9 @@ export default {
 								font-size: 24rpx;
 								color: #333;
 								line-height: 1.5;
+								word-break: break-all;
+								white-space: pre-wrap;
+								overflow-wrap: anywhere;
 							}
 						}
 					}

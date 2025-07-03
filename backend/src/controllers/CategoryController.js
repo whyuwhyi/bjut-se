@@ -30,14 +30,15 @@ class CategoryController {
       const categories = await Category.findAll({
         where: { status: 'active' },
         order: [['sort_order', 'ASC'], ['created_at', 'ASC']],
-        attributes: ['category_value', 'category_name', 'icon']
+        attributes: ['category_id', 'category_value', 'category_name', 'icon']
       })
 
       // 格式化为前端需要的格式
       const options = categories.map(cat => ({
         value: cat.category_value,
         name: cat.category_name,
-        icon: cat.icon
+        icon: cat.icon,
+        category_id: cat.category_id
       }))
 
       res.json({

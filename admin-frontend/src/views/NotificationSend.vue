@@ -221,11 +221,29 @@
               </div>
             </el-form-item>
             
+            <el-form-item label="通知类型" prop="type">
+              <el-radio-group v-model="notificationForm.type">
+                <el-radio-button label="system">系统通知</el-radio-button>
+                <el-radio-button label="announcement">公告通知</el-radio-button>
+                <el-radio-button label="resource">资源通知</el-radio-button>
+              </el-radio-group>
+              <div class="type-hint">
+                <el-text size="small" type="info">
+                  系统通知用于重要系统消息，公告通知用于平台公告，资源通知用于资源相关信息
+                </el-text>
+              </div>
+            </el-form-item>
+            
             <el-form-item label="发送范围">
               <el-radio-group v-model="sendType" @change="handleSendTypeChange">
-                <el-radio-button label="all">全体用户</el-radio-button>
+                <el-radio-button label="all">广播通知（全体用户）</el-radio-button>
                 <el-radio-button label="specific">指定用户</el-radio-button>
               </el-radio-group>
+              <div class="range-hint">
+                <el-text size="small" type="info">
+                  广播通知将发送给所有用户，指定用户通知只发送给选中的用户
+                </el-text>
+              </div>
             </el-form-item>
             
             <el-form-item v-if="sendType === 'specific'" label="目标用户" prop="target_users">
@@ -341,6 +359,7 @@ const notificationForm = reactive<NotificationForm>({
   title: '',
   content: '',
   priority: 'medium',
+  type: 'system',
   target_users: []
 })
 
@@ -437,6 +456,7 @@ const resetForm = () => {
   notificationForm.title = ''
   notificationForm.content = ''
   notificationForm.priority = 'medium'
+  notificationForm.type = 'system'
   notificationForm.target_users = []
   sendType.value = 'all'
   searchResults.value = []

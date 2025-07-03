@@ -725,4 +725,30 @@
 		color: #ffffff;
 		font-weight: 300;
 	}
+
+	.resource-title {
+		display: block;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #333;
+		margin-bottom: 15rpx;
+		line-height: 1.4;
+	}
+
+	.resource-desc {
+		display: -webkit-box;
+		max-width: 100%;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: normal;
+		font-size: 26rpx;
+		color: #666;
+		line-height: 1.5;
+	}
 </style>

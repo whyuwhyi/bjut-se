@@ -85,6 +85,7 @@ export default {
 				title: '',
 				description: '',
 				category: '',
+				categoryId: '',
 				file: null
 			},
 			categories: [],
@@ -115,6 +116,15 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.categories = response.data.data
+					console.log('分类数据', this.categories)
+					// 自动选中第一个分类
+					if (this.categories.length > 0 && this.selectedCategory === -1) {
+						this.selectedCategory = 0
+						const selectedCat = this.categories[0]
+						this.uploadForm.category = selectedCat.name
+						this.uploadForm.categoryId = String(selectedCat.category_id || '')
+						console.log('自动选中分类', selectedCat, 'categoryId:', this.uploadForm.categoryId)
+					}
 				}
 			} catch (error) {
 				console.error('加载分类失败:', error)
@@ -125,7 +135,8 @@ export default {
 			this.selectedCategory = e.detail.value
 			const selectedCat = this.categories[e.detail.value]
 			this.uploadForm.category = selectedCat.name
-			this.uploadForm.categoryId = selectedCat.id || selectedCat.category_id
+			this.uploadForm.categoryId = String(selectedCat.category_id || '')
+			console.log('手动选择分类', selectedCat, 'categoryId:', this.uploadForm.categoryId)
 		},
 		
 		
@@ -168,7 +179,7 @@ export default {
 		},
 		
 		validateForm() {
-			const { title, description, category, file } = this.uploadForm
+			const { title, description, category, file, categoryId } = this.uploadForm
 			
 			if (!title.trim()) {
 				uni.showToast({
@@ -186,7 +197,7 @@ export default {
 				return false
 			}
 			
-			if (!category) {
+			if (!category || !categoryId) {
 				uni.showToast({
 					title: '请选择资源分类',
 					icon: 'none'
@@ -209,7 +220,11 @@ export default {
 			if (!this.validateForm()) {
 				return
 			}
-			
+			console.log('上传数据', {
+				resource_name: this.uploadForm.title,
+				description: this.uploadForm.description,
+				categoryId: this.uploadForm.categoryId
+			})
 			try {
 				this.uploading = true
 				this.uploadProgress = 0

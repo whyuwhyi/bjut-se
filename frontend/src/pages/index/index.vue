@@ -25,7 +25,7 @@
 		<!-- 最新公告 -->
 		<view class="notice-section card">
 			<view class="section-header">
-				<text class="section-title">最新公告</text>
+				<text class="section-title">最新通知</text>
 				<text class="section-more" @click="navigateTo('/pages/notification/messages')">更多</text>
 			</view>
 			<view class="notice-list">
@@ -54,6 +54,7 @@
 						<text class="resource-title">{{ item.title }}</text>
 						<view class="resource-meta">
 							<text class="resource-author">{{ item.author }}</text>
+							<view style="flex:1"></view>
 							<text class="resource-downloads">{{ item.downloads || 0 }}次下载</text>
 						</view>
 					</view>
@@ -73,6 +74,7 @@
 						<text class="forum-title">{{ item.title }}</text>
 						<view class="forum-meta">
 							<text class="forum-author">{{ item.author }}</text>
+							<view style="flex:1"></view>
 							<text class="forum-views">{{ item.views || 0 }}次浏览</text>
 							<view class="forum-tag" v-if="item.isHot">热门</view>
 						</view>
@@ -310,8 +312,9 @@
 							id: item.post_id,
 							title: item.title,
 							isHot: item.comment_count > 10,
-							authorName: item.author?.nickname || item.author?.name || '匿名用户',
+							author: item.author?.nickname || item.author?.name || '匿名用户',
 							commentCount: item.comment_count || 0,
+							views: item.view_count || 0,
 							createTime: new Date(item.created_at)
 						}))
 					}
@@ -550,7 +553,7 @@
 	align-items: center;
 	gap: 20rpx;
 	transition: all 0.3s ease;
-
+	min-width: 0;
 	&:active {
 		transform: scale(0.98);
 		background-color: #f8f8f8;
@@ -579,19 +582,17 @@
 	}
 
 	.resource-title {
-		font-size: 28rpx;
-		color: #333;
-		font-weight: 500;
-		margin-bottom: 8rpx;
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 1;
+		display: block;
+		max-width: 100%;
 		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.resource-meta {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 16rpx;
 		font-size: 24rpx;
 		color: #999;
@@ -605,19 +606,17 @@
 	}
 
 	.forum-title {
-		font-size: 28rpx;
-		color: #333;
-		font-weight: 500;
-		margin-bottom: 8rpx;
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 1;
+		display: block;
+		max-width: 100%;
 		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.forum-meta {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 16rpx;
 		font-size: 24rpx;
 		color: #999;

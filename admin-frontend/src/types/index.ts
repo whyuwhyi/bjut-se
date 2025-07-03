@@ -141,3 +141,196 @@ export interface FeedbackStats {
   processing_feedbacks: number
   resolved_feedbacks: number
 }
+
+// 容器管理相关接口
+export interface Container {
+  id: string
+  name: string
+  image: string
+  status: string
+  state: string
+  created: Date
+  ports: ContainerPort[]
+  mounts?: ContainerMount[]
+  env?: string[]
+  stats?: ContainerStats
+  labels?: { [key: string]: string }
+  networkMode?: string
+  restartPolicy?: ContainerRestartPolicy
+  error?: string
+}
+
+export interface ContainerPort {
+  PrivatePort: number
+  PublicPort?: number
+  Type: string
+  IP?: string
+}
+
+export interface ContainerMount {
+  Source: string
+  Destination: string
+  Mode: string
+  Type: string
+  RW: boolean
+}
+
+export interface ContainerStats {
+  cpu_usage?: any
+  memory_usage?: number
+  memory_limit?: number
+  network?: any
+  blkio_stats?: any
+}
+
+export interface ContainerRestartPolicy {
+  Name: string
+  MaximumRetryCount?: number
+}
+
+export interface ContainerDetail {
+  Id: string
+  Name: string
+  Image: string
+  Config: {
+    Image: string
+    Env: string[]
+    ExposedPorts?: { [key: string]: any }
+    WorkingDir?: string
+    Entrypoint?: string[]
+    Cmd?: string[]
+  }
+  State: {
+    Status: string
+    Running: boolean
+    Paused: boolean
+    Restarting: boolean
+    OOMKilled: boolean
+    Dead: boolean
+    Pid: number
+    ExitCode: number
+    Error: string
+    StartedAt: string
+    FinishedAt: string
+  }
+  HostConfig: {
+    NetworkMode: string
+    RestartPolicy: ContainerRestartPolicy
+    Memory?: number
+    CpuShares?: number
+    Binds?: string[]
+    PortBindings?: { [key: string]: any }
+  }
+  NetworkSettings: {
+    Networks: { [key: string]: any }
+    Ports?: { [key: string]: any }
+    IPAddress?: string
+    Gateway?: string
+  }
+  Mounts: ContainerMount[]
+  logs?: string
+  stats?: any
+}
+
+export interface SystemStats {
+  info: {
+    Architecture: string
+    Containers: number
+    ContainersRunning: number
+    ContainersPaused: number
+    ContainersStopped: number
+    Images: number
+    Driver: string
+    KernelVersion: string
+    OperatingSystem: string
+    OSType: string
+    NCPU: number
+    MemTotal: number
+    DockerRootDir: string
+    Name: string
+    ServerVersion: string
+  }
+  version: {
+    Version: string
+    ApiVersion: string
+    MinAPIVersion: string
+    GitCommit: string
+    GoVersion: string
+    Os: string
+    Arch: string
+    BuildTime: string
+  }
+  timestamp: string
+}
+
+export interface DatabaseExecuteRequest {
+  containerId: string
+  command: string
+  database?: string
+}
+
+export interface DatabaseExecuteResponse {
+  command: string
+  output: string
+  timestamp: string
+}
+
+export interface DatabaseConsistencyRequest {
+  containerId: string
+}
+
+export interface DatabaseConsistencyResponse {
+  checks: {
+    [key: string]: {
+      query: string
+      result?: string
+      error?: string
+    }
+  }
+  timestamp: string
+}
+
+// 数据库浏览相关接口
+export interface DatabaseTable {
+  name: string
+  rows: number
+  size: number
+  created: string | null
+}
+
+export interface TableColumn {
+  field: string
+  type: string
+  null: string
+  key: string
+  default: string | null
+  extra: string
+}
+
+export interface DatabaseListResponse {
+  databases: string[]
+  timestamp: string
+}
+
+export interface TableListResponse {
+  database: string
+  tables: DatabaseTable[]
+  timestamp: string
+}
+
+export interface TableStructureResponse {
+  database: string
+  table: string
+  columns: TableColumn[]
+  timestamp: string
+}
+
+export interface TableDataResponse {
+  database: string
+  table: string
+  rows: any[]
+  total: number
+  page: number
+  limit: number
+  timestamp: string
+}

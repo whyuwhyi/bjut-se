@@ -64,11 +64,6 @@ const StudyTask = sequelize.define('StudyTask', {
       min: 0
     },
     comment: '实际学习时长（小时）'
-  },
-  tags: {
-    type: DataTypes.STRING(500),
-    allowNull: true,
-    comment: '标签（JSON格式存储）'
   }
 }, {
   tableName: 'study_tasks',

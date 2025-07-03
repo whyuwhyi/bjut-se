@@ -305,25 +305,17 @@ class UserController {
         publicProfile.following_count = user.following_count
       }
 
-      // 如果是当前用户查看自己，返回完整信息
-      if (currentUserPhone === phone) {
-        publicProfile.name = user.name
+      // 根据隐私设置决定是否显示敏感信息
+      if (privacySettings.show_email) {
         publicProfile.email = user.email
+      }
+      if (privacySettings.show_student_id) {
         publicProfile.student_id = user.student_id
-        publicProfile.bio = user.bio
-        publicProfile.resource_count = user.resource_count
-        publicProfile.post_count = user.post_count
-        publicProfile.follower_count = user.follower_count
-        publicProfile.following_count = user.following_count
+      }
+      
+      // 如果是当前用户查看自己，添加隐私设置信息用于前端判断
+      if (currentUserPhone === phone) {
         publicProfile.privacy_settings = user.privacy_settings
-      } else {
-        // 其他用户查看时，根据隐私设置决定是否显示敏感信息
-        if (privacySettings.show_email) {
-          publicProfile.email = user.email
-        }
-        if (privacySettings.show_student_id) {
-          publicProfile.student_id = user.student_id
-        }
       }
 
       // 检查当前用户是否关注了这个用户
@@ -370,7 +362,7 @@ class UserController {
         })
       }
 
-      const { name, nickname, email, student_id, bio } = req.body
+      const { name, nickname, email, student_id, bio, birthday } = req.body
       const phone_number = req.user.phone_number
 
       const user = await User.findByPk(phone_number)
@@ -400,7 +392,8 @@ class UserController {
         nickname: nickname || user.nickname,
         email: email || user.email,
         student_id: student_id || user.student_id,
-        bio: bio !== undefined ? bio : user.bio
+        bio: bio !== undefined ? bio : user.bio,
+        birthday: birthday !== undefined ? birthday : user.birthday
       })
 
       res.json({
@@ -862,19 +855,53 @@ class UserController {
         })
       }
 
-      // 获取收藏数统计（User模型中没有这个字段，需要手动查询）
-      const collectionCount = await Collection.count({ 
-        where: { user_phone: phone_number, status: 'active' } 
-      })
+      // 直接查询数据库获取准确的统计数据
+      const [resourceCount, postCount, collectionCount, followingCount, followerCount] = await Promise.all([
+        // 资源数：查询已发布的资源
+        Resource.count({ 
+          where: { 
+            publisher_phone: phone_number, 
+            status: 'published' 
+          } 
+        }),
+        // 帖子数：查询已发布的帖子
+        Post.count({ 
+          where: { 
+            author_phone: phone_number, 
+            status: 'published' 
+          } 
+        }),
+        // 收藏数：查询活跃的收藏
+        Collection.count({ 
+          where: { 
+            user_phone: phone_number, 
+            status: 'active' 
+          } 
+        }),
+        // 关注数：查询活跃的关注关系
+        UserFollow.count({ 
+          where: { 
+            follower_phone: phone_number, 
+            status: 'active' 
+          } 
+        }),
+        // 粉丝数：查询活跃的被关注关系
+        UserFollow.count({ 
+          where: { 
+            following_phone: phone_number, 
+            status: 'active' 
+          } 
+        })
+      ])
 
       res.json({
         success: true,
         data: {
-          resourceCount: user.resource_count,
-          postCount: user.post_count,
-          collectionCount: collectionCount,
-          followingCount: user.following_count,
-          followerCount: user.follower_count
+          resourceCount,
+          postCount,
+          collectionCount,
+          followingCount,
+          followerCount
         }
       })
     } catch (error) {

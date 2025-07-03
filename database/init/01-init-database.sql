@@ -38,6 +38,7 @@ CREATE TABLE users (
     nickname VARCHAR(50) COMMENT '昵称',
     avatar_url VARCHAR(500) COMMENT '头像URL',
     email VARCHAR(100) COMMENT '邮箱',
+    birthday DATE COMMENT '生日日期',
     bio TEXT COMMENT '个人简介',
     gender ENUM('M', 'F', 'U') DEFAULT 'U' COMMENT '性别',
     role ENUM('user', 'admin') DEFAULT 'user' COMMENT '用户角色',
@@ -65,7 +66,7 @@ CREATE TABLE categories (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源分类表';
 
 
--- 4. 资源表
+-- 3. 资源表
 CREATE TABLE resources (
     resource_id VARCHAR(9) PRIMARY KEY COMMENT '资源ID',
     publisher_phone VARCHAR(11) NOT NULL COMMENT '发布者手机号',
@@ -89,7 +90,7 @@ CREATE TABLE resources (
     FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源表';
 
--- 5. 文件表
+-- 4. 文件表
 CREATE TABLE files (
     file_id VARCHAR(9) PRIMARY KEY COMMENT '文件ID',
     resource_id VARCHAR(9) NOT NULL COMMENT '关联资源ID',
@@ -105,29 +106,7 @@ CREATE TABLE files (
     FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='文件表';
 
--- 6. 标签表
-CREATE TABLE tags (
-    tag_id VARCHAR(9) PRIMARY KEY COMMENT '标签ID',
-    tag_name VARCHAR(50) UNIQUE NOT NULL COMMENT '标签名称',
-    category VARCHAR(50) COMMENT '标签分类',
-    usage_count INT DEFAULT 0 COMMENT '使用次数',
-    status ENUM('active', 'inactive') DEFAULT 'active' COMMENT '标签状态',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='标签表';
-
--- 7. 资源标签关联表
-CREATE TABLE resource_tags (
-    relation_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '关联记录ID',
-    resource_id VARCHAR(9) NOT NULL COMMENT '资源ID',
-    tag_id VARCHAR(9) NOT NULL COMMENT '标签ID',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (resource_id) REFERENCES resources(resource_id) ON DELETE CASCADE,
-    FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源标签关联表';
-
--- 8. 帖子表
+-- 5. 帖子表
 CREATE TABLE posts (
     post_id VARCHAR(9) PRIMARY KEY COMMENT '帖子ID',
     author_phone VARCHAR(11) NOT NULL COMMENT '作者手机号',
@@ -143,7 +122,7 @@ CREATE TABLE posts (
     FOREIGN KEY (author_phone) REFERENCES users(phone_number) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子表';
 
--- 9. 帖子标签表
+-- 6. 帖子标签表
 CREATE TABLE post_tags (
     tag_id VARCHAR(9) PRIMARY KEY COMMENT '帖子标签ID',
     tag_name VARCHAR(50) UNIQUE NOT NULL COMMENT '标签名称',
@@ -154,7 +133,7 @@ CREATE TABLE post_tags (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子标签表';
 
--- 10. 帖子标签关联表
+-- 7. 帖子标签关联表
 CREATE TABLE post_tag_relations (
     relation_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '关联记录ID',
     post_id VARCHAR(9) NOT NULL COMMENT '帖子ID',
@@ -165,7 +144,7 @@ CREATE TABLE post_tag_relations (
     FOREIGN KEY (tag_id) REFERENCES post_tags(tag_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子标签关联表';
 
--- 11. 评论表
+-- 8. 评论表
 CREATE TABLE comments (
     comment_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '评论ID',
     author_phone VARCHAR(11) NOT NULL COMMENT '评论作者手机号',
@@ -182,7 +161,7 @@ CREATE TABLE comments (
     FOREIGN KEY (parent_comment_id) REFERENCES comments(comment_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='评论表';
 
--- 12. 评分表
+-- 9. 评分表
 CREATE TABLE ratings (
     rating_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '评分记录ID',
     user_phone VARCHAR(11) NOT NULL COMMENT '评分者手机号',
@@ -196,7 +175,7 @@ CREATE TABLE ratings (
     UNIQUE KEY unique_user_resource (user_phone, resource_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='评分表';
 
--- 13. 收藏表
+-- 10. 收藏表
 CREATE TABLE collections (
     collection_id VARCHAR(9) PRIMARY KEY COMMENT '收藏记录ID',
     user_phone VARCHAR(11) NOT NULL COMMENT '收藏者手机号',
@@ -209,7 +188,7 @@ CREATE TABLE collections (
     UNIQUE KEY unique_user_content (user_phone, content_id, collection_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='收藏表';
 
--- 14. 用户关注表
+-- 11. 用户关注表
 CREATE TABLE user_follows (
     follow_id VARCHAR(9) PRIMARY KEY COMMENT '关注记录ID',
     follower_phone VARCHAR(11) NOT NULL COMMENT '关注者手机号',
@@ -223,7 +202,7 @@ CREATE TABLE user_follows (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='用户关注表';
 
 
--- 15. 学习计划表
+-- 12. 学习计划表
 CREATE TABLE study_plans (
     plan_id VARCHAR(9) PRIMARY KEY COMMENT '学习计划ID',
     user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
@@ -240,7 +219,7 @@ CREATE TABLE study_plans (
     FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='学习计划表';
 
--- 16. 学习任务表
+-- 13. 学习任务表
 CREATE TABLE study_tasks (
     task_id VARCHAR(9) PRIMARY KEY COMMENT '学习任务ID',
     plan_id VARCHAR(9) NOT NULL COMMENT '关联学习计划ID',
@@ -251,13 +230,12 @@ CREATE TABLE study_tasks (
     status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending' COMMENT '任务状态',
     estimated_hours INT COMMENT '预估学习时长(小时)',
     actual_hours INT DEFAULT 0 COMMENT '实际学习时长(小时)',
-    tags VARCHAR(500) COMMENT '标签(JSON格式)',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (plan_id) REFERENCES study_plans(plan_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='学习任务表';
 
--- 17. 子任务表
+-- 14. 子任务表
 CREATE TABLE sub_tasks (
     subtask_id INT PRIMARY KEY AUTO_INCREMENT COMMENT '子任务ID',
     task_id VARCHAR(9) NOT NULL COMMENT '关联学习任务ID',
@@ -274,11 +252,10 @@ CREATE TABLE sub_tasks (
     FOREIGN KEY (task_id) REFERENCES study_tasks(task_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='子任务表';
 
--- 18. 通知表
+-- 15. 通知表
 CREATE TABLE notifications (
     notification_id VARCHAR(9) PRIMARY KEY COMMENT '通知ID',
-    receiver_phone VARCHAR(11) NOT NULL COMMENT '接收者手机号',
-    sender_phone VARCHAR(11) COMMENT '发送者手机号',
+    receiver_phone VARCHAR(11) NULL COMMENT '接收者手机号（为空表示广播通知，面向全体用户）',
     type ENUM('system', 'study', 'interaction', 'resource', 'announcement') NOT NULL COMMENT '通知类型',
     priority ENUM('high', 'medium', 'low') DEFAULT 'medium' COMMENT '优先级',
     title VARCHAR(200) NOT NULL COMMENT '通知标题',
@@ -286,16 +263,28 @@ CREATE TABLE notifications (
     action_type ENUM('none', 'navigate', 'external_link') DEFAULT 'none' COMMENT '动作类型',
     action_url VARCHAR(500) COMMENT '动作URL',
     action_params JSON COMMENT '动作参数',
-    is_read BOOLEAN DEFAULT FALSE COMMENT '是否已读',
-    read_at TIMESTAMP NULL COMMENT '阅读时间',
+    is_read BOOLEAN DEFAULT FALSE COMMENT '是否已读（只对个人通知有效）',
+    read_at TIMESTAMP NULL COMMENT '阅读时间（只对个人通知有效）',
     expires_at TIMESTAMP NULL COMMENT '过期时间',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
-    FOREIGN KEY (sender_phone) REFERENCES users(phone_number) ON DELETE SET NULL
+    FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='通知表';
 
--- 21. 验证码表
+-- 16. 广播通知已读状态表
+CREATE TABLE notification_reads (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
+    user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
+    notification_id VARCHAR(9) NOT NULL COMMENT '通知ID',
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '阅读时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
+    FOREIGN KEY (notification_id) REFERENCES notifications(notification_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_notification (user_phone, notification_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='广播通知已读状态表';
+
+-- 17. 验证码表
 CREATE TABLE verification_codes (
     id INT PRIMARY KEY AUTO_INCREMENT COMMENT '验证码ID',
     phone_number VARCHAR(11) NOT NULL COMMENT '手机号',
@@ -306,7 +295,7 @@ CREATE TABLE verification_codes (
     status ENUM('valid', 'used', 'expired') DEFAULT 'valid' COMMENT '状态'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='验证码表';
 
--- 22. 资源举报表
+-- 18. 资源举报表
 CREATE TABLE resource_reports (
     report_id VARCHAR(9) PRIMARY KEY COMMENT '举报记录ID',
     resource_id VARCHAR(9) NOT NULL COMMENT '被举报资源ID',
@@ -324,7 +313,7 @@ CREATE TABLE resource_reports (
     FOREIGN KEY (processed_by) REFERENCES users(phone_number) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源举报表';
 
--- 23. 帖子举报表
+-- 19. 帖子举报表
 CREATE TABLE post_reports (
     report_id VARCHAR(9) PRIMARY KEY COMMENT '举报记录ID',
     post_id VARCHAR(9) NOT NULL COMMENT '被举报帖子ID',
@@ -342,7 +331,7 @@ CREATE TABLE post_reports (
     FOREIGN KEY (processed_by) REFERENCES users(phone_number) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子举报表';
 
--- 24. 用户反馈表
+-- 20. 用户反馈表
 CREATE TABLE feedbacks (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
@@ -363,10 +352,10 @@ CREATE TABLE feedbacks (
 
 -- 插入测试用户（密码是123456的bcrypt哈希值）
 -- 注意：使用INSERT而不是INSERT IGNORE，确保数据完全重新插入
-INSERT INTO users (phone_number, password, name, nickname, email, role, status, created_at, updated_at) VALUES
-('13800138001', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '张教授', '张教授', 'zhang@bjut.edu.cn', 'admin', 'active', NOW(), NOW()),
-('13800138002', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '李同学', '李同学', 'li@student.bjut.edu.cn', 'user', 'active', NOW(), NOW()),
-('13800138003', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '王老师', '王老师', 'wang@bjut.edu.cn', 'user', 'active', NOW(), NOW());
+INSERT INTO users (phone_number, password, name, nickname, email, birthday, role, status, created_at, updated_at) VALUES
+('13800138001', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '张教授', '张教授', 'zhang@bjut.edu.cn', '1980-05-15', 'admin', 'active', NOW(), NOW()),
+('13800138002', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '李同学', '李同学', 'li@student.bjut.edu.cn', '2000-08-20', 'user', 'active', NOW(), NOW()),
+('13800138003', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '王老师', '王老师', 'wang@bjut.edu.cn', '1985-12-03', 'user', 'active', NOW(), NOW());
 
 -- 插入资源分类
 INSERT INTO categories (category_id, category_name, category_value, description, icon, sort_order, status, created_at, updated_at) VALUES
@@ -442,10 +431,10 @@ INSERT INTO study_plans (plan_id, user_phone, title, description, start_date, en
 ('400000002', '13800138003', '算法练习计划', '提升算法和数据结构能力', '2025-06-15', '2025-07-15', 'active', 40, '算法练习', 'medium', NOW(), NOW());
 
 -- 插入学习任务
-INSERT INTO study_tasks (task_id, plan_id, title, description, deadline, priority, status, estimated_hours, actual_hours, tags, created_at, updated_at) VALUES
-('500000001', '400000001', '学习Vue.js基础', '掌握Vue.js组件、指令等基础概念', '2025-06-30', 'high', 'completed', 20, 18, '["Vue.js", "前端"]', NOW(), NOW()),
-('500000002', '400000001', '实践Vue项目', '开发完整的Vue.js应用', '2025-07-15', 'high', 'in_progress', 40, 12, '["Vue.js", "实践"]', NOW(), NOW()),
-('500000003', '400000002', '数组算法练习', '练习数组相关算法题', '2025-06-30', 'medium', 'in_progress', 15, 8, '["算法", "数组"]', NOW(), NOW());
+INSERT INTO study_tasks (task_id, plan_id, title, description, deadline, priority, status, estimated_hours, actual_hours, created_at, updated_at) VALUES
+('500000001', '400000001', '学习Vue.js基础', '掌握Vue.js组件、指令等基础概念', '2025-06-30', 'high', 'completed', 20, 18, NOW(), NOW()),
+('500000002', '400000001', '实践Vue项目', '开发完整的Vue.js应用', '2025-07-15', 'high', 'in_progress', 40, 12, NOW(), NOW()),
+('500000003', '400000002', '数组算法练习', '练习数组相关算法题', '2025-06-30', 'medium', 'in_progress', 15, 8, NOW(), NOW());
 
 -- 插入子任务
 INSERT INTO sub_tasks (task_id, title, description, completed, sort_order, deadline, priority, estimated_minutes, notes, created_at, updated_at) VALUES
@@ -465,9 +454,17 @@ INSERT INTO sub_tasks (task_id, title, description, completed, sort_order, deadl
 
 
 -- 插入通知
-INSERT INTO notifications (notification_id, receiver_phone, sender_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
-('600000001', '13800138002', NULL, 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', false, NOW(), NOW()),
-('600000002', '13800138003', '13800138002', 'interaction', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', false, NOW(), NOW());
+INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
+('600000001', '13800138002', 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', false, NOW(), NOW()),
+('600000002', '13800138003', 'system', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', false, NOW(), NOW());
+
+-- 插入一个广播通知示例（receiver_phone为NULL）
+INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
+('600000003', NULL, 'announcement', 'high', '系统维护通知', '系统将于今晚23:00-24:00进行维护，请合理安排学习时间。', 'none', false, NOW(), NOW());
+
+-- 插入广播通知已读状态示例（只有用户13800138002标记了这个广播通知为已读）
+INSERT INTO notification_reads (user_phone, notification_id, read_at, created_at, updated_at) VALUES
+('13800138002', '600000003', NOW(), NOW(), NOW());
 
 -- 插入测试举报数据
 INSERT INTO resource_reports (report_id, resource_id, reporter_phone, reason, description, status, created_at, updated_at) VALUES

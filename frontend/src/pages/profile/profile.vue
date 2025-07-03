@@ -84,6 +84,8 @@
 </template>
 
 <script>
+import config from '@/utils/config'
+
 export default {
 	data() {
 		return {
@@ -129,7 +131,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/users/profile`,
+					url: `${config.apiBaseUrl}/users/profile`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -156,7 +158,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/users/stats`,
+					url: `${config.apiBaseUrl}/users/stats`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -184,7 +186,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/notifications/unread-count`,
+					url: `${config.apiBaseUrl}/notifications/unread-count`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`

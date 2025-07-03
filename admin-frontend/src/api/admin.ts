@@ -215,3 +215,102 @@ export const getStatistics = (type?: string, period?: string) => {
     params: { type, period }
   })
 }
+
+// 容器管理
+export const getContainers = () => {
+  return request.get<ApiResponse<Container[]>>('/admin/containers')
+}
+
+export const getContainerDetail = (id: string) => {
+  return request.get<ApiResponse<ContainerDetail>>(`/admin/containers/${id}`)
+}
+
+export const startContainer = (id: string) => {
+  return request.post<ApiResponse>(`/admin/containers/${id}/start`)
+}
+
+export const stopContainer = (id: string) => {
+  return request.post<ApiResponse>(`/admin/containers/${id}/stop`)
+}
+
+export const restartContainer = (id: string) => {
+  return request.post<ApiResponse>(`/admin/containers/${id}/restart`)
+}
+
+export const getContainerLogs = (id: string, lines = 100) => {
+  return request.get<ApiResponse<{ logs: string }>>(`/admin/containers/${id}/logs`, {
+    params: { lines }
+  })
+}
+
+// 系统信息
+export const getSystemStats = () => {
+  return request.get<ApiResponse<SystemStats>>('/admin/system/stats')
+}
+
+// 数据库操作
+export const executeDatabaseCommand = (data: {
+  containerId: string
+  command: string
+  database?: string
+}) => {
+  return request.post<ApiResponse<{
+    command: string
+    output: string
+    timestamp: string
+  }>>('/admin/database/execute', data)
+}
+
+export const checkDatabaseConsistency = (data: { containerId: string }) => {
+  return request.post<ApiResponse<{
+    checks: { [key: string]: { query: string; result?: string; error?: string } }
+    timestamp: string
+  }>>('/admin/database/consistency-check', data)
+}
+
+// 数据库浏览
+export const getDatabases = (containerId: string) => {
+  return request.get<ApiResponse<{
+    databases: string[]
+    timestamp: string
+  }>>(`/admin/database/${containerId}/databases`)
+}
+
+export const getTables = (containerId: string, database: string) => {
+  return request.get<ApiResponse<{
+    database: string
+    tables: DatabaseTable[]
+    timestamp: string
+  }>>(`/admin/database/${containerId}/${database}/tables`)
+}
+
+export const getTableStructure = (containerId: string, database: string, table: string) => {
+  return request.get<ApiResponse<{
+    database: string
+    table: string
+    columns: TableColumn[]
+    timestamp: string
+  }>>(`/admin/database/${containerId}/${database}/${table}/structure`)
+}
+
+export const getTableData = (
+  containerId: string, 
+  database: string, 
+  table: string,
+  page = 1,
+  limit = 20,
+  orderBy?: string,
+  orderDir?: 'ASC' | 'DESC'
+) => {
+  return request.get<ApiResponse<{
+    database: string
+    table: string
+    rows: any[]
+    total: number
+    page: number
+    limit: number
+    timestamp: string
+  }>>(`/admin/database/${containerId}/${database}/${table}/data`, {
+    params: { page, limit, orderBy, orderDir }
+  })
+}

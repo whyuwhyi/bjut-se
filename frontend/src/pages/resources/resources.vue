@@ -145,6 +145,7 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.categories = response.data.data
+					console.log('分类数据', this.categories)
 				}
 			} catch (error) {
 				console.error('加载分类失败:', error)
@@ -212,6 +213,8 @@ export default {
 		selectCategory(index) {
 			this.selectedCategoryIndex = index
 			this.loadResources()
+			console.log('当前选中分类', this.selectedCategoryIndex)
+			console.log('赋值后的 categoryId', this.categories[this.selectedCategoryIndex]?.category_id)
 		},
 		
 		
@@ -628,6 +631,7 @@ export default {
 			display: flex;
 			align-items: flex-start;
 			margin-bottom: 20rpx;
+			min-width: 0;
 			
 			.file-preview {
 				position: relative;
@@ -658,9 +662,14 @@ export default {
 			
 			.resource-info {
 				flex: 1;
+				min-width: 0;
 				
 				.resource-title {
 					display: block;
+					max-width: 100%;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
 					font-size: 32rpx;
 					font-weight: bold;
 					color: #333;
@@ -714,6 +723,13 @@ export default {
 		
 		.resource-description {
 			.description-text {
+				display: -webkit-box;
+				max-width: 100%;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: normal;
 				font-size: 26rpx;
 				color: #666;
 				line-height: 1.5;

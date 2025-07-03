@@ -15,6 +15,10 @@ router.post('/', authMiddleware, PostController.createPost)
 
 router.post('/:id/comments', authMiddleware, PostController.createComment)
 
+router.post('/:postId/favorite', authMiddleware, PostController.toggleFavorite)
+
+router.get('/:postId/favorite-status', authMiddleware, PostController.checkFavoriteStatus)
+
 router.delete('/:id', authMiddleware, PostController.deletePost)
 
 module.exports = router
