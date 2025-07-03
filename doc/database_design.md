@@ -55,9 +55,14 @@
 | nickname | VARCHAR(50) | | 昵称 |
 | avatar_url | VARCHAR(500) | | 头像URL |
 | email | VARCHAR(100) | | 邮箱地址 |
+| bio | TEXT | | 个人简介 |
 | gender | ENUM('M','F','U') | DEFAULT 'U' | 性别：M-男，F-女，U-未知 |
 | role | ENUM('user','admin') | DEFAULT 'user' | 用户角色：user-普通用户，admin-管理员 |
 | status | ENUM('active','inactive','banned') | DEFAULT 'active' | 用户状态 |
+| post_count | INT | DEFAULT 0 | 发表的帖子数量 |
+| resource_count | INT | DEFAULT 0 | 上传的资源数量 |
+| follower_count | INT | DEFAULT 0 | 粉丝数量 |
+| following_count | INT | DEFAULT 0 | 关注数量 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
@@ -272,36 +277,6 @@
 - 子任务时间变更时需要验证是否违反层级约束
 - 父任务时间变更时需要检查所有子任务的时间合法性
 
-### 3.4 学习记录表 (study_records)
-
-记录用户的详细学习活动和进度，支持学习轨迹追踪和经验值系统。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| record_id | INT | PRIMARY KEY, AUTO_INCREMENT | 记录ID |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
-| plan_id | VARCHAR(9) | FOREIGN KEY | 关联学习计划（可选） |
-| task_id | VARCHAR(9) | FOREIGN KEY | 关联学习任务（可选） |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源（可选） |
-| post_id | VARCHAR(9) | FOREIGN KEY | 关联帖子（可选） |
-| activity_type | ENUM('resource_view','resource_download','task_complete','plan_create','post_view','post_create','comment_create') | NOT NULL | 活动类型 |
-| duration_minutes | INT | DEFAULT 0 | 学习时长（分钟） |
-| experience_gained | INT | DEFAULT 0 | 获得经验值 |
-| study_date | DATE | NOT NULL | 学习日期 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**业务特点：**
-- 自动记录用户学习行为，包括资源浏览、下载、任务完成等
-- 支持经验值系统，不同活动类型获得不同经验值
-- 任务完成时自动记录学习活动并奖励经验值
-- 支持多种内容类型的学习记录（资源、帖子、任务）
-- 提供学习时长统计和学习轨迹分析
-- 支持按日期聚合的学习进度报告
-
-
----
-
 ## 4. 论坛交流模块
 
 ### 4.1 帖子表 (posts)
@@ -469,6 +444,11 @@
 - **offensive**: 攻击性内容
 - **other**: 其他原因
 
+**外键关系**:
+- `resource_id` → `resources.resource_id`
+- `reporter_phone` → `users.phone_number`
+- `processed_by` → `users.phone_number`
+
 ### 7.2 帖子举报表 (post_reports)
 
 处理用户对帖子的举报投诉。
@@ -494,6 +474,11 @@
 - **harassment**: 骚扰行为
 - **false_info**: 虚假信息
 - **other**: 其他原因
+
+**外键关系**:
+- `post_id` → `posts.post_id`
+- `reporter_phone` → `users.phone_number`
+- `processed_by` → `users.phone_number`
 
 **举报处理流程：**
 1. 用户提交举报 → `pending` 状态
@@ -934,90 +919,11 @@ CREATE INDEX idx_collections_created_at ON collections(created_at DESC);
 - `reporter_phone` → `users.phone_number`
 - `processed_by` → `users.phone_number`
 
-### 8.3 举报处理流程
-
-#### 用户举报流程
-1. **提交举报**: 用户选择举报原因，填写详细描述
-2. **重复检查**: 系统检查是否重复举报（同一用户对同一内容的待处理举报）
-3. **记录创建**: 创建举报记录，状态为 'pending'
-4. **统计更新**: 增加被举报内容的 report_count 计数
-
-#### 管理员处理流程
-1. **查看列表**: 管理员查看待处理的举报列表
-2. **详细审核**: 查看举报详情和被举报内容
-3. **处理决定**: 
-   - **接受举报**: 删除/隐藏被举报内容，更新举报状态为 'processed'
-   - **拒绝举报**: 保留内容，更新举报状态为 'rejected'
-4. **通知发送**: 向举报者发送处理结果通知
-5. **记录更新**: 记录处理人、处理时间和处理结果
-
-### 8.4 API 接口设计
-
-#### 用户举报接口
-```http
-POST /api/v1/reports/resources/{resourceId}
-POST /api/v1/reports/posts/{postId}
-GET /api/v1/reports/my-reports?type={type}&page={page}&limit={limit}
-GET /api/v1/reports/reasons?type={type}
-DELETE /api/v1/reports/{reportId}?type={type}
-Authorization: Bearer {token}
-```
-
-#### 管理员处理接口
-```http
-GET /api/v1/admin/resources/reports?status={status}&page={page}&limit={limit}
-POST /api/v1/admin/resources/reports/{reportId}/handle
-GET /api/v1/admin/posts/reports?status={status}&page={page}&limit={limit}
-POST /api/v1/admin/posts/reports/{reportId}/handle
-Authorization: Bearer {admin_token}
-```
-
-### 8.5 业务规则
-
-#### 举报限制
-- **重复举报**: 同一用户对同一内容只能有一个待处理的举报
-- **自举报**: 用户不能举报自己发布的内容
-- **频率限制**: 可设置用户举报频率限制，防止恶意举报
-
-#### 处理规则
-- **管理员权限**: 只有管理员可以处理举报
-- **处理记录**: 所有处理操作都会记录处理人和处理时间
-- **通知机制**: 处理完成后自动向举报者发送通知
-- **内容管理**: 接受举报时自动更新被举报内容状态
-
-#### 数据统计
-- **举报统计**: 资源和帖子表中的 report_count 字段实时统计举报次数
-- **处理统计**: 可统计管理员处理举报的效率和结果分布
-- **趋势分析**: 支持举报数据的时间趋势分析
-
-### 8.6 技术实现
-
-#### 后端模型
-- **ResourceReport**: 资源举报模型，包含ID生成和关联关系
-- **PostReport**: 帖子举报模型，支持扩展的举报原因
-- **AdminController**: 管理员处理举报的控制器方法
-- **ReportController**: 用户举报功能的控制器方法
-
-#### 前端界面
-- **举报按钮**: 在资源和帖子页面添加举报功能入口
-- **举报表单**: 选择举报原因和填写详细描述的表单
-- **我的举报**: 用户查看自己的举报记录和处理状态
-- **管理界面**: 管理员查看和处理举报的后台界面
-
-#### 数据库优化
-```sql
--- 举报查询优化索引
-CREATE INDEX idx_resource_reports_status ON resource_reports(status, created_at DESC);
-CREATE INDEX idx_post_reports_status ON post_reports(status, created_at DESC);
-CREATE INDEX idx_resource_reports_reporter ON resource_reports(reporter_phone, status);
-CREATE INDEX idx_post_reports_reporter ON post_reports(reporter_phone, status);
-
--- 防止重复举报的唯一约束
-CREATE UNIQUE INDEX idx_resource_reports_unique ON resource_reports(resource_id, reporter_phone, status) WHERE status = 'pending';
-CREATE UNIQUE INDEX idx_post_reports_unique ON post_reports(post_id, reporter_phone, status) WHERE status = 'pending';
-```
-
-举报管理模块通过完善的数据库设计和业务流程，为平台提供了有效的内容治理机制，保障了平台内容质量和用户体验。
+**举报处理流程**:
+1. 用户提交举报 → `pending` 状态
+2. 管理员审核举报 → 更新 `processed_by` 和 `process_result`
+3. 处理完成 → `processed` 状态，记录处理时间
+4. 若举报无效 → `rejected` 状态
 
 ---
 

@@ -294,7 +294,7 @@ CREATE TABLE notifications (
     FOREIGN KEY (sender_phone) REFERENCES users(phone_number) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='通知表';
 
--- 21. 验证码表
+-- 19. 验证码表
 CREATE TABLE verification_codes (
     id INT PRIMARY KEY AUTO_INCREMENT COMMENT '验证码ID',
     phone_number VARCHAR(11) NOT NULL COMMENT '手机号',
@@ -305,7 +305,7 @@ CREATE TABLE verification_codes (
     status ENUM('valid', 'used', 'expired') DEFAULT 'valid' COMMENT '状态'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='验证码表';
 
--- 22. 资源举报表
+-- 20. 资源举报表
 CREATE TABLE resource_reports (
     report_id VARCHAR(9) PRIMARY KEY COMMENT '举报记录ID',
     resource_id VARCHAR(9) NOT NULL COMMENT '被举报资源ID',
@@ -323,7 +323,7 @@ CREATE TABLE resource_reports (
     FOREIGN KEY (processed_by) REFERENCES users(phone_number) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='资源举报表';
 
--- 23. 帖子举报表
+-- 21. 帖子举报表
 CREATE TABLE post_reports (
     report_id VARCHAR(9) PRIMARY KEY COMMENT '举报记录ID',
     post_id VARCHAR(9) NOT NULL COMMENT '被举报帖子ID',
@@ -341,7 +341,7 @@ CREATE TABLE post_reports (
     FOREIGN KEY (processed_by) REFERENCES users(phone_number) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='帖子举报表';
 
--- 24. 用户反馈表
+-- 22. 用户反馈表
 CREATE TABLE feedbacks (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
@@ -362,10 +362,10 @@ CREATE TABLE feedbacks (
 
 -- 插入测试用户（密码是123456的bcrypt哈希值）
 -- 注意：使用INSERT而不是INSERT IGNORE，确保数据完全重新插入
-INSERT INTO users (phone_number, password, name, nickname, email, role, status, created_at, updated_at) VALUES
-('13800138001', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '张教授', '张教授', 'zhang@bjut.edu.cn', 'admin', 'active', NOW(), NOW()),
-('13800138002', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '李同学', '李同学', 'li@student.bjut.edu.cn', 'user', 'active', NOW(), NOW()),
-('13800138003', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '王老师', '王老师', 'wang@bjut.edu.cn', 'user', 'active', NOW(), NOW());
+INSERT INTO users (phone_number, password, name, nickname, email, role, status, post_count, resource_count, follower_count, following_count, created_at, updated_at) VALUES
+('13800138001', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '张教授', '张教授', 'zhang@bjut.edu.cn', 'admin', 'active', 0, 0, 0, 0, NOW(), NOW()),
+('13800138002', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '李同学', '李同学', 'li@student.bjut.edu.cn', 'user', 'active', 0, 0, 0, 0, NOW(), NOW()),
+('13800138003', '$2a$10$65Oa2HMdHo.4RZfkzqM/0uYuo80C/pNycfIvOlGPg.G2N9t13gDsG', '王老师', '王老师', 'wang@bjut.edu.cn', 'user', 'active', 0, 0, 0, 0, NOW(), NOW());
 
 -- 插入资源分类
 INSERT INTO categories (category_id, category_name, category_value, description, icon, sort_order, status, created_at, updated_at) VALUES
@@ -520,6 +520,26 @@ UPDATE posts SET report_count = (
     WHERE post_reports.post_id = posts.post_id
 );
 
+-- 更新用户发帖数
+UPDATE users SET post_count = (
+    SELECT COUNT(*) FROM posts WHERE posts.author_phone = users.phone_number
+);
+
+-- 更新用户资源数
+UPDATE users SET resource_count = (
+    SELECT COUNT(*) FROM resources WHERE resources.publisher_phone = users.phone_number
+);
+
+-- 更新用户粉丝数
+UPDATE users SET follower_count = (
+    SELECT COUNT(*) FROM user_follows WHERE user_follows.following_phone = users.phone_number AND user_follows.status = 'active'
+);
+
+-- 更新用户关注数
+UPDATE users SET following_count = (
+    SELECT COUNT(*) FROM user_follows WHERE user_follows.follower_phone = users.phone_number AND user_follows.status = 'active'
+);
+
 -- ================================================================
 -- 第五部分：数据验证
 -- ================================================================
@@ -564,3 +584,16 @@ SELECT
     report_count as declared_count,
     (SELECT COUNT(*) FROM post_reports WHERE post_id = posts.post_id) as actual_count
 FROM posts;
+
+-- 验证用户统计字段与实际数据一致性
+SELECT 
+    phone_number,
+    post_count AS declared_post_count,
+    (SELECT COUNT(*) FROM posts WHERE author_phone = users.phone_number) AS actual_post_count,
+    resource_count AS declared_resource_count,
+    (SELECT COUNT(*) FROM resources WHERE publisher_phone = users.phone_number) AS actual_resource_count,
+    follower_count AS declared_follower_count,
+    (SELECT COUNT(*) FROM user_follows WHERE following_phone = users.phone_number AND status = 'active') AS actual_follower_count,
+    following_count AS declared_following_count,
+    (SELECT COUNT(*) FROM user_follows WHERE follower_phone = users.phone_number AND status = 'active') AS actual_following_count
+FROM users;
