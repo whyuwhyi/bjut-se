@@ -290,15 +290,16 @@ export default {
 
 <style lang="scss" scoped>
 .profile-container {
-	min-height: 100vh;
+	width: 100%;
+	height: 100vh;
 	padding: 20rpx;
 	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 	animation: gradientBG 15s ease infinite;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	max-width: 1024rpx;
-	margin: 0 auto;
+	overflow-y: auto;
+	box-sizing: border-box;
 }
 
 @keyframes gradientBG {

@@ -1291,6 +1291,9 @@ export default {
 	font-weight: 600;
 	color: #333;
 	flex: 1;
+	word-wrap: break-word;
+	word-break: break-all;
+	overflow-wrap: break-word;
 }
 
 .plan-status {
@@ -1322,6 +1325,9 @@ export default {
 	color: #666;
 	line-height: 1.5;
 	margin-bottom: 24rpx;
+	word-wrap: break-word;
+	word-break: break-all;
+	overflow-wrap: break-word;
 }
 
 .plan-progress {
@@ -1510,6 +1516,9 @@ export default {
 	font-weight: 500;
 	display: block;
 	margin-bottom: 8rpx;
+	word-wrap: break-word;
+	word-break: break-all;
+	overflow-wrap: break-word;
 }
 
 .task-item.completed .task-title {

@@ -8,42 +8,6 @@
 			@search="handleAdvancedSearch"
 		/>
 
-		<!-- 分类过滤 -->
-		<view class="category-filter">
-			<scroll-view class="category-scroll" scroll-x="true">
-				<view class="category-list">
-					<view 
-						class="category-item" 
-						:class="{ active: selectedCategory === null }"
-						@click="selectCategory(null)"
-					>
-						<text class="category-text">全部</text>
-					</view>
-					<view 
-						class="category-item" 
-						v-for="category in categories" 
-						:key="category.category_id"
-						:class="{ active: selectedCategory === category.category_id }"
-						@click="selectCategory(category.category_id)"
-					>
-						<text class="category-text">{{ category.category_name }}</text>
-					</view>
-				</view>
-			</scroll-view>
-		</view>
-		
-		<!-- 排序选项 -->
-		<view class="sort-section">
-			<picker 
-				:value="sortIndex" 
-				:range="sortOptions" 
-				@change="handleSortChange"
-				class="sort-picker"
-			>
-				<view class="sort-text">{{ sortOptions[sortIndex] }}</view>
-				<text class="sort-icon">▼</text>
-			</picker>
-		</view>
 
 		<!-- 资源列表 -->
 		<view class="resources-list">
@@ -116,16 +80,11 @@ export default {
 			limit: 6,
 			hasMore: true,
 			loading: false,
-			categories: [],
-			selectedCategory: null,
-			searchParams: {},
-			sortOptions: ['最新发布', '最多下载', '最高评分', '最多收藏'],
-			sortIndex: 0
+			searchParams: {}
 		}
 	},
 	
 	onLoad() {
-		this.loadCategories()
 		this.loadResources()
 	},
 	
@@ -144,43 +103,6 @@ export default {
 			this.loadResources(true)
 		},
 		
-		async loadCategories() {
-			try {
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/categories`,
-					method: 'GET'
-				})
-				
-				if (response.statusCode === 200 && response.data.success) {
-					this.categories = response.data.data
-					console.log('加载到的分类数据:', this.categories)
-				} else {
-					console.error('加载分类失败:', response.data)
-					uni.showToast({
-						title: '加载分类失败',
-						icon: 'none'
-					})
-				}
-			} catch (error) {
-				console.error('加载分类失败:', error)
-				uni.showToast({
-					title: '加载分类失败',
-					icon: 'none'
-				})
-			}
-		},
-		
-		selectCategory(categoryId) {
-			this.selectedCategory = categoryId
-			this.page = 1
-			this.loadResources(true)
-		},
-		
-		handleSortChange(e) {
-			this.sortIndex = e.detail.value
-			this.page = 1
-			this.loadResources(true)
-		},
 		
 		// 加载资源列表
 		async loadResources(refresh = false) {
@@ -191,31 +113,6 @@ export default {
 					page: refresh ? 1 : this.page,
 					limit: this.limit,
 					...this.searchParams
-				}
-				
-				// 添加分类过滤
-				if (this.selectedCategory) {
-					params.category = this.selectedCategory
-				}
-				
-				// 添加排序
-				switch (this.sortIndex) {
-					case 0: // 最新发布
-						params.sort = 'created_at'
-						params.order = 'desc'
-						break
-					case 1: // 最多下载
-						params.sort = 'download_count'
-						params.order = 'desc'
-						break
-					case 2: // 最高评分
-						params.sort = 'rating'
-						params.order = 'desc'
-						break
-					case 3: // 最多收藏
-						params.sort = 'collection_count'
-						params.order = 'desc'
-						break
 				}
 				
 				const token = uni.getStorageSync('token')
@@ -316,82 +213,32 @@ export default {
 
 <style lang="scss" scoped>
 .resources-container {
+	width: 100%;
+	height: 100vh;
 	padding: 20rpx;
-	background-color: #f5f5f5;
-	min-height: 100vh;
-	
-	.category-filter {
-		margin: 20rpx 0;
-		background-color: #fff;
-		border-radius: 16rpx;
-		padding: 20rpx;
-		box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
-		
-		.category-scroll {
-			white-space: nowrap;
-			
-			.category-list {
-				display: inline-flex;
-				padding: 10rpx 0;
-				
-				.category-item {
-					display: inline-block;
-					padding: 10rpx 30rpx;
-					margin-right: 20rpx;
-					background-color: #f5f5f5;
-					border-radius: 30rpx;
-					transition: all 0.3s;
-					
-					&.active {
-						background-color: #007aff;
-						
-						.category-text {
-							color: #fff;
-						}
-					}
-					
-					.category-text {
-						font-size: 26rpx;
-						color: #333;
-					}
-					
-					&:last-child {
-						margin-right: 0;
-					}
-				}
-			}
-		}
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	overflow-y: auto;
+	box-sizing: border-box;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 	}
-	
-	.sort-section {
-		margin-bottom: 20rpx;
-		background-color: #fff;
-		border-radius: 16rpx;
-		padding: 20rpx;
-		box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
-		
-		.sort-picker {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			padding: 10rpx 20rpx;
-			background-color: #f5f5f5;
-			border-radius: 30rpx;
-			
-			.sort-text {
-				font-size: 26rpx;
-				color: #333;
-			}
-			
-			.sort-icon {
-				font-size: 24rpx;
-				color: #666;
-				margin-left: 10rpx;
-			}
-		}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
 	}
-	
-	.resources-list {
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+}
+
+.resources-list {
+	width: 100%;
 		.resource-item {
 			background: #fff;
 			border-radius: 16rpx;
@@ -438,6 +285,13 @@ export default {
 						font-weight: bold;
 						color: #333;
 						margin-bottom: 10rpx;
+						word-wrap: break-word;
+						word-break: break-all;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						display: -webkit-box;
+						-webkit-line-clamp: 2;
+						-webkit-box-orient: vertical;
 					}
 					
 					.resource-tags {
@@ -489,6 +343,13 @@ export default {
 					font-size: 28rpx;
 					color: #666;
 					line-height: 1.5;
+					word-wrap: break-word;
+					word-break: break-all;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					display: -webkit-box;
+					-webkit-line-clamp: 3;
+					-webkit-box-orient: vertical;
 				}
 			}
 		}
@@ -537,5 +398,4 @@ export default {
 			}
 		}
 	}
-}
 </style>

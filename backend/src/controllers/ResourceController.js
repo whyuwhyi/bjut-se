@@ -540,7 +540,7 @@ class ResourceController {
           ? `您的资源"${resource.resource_name}"已通过审核并发布。${comment ? `审核意见：${comment}` : ''}`
           : `您的资源"${resource.resource_name}"审核未通过。${comment ? `拒绝原因：${comment}` : ''}`,
         action_type: 'navigate',
-        action_url: '/pages/resources/detail',
+        action_url: `/pages/resources/detail?id=${resource.resource_id}`,
         action_params: { resourceId: resource.resource_id }
       })
 

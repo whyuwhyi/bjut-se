@@ -882,6 +882,9 @@ export default {
 			color: #333;
 			line-height: 1.4;
 			margin-bottom: 20rpx;
+			word-wrap: break-word;
+			word-break: break-all;
+			overflow-wrap: break-word;
 		}
 		
 		.resource-tags {
@@ -1044,6 +1047,9 @@ export default {
 		color: #333;
 		line-height: 1.6;
 		white-space: pre-line;
+		word-wrap: break-word;
+		word-break: break-all;
+		overflow-wrap: break-word;
 	}
 }
 

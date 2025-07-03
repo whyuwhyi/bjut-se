@@ -481,11 +481,13 @@ export default {
 
 <style lang="scss" scoped>
 .advanced-search {
+	width: 100%;
 	background: white;
 	border-radius: 20rpx;
 	padding: 30rpx;
 	margin-bottom: 20rpx;
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
 }
 
 .search-section {

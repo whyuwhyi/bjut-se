@@ -539,15 +539,16 @@ export default {
 
 <style lang="scss" scoped>
 .learning-container {
-	min-height: 100vh;
+	width: 100%;
+	height: 100vh;
 	padding: 20rpx;
 	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 	animation: gradientBG 15s ease infinite;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	max-width: 1024rpx;
-	margin: 0 auto;
+	overflow-y: auto;
+	box-sizing: border-box;
 }
 
 @keyframes gradientBG {
@@ -652,9 +653,13 @@ export default {
 	color: #007aff;
 	text-decoration: underline;
 	text-decoration-color: rgba(0, 122, 255, 0.3);
-	white-space: nowrap;
+	word-wrap: break-word;
+	word-break: break-all;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
 	flex: 1;
 	min-width: 0;
 }
@@ -681,6 +686,13 @@ export default {
 	color: #666666;
 	line-height: 1.5;
 	margin-bottom: 24rpx;
+	word-wrap: break-word;
+	word-break: break-all;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
 }
 
 .plan-progress {
@@ -833,11 +845,14 @@ export default {
 	font-size: 28rpx;
 	color: #333333;
 	font-weight: 500;
-	display: block;
+	display: -webkit-box;
 	margin-bottom: 8rpx;
-	white-space: nowrap;
+	word-wrap: break-word;
+	word-break: break-all;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
 	width: 100%;
 	box-sizing: border-box;
 }

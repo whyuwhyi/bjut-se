@@ -244,9 +244,17 @@ export default {
 			// 处理跳转动作
 			if (notification.action_type === 'navigate' && notification.action_url) {
 				console.log('准备跳转到:', notification.action_url)
+				let finalUrl = notification.action_url
+				
+				// 兼容性处理：如果是旧格式的资源URL，尝试从action_params中获取资源ID
+				if (finalUrl === '/pages/resources/detail' && notification.action_params && notification.action_params.resourceId) {
+					finalUrl = `/pages/resources/detail?id=${notification.action_params.resourceId}`
+					console.log('兼容性处理：转换旧格式URL为:', finalUrl)
+				}
+				
 				try {
 					uni.navigateTo({
-						url: notification.action_url
+						url: finalUrl
 					})
 				} catch (error) {
 					console.error('跳转失败:', error)
@@ -288,8 +296,16 @@ export default {
 						if (res.tapIndex === 0) {
 							// 跳转到帖子/资源详情页
 							try {
+								let finalUrl = notification.action_url
+								
+								// 兼容性处理：如果是旧格式的资源URL，尝试从action_params中获取资源ID
+								if (finalUrl === '/pages/resources/detail' && notification.action_params && notification.action_params.resourceId) {
+									finalUrl = `/pages/resources/detail?id=${notification.action_params.resourceId}`
+									console.log('兼容性处理：转换旧格式URL为:', finalUrl)
+								}
+								
 								uni.navigateTo({
-									url: notification.action_url
+									url: finalUrl
 								})
 							} catch (error) {
 								console.error('跳转失败:', error)

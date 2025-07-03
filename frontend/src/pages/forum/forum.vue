@@ -203,10 +203,29 @@ export default {
 
 <style lang="scss" scoped>
 .forum-container {
+	width: 100%;
+	height: 100vh;
 	padding: 20rpx;
-	min-height: 100vh;
-	background-color: #f5f5f5;
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	overflow-y: auto;
+	box-sizing: border-box;
 	position: relative;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+	}
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
 }
 
 .create-post-btn {
@@ -312,16 +331,21 @@ export default {
 				font-weight: bold;
 				margin-bottom: 8rpx;
 				width: 100%;
-				white-space: nowrap;
+				word-wrap: break-word;
+				word-break: break-all;
 				overflow: hidden;
 				text-overflow: ellipsis;
-				display: block;
+				display: -webkit-box;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
 			}
 			
 			.post-excerpt {
 				font-size: 26rpx;
 				color: #666;
 				line-height: 1.5;
+				word-wrap: break-word;
+				word-break: break-all;
 				display: -webkit-box;
 				-webkit-box-orient: vertical;
 				-webkit-line-clamp: 2;

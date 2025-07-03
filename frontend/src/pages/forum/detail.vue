@@ -639,12 +639,18 @@ export default {
 			color: #333;
 			margin-bottom: 30rpx;
 			line-height: 1.4;
+			word-wrap: break-word;
+			word-break: break-all;
+			overflow-wrap: break-word;
 		}
 		
 		.post-body {
 			font-size: 28rpx;
 			line-height: 1.6;
 			color: #333;
+			word-wrap: break-word;
+			word-break: break-all;
+			overflow-wrap: break-word;
 		}
 	}
 	
