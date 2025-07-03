@@ -6,12 +6,21 @@
 				
 				<view class="form-item">
 					<text class="form-label">资源标题</text>
-					<input class="form-input" placeholder="请输入资源标题" v-model="uploadForm.title"/>
+					<uni-easyinput
+						class="form-input"
+						placeholder="请输入资源标题"
+						v-model="uploadForm.title"
+						trim="true"
+					/>
 				</view>
 				
 				<view class="form-item">
 					<text class="form-label">资源描述</text>
-					<textarea class="form-textarea" placeholder="请详细描述资源内容..." v-model="uploadForm.description"></textarea>
+					<textarea 
+						class="form-textarea" 
+						placeholder="请详细描述资源内容..." 
+						v-model="uploadForm.description"
+					></textarea>
 				</view>
 				
 				<view class="form-item">
@@ -79,6 +88,9 @@
 
 <script>
 export default {
+	components: {
+		'uni-easyinput': () => import('@dcloudio/uni-ui/lib/uni-easyinput/uni-easyinput.vue')
+	},
 	data() {
 		return {
 			uploadForm: {
@@ -139,8 +151,6 @@ export default {
 			console.log('手动选择分类', selectedCat, 'categoryId:', this.uploadForm.categoryId)
 		},
 		
-		
-		
 		chooseFile() {
 			uni.chooseFile({
 				count: 1,
@@ -164,7 +174,6 @@ export default {
 				}
 			})
 		},
-		
 		
 		previewResource() {
 			if (!this.validateForm()) {
@@ -423,29 +432,36 @@ export default {
 		}
 		
 		.form-item {
-			margin-bottom: 30rpx;
+			margin-bottom: 36rpx;
 			width: 100%;
 			box-sizing: border-box;
 			
 			.form-label {
 				display: block;
-				font-size: 28rpx;
-				color: #666;
-				margin-bottom: 15rpx;
+				font-size: 30rpx;
+				color: #333;
+				margin-bottom: 16rpx;
+				font-weight: 500;
 			}
 			
 			.form-input, .form-textarea {
 				width: 100%;
-				padding: 20rpx;
+				padding: 24rpx;
 				border: 2rpx solid #e0e0e0;
-				border-radius: 10rpx;
-				font-size: 28rpx;
-				background: #fafafa;
+				border-radius: 12rpx;
+				font-size: 32rpx;
+				background: #ffffff;
 				box-sizing: border-box;
+				
+				&:focus {
+					border-color: #007aff;
+					background: #ffffff;
+					box-shadow: 0 0 0 2rpx rgba(0,122,255,0.1);
+				}
 			}
 			
 			.form-textarea {
-				height: 150rpx;
+				height: 200rpx;
 				resize: none;
 			}
 			

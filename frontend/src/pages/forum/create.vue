@@ -31,37 +31,21 @@
 							<text class="tag-remove">✕</text>
 						</view>
 					</view>
-					<view class="tag-input-section">
-						<input 
-							class="tag-input" 
-							placeholder="输入标签名称..." 
-							:value="newTag"
-							@input="onTagInput"
-							@confirm="addTag"
-							maxlength="20"
-							type="text"
-							confirm-type="done"
-						/>
-						<button class="add-tag-btn" @click="addTag" :disabled="!newTag.trim()">添加</button>
-					</view>
-					<view class="recommended-tags" v-if="recommendedTags.length > 0">
-						<text class="recommended-label">推荐标签：</text>
-						<view class="recommended-tag-list">
+					<view class="available-tags" v-if="allTags.length > 0">
+						<view class="available-tag-list">
 							<view 
-								class="recommended-tag" 
-								v-for="tag in recommendedTags" 
+								class="available-tag" 
+								v-for="tag in allTags" 
 								:key="tag.tag_id"
 								@click="selectTag(tag.tag_name)"
 								:style="{ backgroundColor: tag.tag_color + '20', color: tag.tag_color }"
+								:class="{ 'tag-selected': form.tags.includes(tag.tag_name) }"
 							>
 								<text class="tag-text">{{ tag.tag_name }}</text>
 							</view>
-							<view class="more-tags-btn" @click="showAllTags">
-								<text class="more-text">更多标签</text>
-								<text class="more-arrow">></text>
-							</view>
 						</view>
 					</view>
+					<text class="tag-tip" v-if="form.tags.length === 0">至少选择一个标签</text>
 				</view>
 			</view>
 			
@@ -131,10 +115,7 @@ export default {
 				content: '',
 				tags: []
 			},
-			newTag: '',
-			recommendedTags: [],
 			allTags: [],
-			showAllTagsModal: false,
 			showPreview: false,
 			publishing: false,
 			cursorPosition: 0
@@ -174,13 +155,6 @@ export default {
 			}, 0)
 		},
 		
-		onTagInput(e) {
-			// 确保在下一个事件循环中更新值
-			setTimeout(() => {
-				this.newTag = e.detail.value
-			}, 0)
-		},
-		
 		async loadAllTags() {
 			try {
 				const response = await uni.request({
@@ -190,10 +164,13 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.allTags = response.data.data
-					this.recommendedTags = this.allTags.slice(0, 8) // 只显示前8个推荐标签
 				}
 			} catch (error) {
 				console.error('加载标签失败:', error)
+				uni.showToast({
+					title: '加载标签失败',
+					icon: 'none'
+				})
 			}
 		},
 		
@@ -202,33 +179,21 @@ export default {
 		},
 		
 		selectTag(tagName) {
-			if (this.form.tags.includes(tagName)) {
-				uni.showToast({
-					title: '标签已存在',
-					icon: 'none'
-				})
-				return
-			}
-			
-			if (this.form.tags.length >= 5) {
-				uni.showToast({
-					title: '最多只能添加5个标签',
-					icon: 'none'
-				})
-				return
-			}
-			
-			this.form.tags.push(tagName)
-		},
-		
-		showAllTags() {
-			uni.showActionSheet({
-				itemList: this.allTags.map(tag => tag.tag_name),
-				success: (res) => {
-					const selectedTag = this.allTags[res.tapIndex]
-					this.selectTag(selectedTag.tag_name)
+			const tagIndex = this.form.tags.indexOf(tagName)
+			if (tagIndex > -1) {
+				// 如果标签已经选中，则移除它
+				this.form.tags.splice(tagIndex, 1)
+			} else {
+				// 如果标签未选中，且未达到上限，则添加它
+				if (this.form.tags.length >= 5) {
+					uni.showToast({
+						title: '最多只能选择5个标签',
+						icon: 'none'
+					})
+					return
 				}
-			})
+				this.form.tags.push(tagName)
+			}
 		},
 		
 		insertFormat(before, after) {
@@ -421,106 +386,45 @@ export default {
 				font-size: 24rpx;
 				margin-right: 8rpx;
 			}
-			
-			.tag-remove {
-				font-size: 20rpx;
-				font-weight: bold;
-			}
 		}
 	}
 	
-	.tag-input-section {
-		display: flex;
-		gap: 15rpx;
+	.available-tags {
 		margin-bottom: 20rpx;
 		
-		.tag-input {
-			flex: 1;
-			height: 70rpx;
-			border: 1rpx solid #e0e0e0;
-			border-radius: 8rpx;
-			padding: 15rpx;
-			font-size: 26rpx;
-			background: #fafafa;
-			box-sizing: border-box;
-		}
-		
-		.add-tag-btn {
-			height: 70rpx;
-			line-height: 70rpx;
-			background: #007aff;
-			color: white;
-			border: none;
-			border-radius: 8rpx;
-			padding: 0 30rpx;
-			font-size: 26rpx;
-			
-			&[disabled] {
-				background: #ccc;
-			}
-		}
-	}
-	
-	.recommended-tags {
-		.recommended-label {
+		.available-label {
 			font-size: 24rpx;
 			color: #666;
-			margin-bottom: 15rpx;
+			text-align: center;
 			display: block;
 		}
 		
-		.recommended-tag-list {
+		.available-tag-list {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 10rpx;
-			align-items: center;
+			margin-top: 10rpx;
 			
-			.recommended-tag {
+			.available-tag {
 				padding: 8rpx 16rpx;
 				border-radius: 20rpx;
-				cursor: pointer;
-				transition: opacity 0.2s;
+				background: #f8f8f8;
+				color: #666;
+				font-size: 24rpx;
 				
-				&:active {
-					opacity: 0.7;
-				}
-				
-				.tag-text {
-					font-size: 22rpx;
-				}
-			}
-			
-			.more-tags-btn {
-				display: flex;
-				align-items: center;
-				padding: 8rpx 16rpx;
-				border: 1rpx solid #007aff;
-				border-radius: 20rpx;
-				background: transparent;
-				cursor: pointer;
-				transition: all 0.2s;
-				
-				&:active {
+				&.tag-selected {
 					background: #007aff;
-					
-					.more-text, .more-arrow {
-						color: white;
-					}
-				}
-				
-				.more-text {
-					font-size: 22rpx;
-					color: #007aff;
-					margin-right: 4rpx;
-				}
-				
-				.more-arrow {
-					font-size: 18rpx;
-					color: #007aff;
-					font-weight: bold;
+					color: white;
 				}
 			}
 		}
+	}
+	
+	.tag-tip {
+		font-size: 24rpx;
+		color: #666;
+		text-align: center;
+		display: block;
 	}
 }
 
