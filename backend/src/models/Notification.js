@@ -18,9 +18,9 @@ const Notification = sequelize.define('Notification', {
     comment: '接收者手机号（为空表示广播通知，面向全体用户）'
   },
   type: {
-    type: DataTypes.ENUM('system', 'study', 'interaction', 'resource', 'announcement'),
+    type: DataTypes.ENUM('system', 'study', 'interaction', 'resource', 'announcement', 'follow_post', 'follow_resource', 'comment_reply', 'content_liked', 'content_commented', 'new_follower'),
     allowNull: false,
-    comment: '通知类型：system-系统通知，study-学习相关，interaction-互动通知，resource-资源相关，announcement-公告'
+    comment: '通知类型：system-系统通知，study-学习相关，interaction-互动通知，resource-资源相关，announcement-公告，follow_post-关注用户发布帖子，follow_resource-关注用户发布资源，comment_reply-评论回复，content_liked-内容被收藏，content_commented-内容被评论，new_follower-新关注者'
   },
   priority: {
     type: DataTypes.ENUM('high', 'medium', 'low'),
@@ -66,6 +66,25 @@ const Notification = sequelize.define('Notification', {
     type: DataTypes.DATE,
     allowNull: true,
     comment: '过期时间（可选）'
+  },
+  related_user_phone: {
+    type: DataTypes.STRING(11),
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'phone_number'
+    },
+    comment: '相关用户手机号（如：内容发布者、评论者）'
+  },
+  related_content_id: {
+    type: DataTypes.STRING(9),
+    allowNull: true,
+    comment: '相关内容ID（如：帖子ID、资源ID）'
+  },
+  related_content_type: {
+    type: DataTypes.ENUM('post', 'resource', 'comment'),
+    allowNull: true,
+    comment: '相关内容类型'
   }
 }, {
   tableName: 'notifications',

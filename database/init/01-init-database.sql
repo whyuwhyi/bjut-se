@@ -256,19 +256,27 @@ CREATE TABLE sub_tasks (
 CREATE TABLE notifications (
     notification_id VARCHAR(9) PRIMARY KEY COMMENT '通知ID',
     receiver_phone VARCHAR(11) NULL COMMENT '接收者手机号（为空表示广播通知，面向全体用户）',
-    type ENUM('system', 'study', 'interaction', 'resource', 'announcement') NOT NULL COMMENT '通知类型',
+    type ENUM('system', 'study', 'interaction', 'resource', 'announcement', 'follow_post', 'follow_resource', 'comment_reply', 'content_liked', 'content_commented', 'new_follower') NOT NULL COMMENT '通知类型',
     priority ENUM('high', 'medium', 'low') DEFAULT 'medium' COMMENT '优先级',
     title VARCHAR(200) NOT NULL COMMENT '通知标题',
     content TEXT NOT NULL COMMENT '通知内容',
     action_type ENUM('none', 'navigate', 'external_link') DEFAULT 'none' COMMENT '动作类型',
     action_url VARCHAR(500) COMMENT '动作URL',
     action_params JSON COMMENT '动作参数',
+    related_user_phone VARCHAR(11) NULL COMMENT '相关用户手机号（如：内容发布者、评论者）',
+    related_content_id VARCHAR(9) NULL COMMENT '相关内容ID（如：帖子ID、资源ID）',
+    related_content_type ENUM('post', 'resource', 'comment') NULL COMMENT '相关内容类型',
     is_read BOOLEAN DEFAULT FALSE COMMENT '是否已读（只对个人通知有效）',
     read_at TIMESTAMP NULL COMMENT '阅读时间（只对个人通知有效）',
     expires_at TIMESTAMP NULL COMMENT '过期时间',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE
+    FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
+    FOREIGN KEY (related_user_phone) REFERENCES users(phone_number) ON DELETE SET NULL,
+    INDEX idx_receiver_type (receiver_phone, type),
+    INDEX idx_related_user (related_user_phone),
+    INDEX idx_related_content (related_content_id, related_content_type),
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='通知表';
 
 -- 16. 广播通知已读状态表
@@ -531,13 +539,16 @@ INSERT INTO sub_tasks (task_id, title, description, completed, sort_order, deadl
 
 
 -- 插入通知
-INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
-('600000001', '13800138002', 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', false, NOW(), NOW()),
-('600000002', '13800138003', 'system', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', false, NOW(), NOW());
+INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, related_user_phone, related_content_id, related_content_type, is_read, created_at, updated_at) VALUES
+('600000001', '13800138002', 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', NULL, NULL, NULL, false, NOW(), NOW()),
+('600000002', '13800138003', 'new_follower', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', '13800138002', NULL, NULL, false, NOW(), NOW()),
+('600000004', '13800138002', 'follow_post', 'medium', '关注用户发布了新帖子', '张教授发布了新帖子：《算法学习心得》', 'navigate', '13800138001', '100000001', 'post', false, NOW(), NOW()),
+('600000005', '13800138003', 'follow_resource', 'medium', '关注用户发布了新资源', '张教授上传了新资源：《数据结构与算法教程》', 'navigate', '13800138001', '123456789', 'resource', false, NOW(), NOW()),
+('600000006', '13800138001', 'content_commented', 'low', '您的帖子收到新评论', '李同学评论了您的帖子：《算法学习心得》', 'navigate', '13800138002', '100000001', 'post', false, NOW(), NOW());
 
 -- 插入一个广播通知示例（receiver_phone为NULL）
-INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
-('600000003', NULL, 'announcement', 'high', '系统维护通知', '系统将于今晚23:00-24:00进行维护，请合理安排学习时间。', 'none', false, NOW(), NOW());
+INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, related_user_phone, related_content_id, related_content_type, is_read, created_at, updated_at) VALUES
+('600000003', NULL, 'announcement', 'high', '系统维护通知', '系统将于今晚23:00-24:00进行维护，请合理安排学习时间。', 'none', NULL, NULL, NULL, false, NOW(), NOW());
 
 -- 插入广播通知已读状态示例（只有用户13800138002标记了这个广播通知为已读）
 INSERT INTO notification_reads (user_phone, notification_id, read_at, created_at, updated_at) VALUES

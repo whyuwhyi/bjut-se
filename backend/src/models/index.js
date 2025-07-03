@@ -259,6 +259,13 @@ NotificationRead.belongsTo(Notification, {
   as: 'notification'
 })
 
+// 通知相关用户关系
+Notification.belongsTo(User, {
+  foreignKey: 'related_user_phone',
+  targetKey: 'phone_number',
+  as: 'relatedUser'
+})
+
 // 收藏-资源关系（基于content_id匹配）
 Collection.belongsTo(Resource, {
   foreignKey: 'content_id',

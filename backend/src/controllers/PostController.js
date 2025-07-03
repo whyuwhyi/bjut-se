@@ -8,6 +8,7 @@ const { Op } = require('sequelize')
 const idGenerator = require('../utils/IdGenerator')
 const searchHelper = require('../utils/SearchHelper')
 const searchCache = require('../utils/RedisSearchCache')
+const NotificationService = require('../services/NotificationService')
 
 class PostController {
 
@@ -295,6 +296,19 @@ class PostController {
 
       // 清除相关缓存
       await searchCache.invalidate('post', 'create')
+
+      // 异步推送通知给关注者
+      try {
+        await NotificationService.notifyFollowersAboutNewContent(
+          authorPhone,
+          'post',
+          postId,
+          title
+        )
+      } catch (notificationError) {
+        // 通知推送失败不影响帖子发布成功
+        console.error('推送关注者通知失败:', notificationError)
+      }
 
       res.status(201).json({
         success: true,

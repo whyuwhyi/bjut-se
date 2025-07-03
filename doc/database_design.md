@@ -343,16 +343,19 @@
 |--------|----------|----------|------|
 | notification_id | VARCHAR(9) | PRIMARY KEY | 9位数字的通知唯一标识符 |
 | receiver_phone | VARCHAR(11) | FK | 接收者手机号（为空表示广播通知，面向全体用户） |
-| type | ENUM('system','study','interaction','resource','announcement') | NOT NULL | 通知类型 |
+| type | ENUM('system','study','interaction','resource','announcement','follow_post','follow_resource','comment_reply','content_liked','content_commented','new_follower') | NOT NULL | 通知类型 |
 | priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
 | title | VARCHAR(200) | NOT NULL | 通知标题 |
 | content | TEXT | NOT NULL | 通知内容 |
 | action_type | ENUM('none','navigate','external_link') | DEFAULT 'none' | 动作类型 |
 | action_url | VARCHAR(500) | | 动作URL（页面路径或外部链接） |
 | action_params | JSON | | 动作参数（JSON格式） |
+| related_user_phone | VARCHAR(11) | FK | 相关用户手机号（如：内容发布者、评论者） |
+| related_content_id | VARCHAR(9) | | 相关内容ID（如：帖子ID、资源ID） |
+| related_content_type | ENUM('post','resource','comment') | | 相关内容类型 |
 | is_read | BOOLEAN | DEFAULT FALSE | 是否已读（仅用于个人通知） |
-| read_at | DATE | | 阅读时间（仅用于个人通知） |
-| expires_at | DATE | | 过期时间（可选） |
+| read_at | TIMESTAMP | | 阅读时间（仅用于个人通知） |
+| expires_at | TIMESTAMP | | 过期时间（可选） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
@@ -362,6 +365,23 @@
 - **interaction**: 互动通知（关注、评论等）
 - **resource**: 资源相关通知
 - **announcement**: 公告通知
+- **follow_post**: 关注用户发布新帖子通知
+- **follow_resource**: 关注用户发布新资源通知
+- **comment_reply**: 评论回复通知
+- **content_liked**: 内容被收藏通知
+- **content_commented**: 内容被评论通知
+- **new_follower**: 新粉丝关注通知
+
+**关联字段说明**:
+- **related_user_phone**: 相关用户，如内容发布者、评论者、关注者
+- **related_content_id**: 相关内容ID，可以是帖子ID、资源ID等
+- **related_content_type**: 相关内容类型，区分是帖子、资源还是评论
+
+**索引优化**:
+- `idx_receiver_type`: 按接收者和类型查询优化
+- `idx_related_user`: 按相关用户查询优化
+- `idx_related_content`: 按相关内容查询优化
+- `idx_created_at`: 按创建时间排序优化
 
 ### 6.2 广播通知已读状态表 (notification_reads)
 

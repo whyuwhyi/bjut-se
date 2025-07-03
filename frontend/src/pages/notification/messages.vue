@@ -43,7 +43,7 @@
 			>
 				<!-- 消息图标和类型 -->
 				<view class="message-icon">
-					<text class="icon-text">{{ getTypeIcon(notification.type) }}</text>
+					<text class="icon-text">{{ getTypeIcon(notification.type, notification) }}</text>
 					<view class="priority-dot" :class="'priority-' + notification.priority"></view>
 				</view>
 
@@ -54,8 +54,10 @@
 						<text class="message-time">{{ formatTime(notification.created_at) }}</text>
 					</view>
 					<text class="message-text">{{ notification.content }}</text>
-					<view class="message-meta" v-if="notification.sender">
-						<text class="sender-name">来自：{{ notification.sender.nickname || notification.sender.name }}</text>
+					<view class="message-meta">
+						<text class="sender-name" v-if="notification.related_user">来自：{{ notification.related_user.name }}</text>
+						<text class="action-info" v-if="isContentNotification(notification)">点击直达内容</text>
+						<text class="action-info" v-else-if="notification.action_url">点击查看详情</text>
 					</view>
 				</view>
 
@@ -154,6 +156,8 @@ export default {
 					params.type = this.selectedType
 				}
 				
+				console.log('加载通知，筛选类型:', this.selectedType, '参数:', params)
+				
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/notifications`,
 					method: 'GET',
@@ -165,6 +169,9 @@ export default {
 				
 				if (response.data.success) {
 					const data = response.data.data
+					console.log('接收到通知数据:', data.notifications.length, '条通知')
+					console.log('通知类型分布:', data.notifications.map(n => n.type))
+					
 					if (reset) {
 						this.notifications = data.notifications
 					} else {
@@ -220,6 +227,7 @@ export default {
 		},
 		
 		selectType(type) {
+			console.log('切换筛选类型:', this.selectedType, '->', type)
 			this.selectedType = type
 			this.loadNotifications(true)
 		},
@@ -235,9 +243,16 @@ export default {
 			
 			// 处理跳转动作
 			if (notification.action_type === 'navigate' && notification.action_url) {
-				uni.navigateTo({
-					url: notification.action_url
-				})
+				console.log('准备跳转到:', notification.action_url)
+				try {
+					uni.navigateTo({
+						url: notification.action_url
+					})
+				} catch (error) {
+					console.error('跳转失败:', error)
+					// 如果跳转失败，显示通知详情
+					this.showNotificationDetail(notification)
+				}
 			} else if (notification.action_type === 'external_link' && notification.action_url) {
 				// 可以打开外部链接或者显示详情
 				uni.showModal({
@@ -257,12 +272,60 @@ export default {
 		},
 		
 		showNotificationDetail(notification) {
-			uni.showModal({
-				title: notification.title,
-				content: notification.content,
-				showCancel: false,
-				confirmText: '知道了'
-			})
+			// 检查是否是帖子/讨论/评论相关的通知，如果是则提供直接跳转选项
+			const hasDirectLink = notification.action_url && (
+				notification.title.includes('发布了新帖子') || 
+				notification.title.includes('发布了新资源') ||
+				notification.title.includes('收到新评论') ||
+				notification.title.includes('被收藏')
+			)
+			
+			if (hasDirectLink) {
+				// 有直接链接的通知，提供三个选项
+				uni.showActionSheet({
+					itemList: ['查看内容详情', '查看消息详情', '知道了'],
+					success: (res) => {
+						if (res.tapIndex === 0) {
+							// 跳转到帖子/资源详情页
+							try {
+								uni.navigateTo({
+									url: notification.action_url
+								})
+							} catch (error) {
+								console.error('跳转失败:', error)
+								uni.showToast({
+									title: '跳转失败',
+									icon: 'none'
+								})
+							}
+						} else if (res.tapIndex === 1) {
+							// 跳转到消息详情页面
+							uni.navigateTo({
+								url: `/pages/notification/detail?id=${notification.notification_id}`
+							})
+						}
+						// 如果选择"知道了"，什么都不做
+					}
+				})
+			} else {
+				// 普通通知，保持原来的弹窗形式
+				uni.showModal({
+					title: notification.title,
+					content: notification.content,
+					showCancel: true,
+					cancelText: '知道了',
+					confirmText: '查看详情',
+					success: (res) => {
+						if (res.confirm) {
+							// 点击"查看详情"跳转到消息详情页面
+							uni.navigateTo({
+								url: `/pages/notification/detail?id=${notification.notification_id}`
+							})
+						}
+						// 如果点击"知道了"或取消，什么都不做
+					}
+				})
+			}
 		},
 		
 		async markAsRead(notificationId) {
@@ -408,14 +471,38 @@ export default {
 			})
 		},
 		
-		getTypeIcon(type) {
+		// 判断是否是内容相关的通知（帖子、资源、评论等）
+		isContentNotification(notification) {
+			return notification.action_url && (
+				notification.title.includes('发布了新帖子') || 
+				notification.title.includes('发布了新资源') ||
+				notification.title.includes('收到新评论') ||
+				notification.title.includes('被收藏')
+			)
+		},
+		
+		getTypeIcon(type, notification) {
 			const icons = {
 				system: '⚙️',
 				study: '📚',
-				interaction: '💬',
 				resource: '📁',
 				announcement: '📢'
 			}
+			
+			// 对于互动类型，根据通知内容选择合适的图标
+			if (type === 'interaction' && notification) {
+				if (notification.title.includes('关注用户发布')) {
+					return notification.content.includes('帖子') ? '👥' : '👤'
+				} else if (notification.title.includes('新的关注者')) {
+					return '👋'
+				} else if (notification.title.includes('收到新评论')) {
+					return '💭'
+				} else if (notification.title.includes('被收藏')) {
+					return '❤️'
+				}
+				return '💬'
+			}
+			
 			return icons[type] || '📋'
 		},
 		
@@ -653,10 +740,18 @@ export default {
 			
 			.message-meta {
 				margin-top: 12rpx;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
 				
 				.sender-name {
 					font-size: 22rpx;
 					color: #999;
+				}
+				
+				.action-info {
+					font-size: 20rpx;
+					color: #007aff;
 				}
 			}
 		}
