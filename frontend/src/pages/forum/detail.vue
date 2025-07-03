@@ -142,6 +142,7 @@ import QRCode from 'qrcode'
 import ReportModal from '@/components/ReportModal.vue'
 import config from '@/utils/config'
 import { navigateToUserProfile } from '@/utils/userUtils'
+import eventBus, { EVENTS } from '@/utils/eventBus'
 
 export default {
 	components: {
@@ -191,6 +192,13 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.post = response.data.data
+					
+					// 发送浏览数更新事件
+					eventBus.emit(EVENTS.POST_VIEW_CHANGED, {
+						postId: this.postId,
+						viewCount: this.post.view_count
+					})
+					
 					// 检查是否已收藏
 					this.checkCollectionStatus()
 				} else {
@@ -297,6 +305,18 @@ export default {
 					this.commentText = ''
 					this.replyTarget = null
 					this.loadComments()
+					
+					// 更新本地帖子评论数
+					if (this.post) {
+						this.post.comment_count = (this.post.comment_count || 0) + 1
+					}
+					
+					// 发送评论数更新事件
+					eventBus.emit(EVENTS.POST_COMMENT_CHANGED, {
+						postId: this.postId,
+						commentCount: this.post.comment_count
+					})
+					
 					uni.showToast({ title: '评论成功', icon: 'success' })
 				}
 			} catch (error) {
@@ -495,6 +515,20 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.isCollected = response.data.data.isCollected
+					const collectionCount = response.data.data.collection_count || this.post.collection_count
+					
+					// 更新本地帖子数据
+					if (this.post) {
+						this.post.collection_count = collectionCount
+					}
+					
+					// 发送事件通知列表页面更新
+					eventBus.emit(EVENTS.POST_FAVORITE_CHANGED, {
+						postId: this.postId,
+						isFavorited: this.isCollected,
+						favoriteCount: collectionCount
+					})
+					
 					uni.showToast({
 						title: this.isCollected ? '收藏成功' : '已取消收藏',
 						icon: 'success'

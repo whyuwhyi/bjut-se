@@ -467,6 +467,19 @@ class PostController {
       })
 
       await post.increment('comment_count')
+      
+      // 重新获取帖子最新数据
+      await post.reload()
+      
+      // 更新缓存中的评论统计数据
+      try {
+        await updatePostStatsInCache(id, { 
+          comment_count: post.comment_count,
+          commentCount: post.comment_count
+        })
+      } catch (cacheError) {
+        console.error('更新帖子评论缓存失败:', cacheError)
+      }
 
       const newComment = await Comment.findOne({
         where: { comment_id: comment.comment_id },

@@ -63,10 +63,6 @@
 			<image class="upload-icon" src="/static/icons/upload.png" mode="aspectFit"></image>
 		</view>
 		
-		<!-- 调试按钮 -->
-		<view class="debug-btn" @click="testUpdateStats" style="position: fixed; bottom: 200rpx; right: 40rpx; width: 100rpx; height: 100rpx; background: #ff6b6b; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 999;">
-			<text style="color: white; font-size: 24rpx;">测试</text>
-		</view>
 
 		<!-- 加载更多 -->
 		<view class="load-more" v-if="hasMore && !loading">
@@ -349,25 +345,6 @@ export default {
 			}
 		},
 		
-		// 测试方法：手动更新统计数据
-		testUpdateStats() {
-			if (this.resources.length > 0) {
-				const resource = this.resources[0]
-				console.log('更新前:', resource)
-				
-				// 模拟统计数据变化
-				this.$set(resource, 'viewCount', (resource.viewCount || 0) + 10)
-				this.$set(resource, 'downloadCount', (resource.downloadCount || 0) + 5)
-				this.$set(resource, 'favoriteCount', (resource.favoriteCount || 0) + 2)
-				this.$set(resource, 'collection_count', (resource.collection_count || 0) + 2)
-				
-				console.log('更新后:', resource)
-				uni.showToast({
-					title: '测试更新完成',
-					icon: 'success'
-				})
-			}
-		}
 	}
 }
 </script>
