@@ -24,9 +24,32 @@ const auth = async (req, res, next) => {
     }
 
     if (user.status !== 'active') {
-      return res.status(403).json({
+      let message = '账户无法访问'
+      let statusCode = 403
+      
+      switch (user.status) {
+        case 'inactive':
+          message = '账户已被停用，请联系管理员重新激活您的账户'
+          break
+        case 'banned':
+          message = '账户已被封禁，您已被强制退出系统'
+          break
+        case 'deleted':
+          message = '账户已被删除，请重新注册'
+          statusCode = 410 // Gone
+          break
+        default:
+          message = '账户状态异常，请联系管理员处理'
+      }
+      
+      return res.status(statusCode).json({
         success: false,
-        message: '账户已被禁用'
+        message,
+        data: {
+          status: user.status,
+          forceLogout: true,
+          contactAdmin: user.status !== 'deleted'
+        }
       })
     }
 

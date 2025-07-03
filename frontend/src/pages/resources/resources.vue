@@ -1,47 +1,12 @@
 <template>
 	<view class="resources-container">
-		<!-- 顶部搜索和筛选区域 -->
-		<view class="top-section">
-			<!-- 搜索栏 -->
-			<view class="search-bar">
-				<text class="search-icon">🔍</text>
-				<input class="search-input" placeholder="搜索学习资源..." v-model="searchKeyword" @input="handleSearch"/>
-			</view>
-			
-			<!-- 分类筛选 -->
-			<view class="category-filter" v-if="categories.length > 0">
-				<scroll-view class="category-scroll" scroll-x="true">
-					<view class="category-list">
-						<view 
-							class="category-item" 
-							:class="{ active: selectedCategoryIndex === -1 }"
-							@click="selectCategory(-1)"
-						>
-							<text class="category-text">全部</text>
-						</view>
-						<view 
-							class="category-item" 
-							:class="{ active: selectedCategoryIndex === index }"
-							v-for="(category, index) in categories" 
-							:key="category.category_id"
-							@click="selectCategory(index)"
-						>
-							<text class="category-text">{{ category.category_name }}</text>
-						</view>
-					</view>
-				</scroll-view>
-			</view>
-			
-			<!-- 排序选择 -->
-			<view class="sort-section">
-				<picker :value="selectedSortIndex" :range="sortNames" @change="sortChange">
-					<view class="sort-picker">
-						<text class="sort-text">{{ sortNames[selectedSortIndex] }}</text>
-						<text class="sort-icon">▼</text>
-					</view>
-				</picker>
-			</view>
-		</view>
+		<!-- 高级搜索组件 -->
+		<AdvancedSearch 
+			type="resource"
+			placeholder="搜索学习资源..."
+			:loading="loading"
+			@search="handleAdvancedSearch"
+		/>
 
 		<!-- 资源列表 -->
 		<view class="resources-list">
@@ -96,36 +61,25 @@
 </template>
 
 <script>
+import AdvancedSearch from '@/components/AdvancedSearch.vue'
+
 export default {
+	components: {
+		AdvancedSearch
+	},
+	
 	data() {
 		return {
-			searchKeyword: '',
-			currentSort: 'latest',
-			categories: [],
-			sortOptions: [
-				{ label: '最新上传', value: 'latest' },
-				{ label: '下载最多', value: 'download' },
-				{ label: '评分最高', value: 'rating' },
-				{ label: '浏览最多', value: 'view' }
-			],
-			selectedCategoryIndex: -1,
-			selectedSortIndex: 0,
 			resources: [],
 			page: 1,
 			limit: 6,
 			hasMore: true,
-			loading: false
-		}
-	},
-	
-	computed: {
-		sortNames() {
-			return this.sortOptions.map(sort => sort.label)
+			loading: false,
+			searchParams: {}
 		}
 	},
 	
 	onLoad() {
-		this.loadCategories()
 		this.loadResources()
 	},
 	
@@ -135,21 +89,12 @@ export default {
 	},
 	
 	methods: {
-		// 加载分类列表
-		async loadCategories() {
-			try {
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/categories`,
-					method: 'GET'
-				})
-				
-				if (response.statusCode === 200 && response.data.success) {
-					this.categories = response.data.data
-					console.log('分类数据', this.categories)
-				}
-			} catch (error) {
-				console.error('加载分类失败:', error)
-			}
+		// 处理高级搜索
+		handleAdvancedSearch(searchParams) {
+			this.searchParams = searchParams
+			this.page = 1
+			this.hasMore = true
+			this.loadResources(true)
 		},
 		
 		// 加载资源列表
@@ -160,13 +105,7 @@ export default {
 				const params = {
 					page: refresh ? 1 : this.page,
 					limit: this.limit,
-					sortBy: this.currentSort
-				}
-				if (this.selectedCategoryIndex >= 0 && this.categories[this.selectedCategoryIndex]) {
-					params.categories = this.categories[this.selectedCategoryIndex].category_id
-				}
-				if (this.searchKeyword) {
-					params.search = this.searchKeyword
+					...this.searchParams
 				}
 				const token = uni.getStorageSync('token')
 				const headers = {}
@@ -201,28 +140,6 @@ export default {
 			} finally {
 				this.loading = false
 			}
-		},
-		handleSearch() {
-			this.page = 1
-			this.hasMore = true
-			this.loadResources(true)
-		},
-		
-
-		// 分类选择
-		selectCategory(index) {
-			this.selectedCategoryIndex = index
-			this.loadResources()
-			console.log('当前选中分类', this.selectedCategoryIndex)
-			console.log('赋值后的 categoryId', this.categories[this.selectedCategoryIndex]?.category_id)
-		},
-		
-		
-		// 排序选择
-		sortChange(e) {
-			this.selectedSortIndex = e.detail.value
-			this.currentSort = this.sortOptions[e.detail.value].value
-			this.loadResources()
 		},
 		
 		
@@ -368,6 +285,7 @@ export default {
 	}
 }
 
+<<<<<<< HEAD
 .top-section {
 	width: 100%;
 	background: white;
@@ -454,6 +372,8 @@ export default {
 		}
 	}
 }
+=======
+>>>>>>> 4d6f3e0e783a8d263bcabeb836bcd7e7a7dff987
 
 .resources-list {
 	width: 100%;
@@ -576,6 +496,24 @@ export default {
 				overflow: hidden;
 				text-overflow: ellipsis;
 			}
+		}
+	}
+}
+
+.load-more {
+	padding: 30rpx;
+	text-align: center;
+	
+	.load-more-btn {
+		padding: 20rpx 40rpx;
+		background: #007aff;
+		color: white;
+		border: none;
+		border-radius: 25rpx;
+		font-size: 28rpx;
+		
+		&:active {
+			background: #0066cc;
 		}
 	}
 }

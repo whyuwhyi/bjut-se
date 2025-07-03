@@ -1,6 +1,7 @@
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
+const idGenerator = require('../utils/IdGenerator')
 
 // 确保上传目录存在
 const createUploadDir = (dir) => {
@@ -19,7 +20,7 @@ const avatarStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     // 生成唯一文件名：用户手机号_时间戳.扩展名
     const ext = path.extname(file.originalname)
-    const filename = `${req.user.phone_number}_${Date.now()}${ext}`
+    const filename = idGenerator.generateFileId(req.user.phone_number, ext)
     cb(null, filename)
   }
 })
@@ -85,7 +86,7 @@ const resourceStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     // 生成唯一文件名：资源ID_时间戳_原文件名
-    const timestamp = Date.now()
+    const timestamp = Date.now() // 保留用于目录结构
     const resourceId = req.body.resource_id
     const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')
     const filename = `${resourceId}_${timestamp}_${safeName}`
@@ -111,7 +112,7 @@ const imageStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname)
-    const filename = `${Date.now()}_${Math.floor(Math.random()*10000)}${ext}`
+    const filename = idGenerator.generateFileId('', ext)
     cb(null, filename)
   }
 })

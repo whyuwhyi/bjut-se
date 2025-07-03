@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator')
 const { Notification, User, NotificationRead } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 const { Op } = require('sequelize')
 
 class NotificationController {
@@ -502,7 +503,7 @@ class NotificationController {
 
       // 生成通知ID
       const generateNotificationId = () => {
-        return Math.floor(100000000 + Math.random() * 900000000).toString()
+        return idGenerator.generateNotificationId()
       }
 
       let targetUsers = target_users

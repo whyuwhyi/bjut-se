@@ -1,4 +1,5 @@
 const { StudyTask, SubTask, StudyPlan } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 
 // 创建学习任务
 const createTask = async (req, res) => {
@@ -22,7 +23,7 @@ const createTask = async (req, res) => {
     }
 
     // 生成9位数字ID
-    const task_id = Date.now().toString().slice(-9)
+    const task_id = idGenerator.generateTaskId()
 
     const task = await StudyTask.create({
       task_id,

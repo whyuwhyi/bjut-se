@@ -1,4 +1,5 @@
 const { User, Resource, Post, Collection, UserFollow, File, VerificationCode } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 const jwt = require('jsonwebtoken')
 const { validationResult } = require('express-validator')
 const config = require('../config/app')
@@ -83,7 +84,7 @@ class UserController {
   // 发送验证码
   async sendVerificationCode(req, res) {
     const { phone_number } = req.body;
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 生成6位验证码
+    const verificationCode = idGenerator.generateVerificationCode(6); // 生成6位验证码
 
     try {
       // 发送短信
@@ -193,9 +194,31 @@ class UserController {
 
       // 检查用户状态
       if (user.status !== 'active') {
-        return res.status(403).json({
+        let message = '账户无法登录'
+        let statusCode = 403
+        
+        switch (user.status) {
+          case 'inactive':
+            message = '账户已被停用，请联系管理员重新激活您的账户'
+            break
+          case 'banned':
+            message = '账户已被封禁，如有疑问请联系管理员申诉'
+            break
+          case 'deleted':
+            message = '账户已被删除，无法登录系统'
+            statusCode = 410 // Gone
+            break
+          default:
+            message = '账户状态异常，请联系管理员处理'
+        }
+        
+        return res.status(statusCode).json({
           success: false,
-          message: '账户已被禁用'
+          message,
+          data: {
+            status: user.status,
+            contactAdmin: true
+          }
         })
       }
 
@@ -757,7 +780,7 @@ class UserController {
         }
       } else {
         // 新关注
-        const follow_id = Date.now().toString().slice(-9)
+        const follow_id = idGenerator.generateFollowId()
         await UserFollow.create({
           follow_id,
           follower_phone,

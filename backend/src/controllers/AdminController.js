@@ -1,4 +1,5 @@
 const { User, Resource, Post, Notification, NotificationRead, Comment, Collection, UserFollow, ResourceReport, PostReport, Feedback, File, Category } = require('../models');
+const idGenerator = require('../utils/IdGenerator');
 const { Op } = require('sequelize');
 const Docker = require('dockerode');
 
@@ -1299,7 +1300,7 @@ class AdminController {
       if (target_users.length === 0) {
         // 创建广播通知
         const broadcastNotification = {
-          notification_id: Math.floor(100000000 + Math.random() * 900000000).toString(),
+          notification_id: idGenerator.generateNotificationId(),
           receiver_phone: null, // 广播通知，receiver_phone为空
           type,
           priority,
@@ -1317,7 +1318,7 @@ class AdminController {
       } else {
         // 指定用户通知，为每个用户创建单独的通知记录
         const notifications = target_users.map(phone => ({
-          notification_id: Math.floor(100000000 + Math.random() * 900000000).toString(),
+          notification_id: idGenerator.generateNotificationId(),
           receiver_phone: phone,
           type,
           priority,
@@ -1540,7 +1541,7 @@ class AdminController {
 
       // 发送通知给资源发布者
       await Notification.create({
-        notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+        notification_id: idGenerator.generateNotificationId(),
         receiver_phone: resource.publisher_phone,
         type: 'resource',
         priority: 'medium',
@@ -1650,7 +1651,7 @@ class AdminController {
 
       // 发送通知给举报者
       await Notification.create({
-        notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+        notification_id: idGenerator.generateNotificationId(),
         receiver_phone: report.reporter_phone,
         type: 'system',
         priority: 'low',
@@ -1765,7 +1766,7 @@ class AdminController {
       if (status !== 'active') {
         const actionText = status === 'hidden' ? '隐藏' : '删除';
         await Notification.create({
-          notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+          notification_id: idGenerator.generateNotificationId(),
           receiver_phone: post.author_phone,
             type: 'system',
           priority: 'medium',
@@ -1872,7 +1873,7 @@ class AdminController {
           
           // 发送通知给帖子作者
           await Notification.create({
-            notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+            notification_id: idGenerator.generateNotificationId(),
             receiver_phone: report.post.author_phone,
                 type: 'system',
             priority: 'high',
@@ -1895,7 +1896,7 @@ class AdminController {
           
           // 发送通知给帖子作者
           await Notification.create({
-            notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+            notification_id: idGenerator.generateNotificationId(),
             receiver_phone: report.post.author_phone,
                 type: 'system',
             priority: 'high',
@@ -1909,7 +1910,7 @@ class AdminController {
 
       // 发送通知给举报者
       await Notification.create({
-        notification_id: `600${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(0, 9),
+        notification_id: idGenerator.generateNotificationId(),
         receiver_phone: report.reporter_phone,
         type: 'system',
         priority: 'low',

@@ -314,3 +314,33 @@ export const getTableData = (
     params: { page, limit, orderBy, orderDir }
   })
 }
+
+// Redis缓存管理
+export const getCacheStats = () => {
+  return request.get<ApiResponse<{
+    type: string
+    totalKeys?: number
+    searchCacheKeys?: number
+    totalEntries?: number
+    memoryInfo?: {
+      used_memory_human: string
+      used_memory_peak_human: string
+      maxmemory_human: string
+    }
+    cacheKeyPrefix?: string
+    stats?: string
+    error?: string
+  }>>('/cache/stats')
+}
+
+export const clearCache = (type: string) => {
+  return request.delete<ApiResponse>(`/cache/clear/${type}`)
+}
+
+export const warmupCache = () => {
+  return request.post<ApiResponse>('/cache/warmup')
+}
+
+export const invalidateCache = (entity: string, action?: string) => {
+  return request.post<ApiResponse>('/cache/invalidate', { entity, action })
+}

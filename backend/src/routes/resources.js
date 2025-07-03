@@ -8,6 +8,10 @@ const router = express.Router()
 // 公开路由
 router.get('/', auth, ResourceController.getResources)
 
+// 搜索相关路由
+router.get('/search/suggestions', ResourceController.getSearchSuggestions)
+router.get('/search/filter-options', ResourceController.getFilterOptions)
+
 // 管理员路由（需要管理员权限） - 具体路由必须在参数路由之前
 router.get('/pending', auth, adminAuth, ResourceController.getPendingResources)
 

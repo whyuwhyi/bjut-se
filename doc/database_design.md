@@ -13,7 +13,7 @@
 | | resources | 学习资源核心信息 | 3 |
 | | files | 资源关联文件 | 3 |
 | **论坛交流** | posts | 论坛帖子内容 | 3 |
-| | post_tags | 帖子标签管理 | 3 |
+| | post_tags | 帖子标签管理 | 30 |
 | | post_tag_relations | 帖子标签关联 | 4 |
 | | comments | 评论回复系统 | 6 |
 | | ratings | 资源评分记录 | 3 |
@@ -27,6 +27,8 @@
 | **举报管理** | resource_reports | 资源举报处理 | 2 |
 | | post_reports | 帖子举报处理 | 1 |
 | **用户反馈** | feedbacks | 用户反馈建议 | 动态 |
+| **搜索统计** | search_statistics | 搜索行为统计分析 | 动态 |
+| | hot_keywords | 热门搜索关键词管理 | 10 |
 | **系统辅助** | verification_codes | 验证码管理 | 临时 |
 
 ### 核心特性
@@ -36,6 +38,7 @@
 - **多维度用户交互**: 关注、收藏、评论、评分等社交功能
 - **智能通知系统**: 分类通知+优先级管理+广播通知支持
 - **灵活的分类体系**: 支持资源分类和帖子标签的动态管理
+- **智能搜索系统**: 全文索引+缓存机制+搜索统计分析+热门关键词推荐
 
 ---
 
@@ -170,7 +173,7 @@
 
 ### 3.2 帖子标签表 (post_tags)
 
-管理帖子标签系统。
+管理帖子标签系统，支持预设标签和使用统计。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
@@ -181,6 +184,13 @@
 | status | ENUM('active','inactive') | DEFAULT 'active' | 标签状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**业务规则**:
+- 用户发布帖子时只能选择已存在且状态为 'active' 的标签
+- 不允许用户主动创建新标签，所有标签需通过管理员或数据库初始化预设
+- 每次使用标签时自动增加 usage_count 计数
+- 标签按使用频率排序展示，热门标签优先显示
+- 支持30个预设标签，覆盖编程语言、技术方向、学习类型等分类
 
 ### 3.3 帖子标签关联表 (post_tag_relations)
 
@@ -646,4 +656,93 @@ feedbacks.processed_by → users.phone_number
 
 ---
 
-这个数据库设计支持完整的教育资源平台功能，具有良好的扩展性和维护性。通过合理的表结构设计、索引优化和约束管理，能够满足平台的性能和安全需求。
+## 15. 搜索统计模块
+
+### 15.1 搜索统计表 (search_statistics)
+
+搜索行为统计分析表，用于记录和分析用户搜索行为，支持搜索性能优化和热门内容推荐。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| id | INT | PRIMARY KEY, AUTO_INCREMENT | 统计记录唯一标识 |
+| search_term | VARCHAR(255) | NOT NULL | 搜索关键词 |
+| search_type | ENUM | NOT NULL | 搜索类型（resource/post/mixed） |
+| search_count | INT | DEFAULT 1 | 该关键词搜索次数 |
+| result_count | INT | DEFAULT 0 | 搜索结果数量 |
+| user_phone | VARCHAR(11) | NULL | 搜索用户手机号（游客搜索为NULL） |
+| search_filters | JSON | NULL | 搜索时使用的筛选条件 |
+| response_time_ms | INT | NULL | 搜索响应时间（毫秒） |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 首次搜索时间 |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE | 最后搜索时间 |
+
+**索引设计**:
+- `idx_search_term`: 搜索词索引，支持快速查找相同搜索词
+- `idx_search_type`: 搜索类型索引，支持按类型统计
+- `idx_search_count`: 搜索次数索引，支持热门搜索排序
+- `idx_created_at`: 时间索引，支持时间范围查询
+
+**业务逻辑**:
+- 记录每次搜索行为的详细信息
+- 支持游客搜索统计（user_phone为NULL）
+- 相同搜索词会累加搜索次数并更新时间
+- 用于生成搜索报告和热门内容推荐
+
+### 15.2 热门搜索关键词表 (hot_keywords)
+
+热门搜索关键词管理表，基于搜索统计数据维护的热门关键词列表，用于搜索建议和热门推荐。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| id | INT | PRIMARY KEY, AUTO_INCREMENT | 关键词记录唯一标识 |
+| keyword | VARCHAR(255) | NOT NULL, UNIQUE | 关键词内容 |
+| search_count | INT | DEFAULT 0 | 累计搜索次数 |
+| result_count | INT | DEFAULT 0 | 平均搜索结果数量 |
+| category | ENUM | DEFAULT 'mixed' | 主要搜索类别（resource/post/mixed） |
+| last_searched_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 最后搜索时间 |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 关键词创建时间 |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE | 信息更新时间 |
+
+**索引设计**:
+- `idx_search_count`: 搜索次数降序索引，支持热门排序
+- `idx_last_searched`: 最后搜索时间降序索引，支持活跃度排序
+- `idx_category`: 类别索引，支持分类别推荐
+
+**业务逻辑**:
+- 自动从搜索统计中生成和更新热门关键词
+- 支持按搜索频次和活跃度排序
+- 用于搜索建议和热门搜索推荐功能
+- 定期清理过期或低频关键词
+
+### 15.3 全文索引设计
+
+为提升搜索性能，在关键表的文本字段上建立了全文索引：
+
+**资源内容索引**:
+```sql
+ALTER TABLE resources ADD FULLTEXT INDEX ft_resource_content (resource_name, description);
+```
+
+**帖子内容索引**:
+```sql
+ALTER TABLE posts ADD FULLTEXT INDEX ft_post_content (title, content);
+```
+
+**分类名称索引**:
+```sql
+ALTER TABLE categories ADD FULLTEXT INDEX ft_category_name (category_name);
+```
+
+**标签名称索引**:
+```sql
+ALTER TABLE post_tags ADD FULLTEXT INDEX ft_tag_name (tag_name);
+```
+
+**全文索引特性**:
+- 支持中文全文检索
+- 提供相关性评分
+- 支持布尔搜索和短语搜索
+- 自动处理停用词和词干化
+
+---
+
+这个数据库设计支持完整的教育资源平台功能，具有良好的扩展性和维护性。通过合理的表结构设计、索引优化、搜索缓存机制和统计分析功能，能够满足平台的性能、安全和智能化需求。
