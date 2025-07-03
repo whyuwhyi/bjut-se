@@ -269,6 +269,12 @@
           <el-descriptions-item v-if="selectedFeedback.reply" label="管理员回复" :span="2">
             <div class="feedback-reply">{{ selectedFeedback.reply }}</div>
           </el-descriptions-item>
+          <el-descriptions-item v-if="selectedFeedback.replied_by" label="回复管理员">
+            <el-tag size="small">{{ selectedFeedback.replied_by }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="selectedFeedback.replied_at" label="回复时间">
+            {{ formatDate(selectedFeedback.replied_at) }}
+          </el-descriptions-item>
         </el-descriptions>
       </div>
     </el-dialog>

@@ -349,9 +349,12 @@ CREATE TABLE feedbacks (
   images TEXT DEFAULT NULL COMMENT '图片URL数组，JSON字符串',
   status VARCHAR(16) DEFAULT 'pending' COMMENT '处理状态（pending/processing/resolved/closed）',
   reply TEXT DEFAULT NULL COMMENT '管理员回复内容',
+  replied_by VARCHAR(11) DEFAULT NULL COMMENT '回复管理员手机号',
+  replied_at DATETIME DEFAULT NULL COMMENT '回复时间',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE
+  FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
+  FOREIGN KEY (replied_by) REFERENCES users(phone_number) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户反馈表';
 
 -- 11. 搜索统计表
@@ -561,6 +564,13 @@ INSERT INTO resource_reports (report_id, resource_id, reporter_phone, reason, de
 
 INSERT INTO post_reports (report_id, post_id, reporter_phone, reason, description, status, created_at, updated_at) VALUES
 ('700000003', '100000002', '13800138003', 'spam', '帖子内容涉嫌灌水', 'pending', NOW(), NOW());
+
+-- 插入测试反馈数据
+INSERT INTO feedbacks (user_phone, type, content, contact, status, reply, replied_by, replied_at, created_at, updated_at) VALUES
+('13800138002', 'bug', '在使用搜索功能时，搜索结果显示不完整，部分相关资源没有显示出来。', '微信: li_student', 'resolved', '您好，该问题已经修复，现在搜索功能已经优化，可以显示更完整的结果。感谢您的反馈！', '13800138001', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY)),
+('13800138003', 'suggestion', '希望能增加夜间模式功能，晚上使用时比较刺眼。', 'QQ: 123456789', 'processing', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY)),
+('13800138002', 'feature', '建议添加资源收藏分类功能，可以按照不同学科对收藏的资源进行分类管理。', NULL, 'pending', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY)),
+('13800138003', 'ui', '个人中心页面的布局在小屏幕设备上显示不太友好，建议优化响应式设计。', 'email: wang@example.com', 'closed', '感谢建议，我们已将此纳入下一版本的优化计划中。', '13800138001', DATE_SUB(NOW(), INTERVAL 6 HOUR), DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 6 HOUR));
 
 -- 插入搜索统计测试数据
 INSERT INTO search_statistics (search_term, search_type, search_count, result_count, user_phone, response_time_ms, created_at, updated_at) VALUES

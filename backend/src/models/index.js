@@ -356,6 +356,18 @@ Feedback.belongsTo(User, {
   as: 'user'
 })
 
+// 管理员 - 反馈回复关系
+User.hasMany(Feedback, {
+  foreignKey: 'replied_by',
+  sourceKey: 'phone_number',
+  as: 'repliedFeedbacks'
+})
+Feedback.belongsTo(User, {
+  foreignKey: 'replied_by',
+  targetKey: 'phone_number',
+  as: 'replier'
+})
+
 const models = {
   User,
   Resource,

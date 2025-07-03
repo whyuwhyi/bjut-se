@@ -450,23 +450,42 @@
 
 ### 8.1 用户反馈表 (feedbacks)
 
-用户对平台的意见建议收集。
+用户对平台的意见建议收集，支持管理员回复和处理跟踪。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| feedback_id | VARCHAR(9) | PRIMARY KEY | 反馈记录ID |
-| user_phone | VARCHAR(11) | FK | 用户手机号（外键，可为空支持匿名反馈） |
-| type | ENUM('bug','feature','improvement','complaint','other') | NOT NULL | 反馈类型 |
-| title | VARCHAR(200) | NOT NULL | 反馈标题 |
+| id | INT | PRIMARY KEY AUTO_INCREMENT | 反馈记录ID |
+| user_phone | VARCHAR(11) | NOT NULL, FK | 用户手机号（外键） |
+| type | VARCHAR(32) | NOT NULL | 反馈类型（bug/feature/ui/performance/content/other） |
 | content | TEXT | NOT NULL | 反馈内容 |
-| contact | VARCHAR(100) | | 联系方式（邮箱或手机号） |
-| status | ENUM('pending','processing','resolved','closed') | DEFAULT 'pending' | 处理状态 |
-| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
-| reply | TEXT | | 回复内容 |
-| processed_by | VARCHAR(11) | FK | 处理者手机号（外键） |
-| processed_at | DATE | | 处理时间 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+| contact | VARCHAR(64) | | 联系方式（可选） |
+| images | TEXT | | 图片URL数组，JSON字符串 |
+| status | VARCHAR(16) | DEFAULT 'pending' | 处理状态（pending/processing/resolved/closed） |
+| reply | TEXT | | 管理员回复内容 |
+| replied_by | VARCHAR(11) | FK | 回复管理员手机号（外键） |
+| replied_at | DATETIME | | 回复时间 |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**反馈类型说明**:
+- **bug**: 错误问题反馈
+- **feature**: 功能建议
+- **ui**: 界面体验问题
+- **performance**: 性能问题
+- **content**: 内容相关问题
+- **other**: 其他类型反馈
+
+**处理状态说明**:
+- **pending**: 待处理，新提交的反馈
+- **processing**: 处理中，管理员正在跟进
+- **resolved**: 已处理，问题已解决
+- **closed**: 已关闭，无需继续跟进
+
+**业务特性**:
+- 支持图片上传，便于问题描述
+- 完整的处理流程跟踪
+- 管理员回复自动通知用户
+- 处理状态变更时自动发送通知
 
 ---
 
@@ -571,7 +590,7 @@ post_reports.processed_by → users.phone_number
 
 -- 反馈相关
 feedbacks.user_phone → users.phone_number
-feedbacks.processed_by → users.phone_number
+feedbacks.replied_by → users.phone_number
 ```
 
 ---

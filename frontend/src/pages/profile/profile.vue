@@ -40,7 +40,6 @@
 				<view class="menu-item" @click="goToFavorites">
 					<text class="menu-icon">⭐</text>
 					<text class="menu-text">我的收藏</text>
-					<text class="menu-badge" v-if="userStats.collectionCount > 0">{{ userStats.collectionCount }}</text>
 					<text class="menu-arrow">></text>
 				</view>
 			</view>
