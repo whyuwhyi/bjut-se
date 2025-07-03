@@ -39,7 +39,7 @@ router.use('/admin', adminRoutes)
 router.use('/reports', reportRoutes)
 router.use('/', commentRoutes)
 router.use('/', ratingRoutes)
-router.use('/', collectionRoutes)
+router.use('/collections', collectionRoutes)
 router.use('/feedback', feedbackRoutes)
 
 module.exports = router

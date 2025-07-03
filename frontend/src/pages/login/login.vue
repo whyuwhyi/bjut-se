@@ -393,23 +393,24 @@ export default {
 }
 
 .register-link {
-	text-align: center;
-	margin-top: 30rpx; /* 增加顶部间距 */
+	text-align: right;
+	margin-top: 30rpx;
+	padding-right: 32rpx;
 	
 	.register-text {
-		color: rgba(255, 255, 255, 0.8); /* 调整颜色 */
-		font-size: 30rpx; /* 调整字体大小 */
+		color: #666;
+		font-size: 28rpx;
 	}
 	
 	.register-action {
-		color: #FFDE6B; /* 调整为更柔和的黄色 */
-		font-size: 30rpx; /* 调整字体大小 */
-		font-weight: bold;
-		margin-left: 10rpx;
-		transition: color 0.2s ease; /* 添加过渡效果 */
+		color: #007aff;
+		font-size: 28rpx;
+		font-weight: 500;
+		margin-left: 8rpx;
+		transition: opacity 0.2s ease;
 		
 		&:active {
-			color: #FFE58B; /* 点击时颜色变浅 */
+			opacity: 0.8;
 		}
 	}
 }

@@ -14,6 +14,7 @@ router.get('/pending', auth, adminAuth, ResourceController.getPendingResources)
 // 需要认证的路由
 router.post('/', auth, ResourceController.createResource)
 router.post('/:resourceId/favorite', auth, ResourceController.toggleFavorite)
+router.get('/:resourceId/favorite-status', auth, ResourceController.checkFavoriteStatus)
 router.post('/:resourceId/submit-review', auth, ResourceController.submitForReview)
 router.post('/:resourceId/review', auth, adminAuth, ResourceController.reviewResource)
 router.delete('/:id', auth, ResourceController.deleteResource)

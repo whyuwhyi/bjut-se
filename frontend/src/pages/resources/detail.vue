@@ -120,11 +120,12 @@
 			<!-- 评论输入区域 -->
 			<view class="comment-input-area">
 				<textarea 
-					class="comment-textarea" 
-					v-model="commentText" 
+					class="comment-textarea"
+					v-model="commentText"
 					:placeholder="replyTarget ? `回复 ${replyTarget.userName}：` : '写下你的评论...'"
 					:maxlength="200"
-					auto-height
+					:style="{height: commentTextareaHeight + 'px'}"
+					@input="adjustCommentTextareaHeight"
 				></textarea>
 				<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
 				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
@@ -135,7 +136,7 @@
 			<!-- 评论列表 -->
 			<view class="comment-list">
 				<view class="comment-item" v-for="(comment, index) in comments" :key="comment.comment_id">
-					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'"></image>
+					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(comment.userPhone, comment)"></image>
 					<view class="comment-content">
 						<view class="comment-header">
 							<text class="comment-username">{{ comment.userName }}</text>
@@ -150,7 +151,7 @@
 						<!-- 回复列表 -->
 						<view class="replies" v-if="comment.replies && comment.replies.length > 0">
 							<view class="reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
-								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" />
+								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(reply.userPhone, reply)" />
 								<view class="reply-content-wrap">
 									<view class="reply-header">
 										<view class="reply-info">
@@ -202,6 +203,8 @@
 <script>
 import QRCode from 'qrcode'
 import ReportModal from '@/components/ReportModal.vue'
+import config from '@/utils/config'
+import { navigateToUserProfile } from '@/utils/userUtils'
 
 export default {
 	components: {
@@ -233,7 +236,8 @@ export default {
 			sending: false,
 			sharePopupVisible: false,
 			qrCodeVisible: false,
-			qrCodeDataUrl: ''
+			qrCodeDataUrl: '',
+			commentTextareaHeight: 40
 		}
 	},
 	
@@ -251,7 +255,7 @@ export default {
 				uni.showLoading({ title: '加载中...' })
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}`,
 					method: 'GET'
 				})
 				
@@ -264,7 +268,7 @@ export default {
 						resource_id: data.resource_id,
 						title: data.resource_name,
 						description: data.description,
-						category: data.category?.category_name || '未分类',
+						category: typeof data.category === 'string' ? data.category : (data.category?.category_name || '未分类'),
 						uploaderName: data.publisher?.nickname || data.publisher?.name || '匿名用户',
 						uploadTime: new Date(data.created_at),
 						viewCount: data.view_count || 0,
@@ -332,7 +336,7 @@ export default {
 				// 直接进行平台特定的下载
 				// #ifdef H5
 				// H5环境使用带身份认证的下载
-				const h5DownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
+				const h5DownloadUrl = `${config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
 				
 				// 使用fetch下载文件
 				fetch(h5DownloadUrl, {
@@ -376,7 +380,7 @@ export default {
 				
 				// #ifdef MP-WEIXIN
 				// 微信小程序使用下载API
-				const wxDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
+				const wxDownloadUrl = `${config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
 				
 				uni.downloadFile({
 					url: wxDownloadUrl,
@@ -426,7 +430,7 @@ export default {
 				
 				// #ifdef APP-PLUS
 				// App环境使用plus下载
-				const appDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
+				const appDownloadUrl = `${config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
 				
 				const dtask = plus.downloader.createDownload(appDownloadUrl, {
 					filename: '_downloads/' + (file.file_name || 'download'),
@@ -471,7 +475,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/favorite-status?type=resource`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/favorite-status?type=resource`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -503,7 +507,7 @@ export default {
 				this.resource.favoriteCount += newFavoritedState ? 1 : -1
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/favorite`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/favorite`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -581,7 +585,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/my-rating`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/my-rating`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -611,7 +615,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/rating`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/rating`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -651,19 +655,21 @@ export default {
 		async loadComments() {
 			try {
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'GET'
 				})
 				if (response.statusCode === 200 && response.data.success) {
 					this.comments = (response.data.data.comments || []).map(comment => ({
 						comment_id: comment.comment_id,
 						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
+						userPhone: comment.author?.phone_number,
 						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
 						content: comment.content,
 						createTime: new Date(comment.created_at),
 						replies: (comment.replies || []).map(reply => ({
 							comment_id: reply.comment_id,
 							userName: reply.author?.nickname || reply.author?.name || '匿名用户',
+							userPhone: reply.author?.phone_number,
 							userAvatar: reply.author?.avatar_url || '/static/images/default-avatar.png',
 							content: reply.content,
 							createTime: new Date(reply.created_at),
@@ -707,7 +713,7 @@ export default {
 					data.parent_comment_id = this.replyTarget.comment_id
 				}
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -789,6 +795,20 @@ export default {
 				icon: 'success',
 				duration: 3000
 			})
+		},
+
+		adjustCommentTextareaHeight(e) {
+			// 兼容uni-app和web
+			const textarea = e.detail && e.detail.height ? e : e.target;
+			if (textarea && textarea.scrollHeight) {
+				this.commentTextareaHeight = textarea.scrollHeight;
+			} else if (e.detail && e.detail.height) {
+				this.commentTextareaHeight = e.detail.height;
+			}
+		},
+		
+		viewUserProfile(userPhone, userInfo) {
+			navigateToUserProfile(userPhone, userInfo)
 		}
 	}
 }
@@ -1143,6 +1163,9 @@ export default {
 				font-size: 26rpx;
 				color: #333;
 				line-height: 1.5;
+				word-break: break-all;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
 			}
 			.comment-footer {
 				display: flex;
@@ -1205,6 +1228,9 @@ export default {
 								font-size: 24rpx;
 								color: #333;
 								line-height: 1.5;
+								word-break: break-all;
+								white-space: pre-wrap;
+								overflow-wrap: anywhere;
 							}
 						}
 					}

@@ -190,9 +190,16 @@ class ResourceController {
       // 增加浏览次数
       await resource.increment('view_count')
 
+      // 格式化返回数据
+      const data = resource.toJSON()
+      const formatted = {
+        ...data,
+        category: data.category?.category_name || '未分类'
+      }
+
       res.json({
         success: true,
-        data: resource
+        data: formatted
       })
     } catch (error) {
       console.error('获取资源详情错误:', error)
@@ -401,7 +408,8 @@ class ResourceController {
         status: newStatus,
         reviewer_phone: reviewerPhone,
         review_comment: comment,
-        reviewed_at: new Date()
+        reviewed_at: new Date(),
+        category_id: resource.category_id
       })
 
       // 发送通知给资源发布者
@@ -459,6 +467,11 @@ class ResourceController {
             model: File,
             as: 'files',
             attributes: ['file_id', 'file_name', 'file_type', 'file_size']
+          },
+          {
+            model: Category,
+            as: 'category',
+            attributes: ['category_id', 'category_name', 'category_value', 'icon']
           }
         ],
         order: [['created_at', 'ASC']],
@@ -466,10 +479,29 @@ class ResourceController {
         offset: parseInt(offset)
       })
 
+      // 格式化返回数据
+      const resources = rows.map(resource => {
+        const data = resource.toJSON()
+        return {
+          id: data.resource_id,
+          title: data.resource_name,
+          description: data.description,
+          uploaderName: data.publisher?.nickname || data.publisher?.name || '匿名用户',
+          uploadTime: data.created_at,
+          viewCount: data.view_count,
+          downloadCount: data.download_count,
+          rating: parseFloat(data.rating),
+          files: data.files || [],
+          category: data.category?.category_name || '未分类',
+          collection_count: data.collection_count || 0,
+          status: data.status
+        }
+      })
+
       res.json({
         success: true,
         data: {
-          resources: rows,
+          resources,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
@@ -655,6 +687,109 @@ class ResourceController {
         success: false,
         message: '删除资源失败',
         errors: [error.message]
+      })
+    }
+  }
+
+  // 切换收藏状态
+  async toggleFavorite(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { resourceId } = req.params
+      const { type = 'resource' } = req.body
+
+      // 检查资源是否存在
+      const resource = await Resource.findByPk(resourceId)
+      if (!resource) {
+        return res.status(404).json({
+          success: false,
+          message: '资源不存在'
+        })
+      }
+
+      // 查找现有收藏记录
+      const existingCollection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource'
+        }
+      })
+
+      let isCollected = false
+
+      if (existingCollection) {
+        // 如果已收藏，切换状态
+        if (existingCollection.status === 'active') {
+          await existingCollection.update({ status: 'cancelled' })
+          isCollected = false
+          // 更新收藏计数
+          await Resource.decrement('collection_count', { where: { resource_id: resourceId } })
+        } else {
+          await existingCollection.update({ status: 'active' })
+          isCollected = true
+          // 更新收藏计数
+          await Resource.increment('collection_count', { where: { resource_id: resourceId } })
+        }
+      } else {
+        // 如果没有收藏记录，创建新的
+        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
+        await Collection.create({
+          collection_id: collectionId,
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource',
+          status: 'active'
+        })
+        isCollected = true
+        // 更新收藏计数
+        await Resource.increment('collection_count', { where: { resource_id: resourceId } })
+      }
+
+      res.json({
+        success: true,
+        message: isCollected ? '收藏成功' : '取消收藏成功',
+        data: {
+          isCollected
+        }
+      })
+    } catch (error) {
+      console.error('切换收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '操作失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 检查收藏状态
+  async checkFavoriteStatus(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { resourceId } = req.params
+
+      const collection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource',
+          status: 'active'
+        }
+      })
+
+      res.json({
+        success: true,
+        data: {
+          isCollected: !!collection
+        }
+      })
+    } catch (error) {
+      console.error('检查收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '检查收藏状态失败',
+        error: error.message
       })
     }
   }
