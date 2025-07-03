@@ -56,7 +56,7 @@
 				<text class="btn-icon">📤</text>
 				<text class="btn-text">分享</text>
 			</button>
-			<button class="action-btn report-btn" @click="showReportModal">
+			<button class="action-btn report-btn" @click="showReportModal" @tap="showReportModal" style="pointer-events: auto;">
 				<text class="btn-icon">🚨</text>
 				<text class="btn-text">举报</text>
 			</button>
@@ -143,6 +143,7 @@
 					:comment="comment"
 					@reply="replyToComment"
 					@viewProfile="viewUserProfile"
+					@report="reportComment"
 				/>
 			</view>
 		</view>
@@ -169,7 +170,7 @@
 			ref="reportModal"
 			content-type="resource"
 			:content-id="resourceId"
-			:content-title="resource.title"
+			:content-title="resource ? resource.title : ''"
 			@reported="onReported"
 		/>
 	</view>
@@ -837,6 +838,26 @@ export default {
 		
 		viewUserProfile(userPhone, userInfo) {
 			navigateToUserProfile(userPhone, userInfo)
+		},
+		
+		// 举报评论
+		reportComment(comment) {
+			uni.showActionSheet({
+				itemList: ['垃圾信息', '违法违规', '恶意辱骂', '色情内容', '其他'],
+				success: (res) => {
+					const reasons = ['垃圾信息', '违法违规', '恶意辱骂', '色情内容', '其他']
+					const reason = reasons[res.tapIndex]
+					
+					// 这里可以调用举报API
+					uni.showToast({
+						title: `已举报：${reason}`,
+						icon: 'success'
+					})
+					
+					// TODO: 实际调用举报API
+					// this.submitReport(comment, reason)
+				}
+			})
 		}
 	},
 	components: {

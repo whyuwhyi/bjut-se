@@ -46,6 +46,10 @@
 					<view class="reply-btn" @click="replyToComment(comment)" :style="{ fontSize: getReplyBtnSize(depth) + 'rpx' }">
 						<text class="reply-text">回复</text>
 					</view>
+					
+					<view class="report-btn" @click="reportComment(comment)" :style="{ fontSize: getReplyBtnSize(depth) + 'rpx' }">
+						<text class="report-text">举报</text>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -59,6 +63,7 @@
 				:depth="depth + 1"
 				@reply="replyToComment"
 				@viewProfile="viewUserProfile"
+				@report="reportComment"
 			/>
 		</view>
 	</view>
@@ -84,6 +89,11 @@ export default {
 		
 		viewUserProfile(userPhone, userInfo) {
 			this.$emit('viewProfile', userPhone, userInfo)
+		},
+		
+		// 举报评论
+		reportComment(comment) {
+			this.$emit('report', comment)
 		},
 		
 		// 根据深度获取头像尺寸（平面化回复使用统一大小）
@@ -297,8 +307,9 @@ export default {
 		.reply-footer {
 			display: flex;
 			justify-content: flex-end;
+			gap: 8rpx;
 			
-			.reply-btn {
+			.reply-btn, .report-btn {
 				padding: 4rpx 12rpx;
 				background: #f5f5f5;
 				border-radius: 12rpx;
@@ -308,6 +319,14 @@ export default {
 				&:active {
 					background: #e0e0e0;
 					transform: scale(0.95);
+				}
+			}
+			
+			.report-btn {
+				color: #ff6b6b;
+				
+				&:active {
+					background: #ffe0e0;
 				}
 			}
 		}

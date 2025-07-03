@@ -22,6 +22,10 @@
 							<text class="reply-text">回复</text>
 						</view>
 						
+						<view class="report-btn" @click="reportComment(comment)">
+							<text class="report-text">举报</text>
+						</view>
+						
 						<!-- 展开/隐藏回复按钮 -->
 						<view class="toggle-replies-btn" v-if="shouldShowToggle" @click="toggleReplies">
 							<text class="toggle-text">
@@ -43,6 +47,7 @@
 				:depth="1"
 				@reply="replyToComment"
 				@viewProfile="viewUserProfile"
+				@report="reportComment"
 			/>
 		</view>
 	</view>
@@ -94,6 +99,11 @@ export default {
 		
 		viewUserProfile(userPhone, userInfo) {
 			this.$emit('viewProfile', userPhone, userInfo)
+		},
+		
+		// 举报评论
+		reportComment(comment) {
+			this.$emit('report', comment)
 		},
 		
 		// 切换回复展开状态
@@ -183,7 +193,7 @@ export default {
 				align-items: center;
 				gap: 12rpx;
 				
-				.reply-btn {
+				.reply-btn, .report-btn {
 					padding: 4rpx 12rpx;
 					background: #f5f5f5;
 					border-radius: 12rpx;
@@ -192,6 +202,14 @@ export default {
 					
 					&:active {
 						background: #e0e0e0;
+					}
+				}
+				
+				.report-btn {
+					color: #ff6b6b;
+					
+					&:active {
+						background: #ffe0e0;
 					}
 				}
 				
