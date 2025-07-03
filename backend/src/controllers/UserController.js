@@ -891,7 +891,7 @@ class UserController {
         Post.count({ 
           where: { 
             author_phone: phone_number, 
-            status: 'published' 
+            status: 'active' 
           } 
         }),
         // 收藏数：查询活跃的收藏

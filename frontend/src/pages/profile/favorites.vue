@@ -1,5 +1,22 @@
 <template>
 	<view class="favorites-container">
+		<!-- 搜索栏 -->
+		<view class="search-section">
+			<view class="search-input-container">
+				<input 
+					class="search-input" 
+					v-model="searchKeyword"
+					placeholder="搜索收藏内容..."
+					@input="handleSearchInput"
+					@confirm="performSearch"
+				/>
+				<text class="search-icon" @click="performSearch">🔍</text>
+			</view>
+			<view class="search-actions" v-if="searchKeyword">
+				<button class="clear-search-btn" @click="clearSearch">清除</button>
+			</view>
+		</view>
+
 		<!-- 顶部筛选栏 -->
 		<view class="filter-section">
 			<scroll-view class="filter-scroll" scroll-x="true">
@@ -107,7 +124,10 @@
 					{ name: '帖子', value: 'post', count: 0 }
 				],
 				favorites: [],
-				itemToDelete: null
+				itemToDelete: null,
+				searchKeyword: '',
+				filteredBySearch: [],
+				searchTimer: null
 			}
 		},
 		
@@ -125,13 +145,29 @@
 			})
 		},
 		
+		onUnload() {
+			// 清理定时器
+			if (this.searchTimer) {
+				clearTimeout(this.searchTimer)
+			}
+		},
+		
 		computed: {
 			filteredFavorites() {
-				const type = this.favoriteTypes[this.selectedType];
-				if (type.value === 'all') {
-					return this.favorites;
+				let filtered = this.favorites;
+				
+				// 如果有搜索关键词，使用搜索结果
+				if (this.searchKeyword.trim()) {
+					filtered = this.filteredBySearch;
 				}
-				return this.favorites.filter(item => item.type === type.value);
+				
+				// 按类型筛选
+				const type = this.favoriteTypes[this.selectedType];
+				if (type.value !== 'all') {
+					filtered = filtered.filter(item => item.type === type.value);
+				}
+				
+				return filtered;
 			}
 		},
 		
@@ -435,6 +471,39 @@
 						day: '2-digit'
 					});
 				}
+			},
+			
+			// 搜索相关方法
+			handleSearchInput() {
+				// 实时搜索，防抖处理
+				clearTimeout(this.searchTimer);
+				this.searchTimer = setTimeout(() => {
+					this.performSearch();
+				}, 500);
+			},
+			
+			performSearch() {
+				const keyword = this.searchKeyword.trim().toLowerCase();
+				if (!keyword) {
+					this.filteredBySearch = [];
+					return;
+				}
+				
+				this.filteredBySearch = this.favorites.filter(item => {
+					// 搜索标题
+					const titleMatch = item.title.toLowerCase().includes(keyword);
+					// 搜索描述
+					const descMatch = item.description.toLowerCase().includes(keyword);
+					// 搜索作者
+					const authorMatch = item.author.toLowerCase().includes(keyword);
+					
+					return titleMatch || descMatch || authorMatch;
+				});
+			},
+			
+			clearSearch() {
+				this.searchKeyword = '';
+				this.filteredBySearch = [];
 			}
 		}
 	}
@@ -473,10 +542,72 @@
 		}
 	}
 
-	.filter-section {
+	.search-section {
 		position: sticky;
 		top: 0;
-		z-index: 100;
+		z-index: 101;
+		background-color: #ffffff;
+		padding: 20rpx;
+		border-bottom: 1rpx solid #f0f0f0;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+		
+		.search-input-container {
+			position: relative;
+			background-color: #f8f8f8;
+			border-radius: 24rpx;
+			padding: 0 60rpx 0 24rpx;
+			display: flex;
+			align-items: center;
+			
+			.search-input {
+				flex: 1;
+				height: 80rpx;
+				font-size: 28rpx;
+				color: #333333;
+				background: transparent;
+				border: none;
+				outline: none;
+				
+				&::placeholder {
+					color: #999999;
+				}
+			}
+			
+			.search-icon {
+				position: absolute;
+				right: 24rpx;
+				top: 50%;
+				transform: translateY(-50%);
+				font-size: 32rpx;
+				color: #007aff;
+				cursor: pointer;
+			}
+		}
+		
+		.search-actions {
+			margin-top: 16rpx;
+			display: flex;
+			justify-content: flex-end;
+			
+			.clear-search-btn {
+				padding: 8rpx 16rpx;
+				font-size: 24rpx;
+				color: #666666;
+				background: #f0f0f0;
+				border: none;
+				border-radius: 16rpx;
+				
+				&:after {
+					border: none;
+				}
+			}
+		}
+	}
+
+	.filter-section {
+		position: sticky;
+		top: 120rpx; /* 在搜索栏下方 */
+		z-index: 99;
 		background-color: #ffffff;
 		border-bottom: 1rpx solid #f0f0f0;
 		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
