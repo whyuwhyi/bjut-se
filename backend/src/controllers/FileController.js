@@ -1,4 +1,5 @@
 const { File, Resource } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 const path = require('path')
 const fs = require('fs')
 
@@ -31,7 +32,7 @@ class FileController {
       }
 
       // 生成文件ID
-      const fileId = Math.floor(100000000 + Math.random() * 900000000).toString()
+      const fileId = idGenerator.generateNumericId(9)
 
       // 创建文件记录
       const file = await File.create({

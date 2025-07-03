@@ -28,27 +28,21 @@
 							<text class="tag-remove">✕</text>
 						</view>
 					</view>
-					<view class="tag-input-section">
-						<input 
-							class="tag-input" 
-							placeholder="输入标签名称..." 
-							v-model="newTag"
-							@confirm="addTag"
-							maxlength="20"
-						/>
-						<button class="add-tag-btn" @click="addTag" :disabled="!newTag.trim()">添加</button>
-					</view>
-					<view class="popular-tags" v-if="popularTags.length > 0">
-						<text class="popular-label">热门标签：</text>
-						<view class="popular-tag-list">
+					<view class="recommended-tags">
+						<text class="recommended-label">推荐标签：</text>
+						<view class="recommended-tag-list">
 							<view 
-								class="popular-tag" 
-								v-for="tag in popularTags" 
+								class="recommended-tag" 
+								v-for="tag in recommendedTags" 
 								:key="tag.tag_id"
-								@click="selectPopularTag(tag.tag_name)"
+								@click="selectTag(tag.tag_name)"
 								:style="{ backgroundColor: tag.tag_color + '20', color: tag.tag_color }"
 							>
-								<text class="popular-tag-text">{{ tag.tag_name }}</text>
+								<text class="tag-text">{{ tag.tag_name }}</text>
+							</view>
+							<view class="more-tags-btn" @click="showAllTags">
+								<text class="more-text">更多标签</text>
+								<text class="more-arrow">></text>
 							</view>
 						</view>
 					</view>
@@ -121,8 +115,9 @@ export default {
 				content: '',
 				tags: []
 			},
-			newTag: '',
-			popularTags: [],
+			recommendedTags: [],
+			allTags: [],
+			showAllTagsModal: false,
 			showPreview: false,
 			publishing: false,
 			cursorPosition: 0
@@ -147,7 +142,7 @@ export default {
 	},
 	
 	onLoad(options) {
-		this.loadPopularTags()
+		this.loadAllTags()
 		// 编辑模式下加载原帖内容
 		if (options.mode === 'edit' && options.id) {
 			this.loadPostDetail(options.id)
@@ -155,7 +150,7 @@ export default {
 	},
 	
 	methods: {
-		async loadPopularTags() {
+		async loadAllTags() {
 			try {
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/posts/tags`,
@@ -163,42 +158,21 @@ export default {
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
-					this.popularTags = response.data.data.slice(0, 8) // 只显示前8个热门标签
+					this.allTags = response.data.data
+					// 显示前6个推荐标签
+					this.recommendedTags = response.data.data.slice(0, 6)
 				}
 			} catch (error) {
-				console.error('加载热门标签失败:', error)
+				console.error('加载标签失败:', error)
 			}
 		},
 		
-		addTag() {
-			const tag = this.newTag.trim()
-			if (!tag) return
-			
-			if (this.form.tags.includes(tag)) {
-				uni.showToast({
-					title: '标签已存在',
-					icon: 'none'
-				})
-				return
-			}
-			
-			if (this.form.tags.length >= 5) {
-				uni.showToast({
-					title: '最多只能添加5个标签',
-					icon: 'none'
-				})
-				return
-			}
-			
-			this.form.tags.push(tag)
-			this.newTag = ''
-		},
 		
 		removeTag(index) {
 			this.form.tags.splice(index, 1)
 		},
 		
-		selectPopularTag(tagName) {
+		selectTag(tagName) {
 			if (this.form.tags.includes(tagName)) {
 				uni.showToast({
 					title: '标签已存在',
@@ -216,6 +190,16 @@ export default {
 			}
 			
 			this.form.tags.push(tagName)
+		},
+		
+		showAllTags() {
+			uni.showActionSheet({
+				itemList: this.allTags.map(tag => tag.tag_name),
+				success: (res) => {
+					const selectedTag = this.allTags[res.tapIndex]
+					this.selectTag(selectedTag.tag_name)
+				}
+			})
 		},
 		
 		insertFormat(before, after) {
@@ -435,52 +419,63 @@ export default {
 		}
 	}
 	
-	.tag-input-section {
-		display: flex;
-		gap: 15rpx;
-		margin-bottom: 20rpx;
-		
-		.tag-input {
-			flex: 1;
-			border: 1rpx solid #e0e0e0;
-			border-radius: 8rpx;
-			padding: 15rpx;
-			font-size: 26rpx;
-		}
-		
-		.add-tag-btn {
-			background: #007aff;
-			color: white;
-			border: none;
-			border-radius: 8rpx;
-			padding: 0 20rpx;
-			font-size: 24rpx;
-			
-			&[disabled] {
-				background: #ccc;
-			}
-		}
-	}
-	
-	.popular-tags {
-		.popular-label {
+	.recommended-tags {
+		.recommended-label {
 			font-size: 24rpx;
 			color: #666;
 			margin-bottom: 15rpx;
 			display: block;
 		}
 		
-		.popular-tag-list {
+		.recommended-tag-list {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 10rpx;
+			align-items: center;
 			
-			.popular-tag {
+			.recommended-tag {
 				padding: 8rpx 16rpx;
 				border-radius: 20rpx;
+				cursor: pointer;
+				transition: opacity 0.2s;
 				
-				.popular-tag-text {
+				&:active {
+					opacity: 0.7;
+				}
+				
+				.tag-text {
 					font-size: 22rpx;
+				}
+			}
+			
+			.more-tags-btn {
+				display: flex;
+				align-items: center;
+				padding: 8rpx 16rpx;
+				border: 1rpx solid #007aff;
+				border-radius: 20rpx;
+				background: transparent;
+				cursor: pointer;
+				transition: all 0.2s;
+				
+				&:active {
+					background: #007aff;
+					
+					.more-text, .more-arrow {
+						color: white;
+					}
+				}
+				
+				.more-text {
+					font-size: 22rpx;
+					color: #007aff;
+					margin-right: 4rpx;
+				}
+				
+				.more-arrow {
+					font-size: 18rpx;
+					color: #007aff;
+					font-weight: bold;
 				}
 			}
 		}

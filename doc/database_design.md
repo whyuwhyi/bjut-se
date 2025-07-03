@@ -13,7 +13,7 @@
 | | resources | 学习资源核心信息 | 3 |
 | | files | 资源关联文件 | 3 |
 | **论坛交流** | posts | 论坛帖子内容 | 3 |
-| | post_tags | 帖子标签管理 | 3 |
+| | post_tags | 帖子标签管理 | 30 |
 | | post_tag_relations | 帖子标签关联 | 4 |
 | | comments | 评论回复系统 | 6 |
 | | ratings | 资源评分记录 | 3 |
@@ -170,7 +170,7 @@
 
 ### 3.2 帖子标签表 (post_tags)
 
-管理帖子标签系统。
+管理帖子标签系统，支持预设标签和使用统计。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
@@ -181,6 +181,13 @@
 | status | ENUM('active','inactive') | DEFAULT 'active' | 标签状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**业务规则**:
+- 用户发布帖子时只能选择已存在且状态为 'active' 的标签
+- 不允许用户主动创建新标签，所有标签需通过管理员或数据库初始化预设
+- 每次使用标签时自动增加 usage_count 计数
+- 标签按使用频率排序展示，热门标签优先显示
+- 支持30个预设标签，覆盖编程语言、技术方向、学习类型等分类
 
 ### 3.3 帖子标签关联表 (post_tag_relations)
 

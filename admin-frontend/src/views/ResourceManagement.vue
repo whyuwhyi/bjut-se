@@ -25,7 +25,7 @@
     </div>
 
     <div class="filters">
-      <el-select v-model="filters.status" placeholder="选择状态" clearable style="width: 120px">
+      <el-select v-model="filters.status" placeholder="选择状态" clearable style="width: 120px" @change="handleFilterChange">
         <el-option label="草稿" value="draft" />
         <el-option label="待审核" value="pending" />
         <el-option label="已发布" value="published" />
@@ -721,6 +721,11 @@ const handleTabChange = (tabName: string) => {
 const resetFilters = () => {
   filters.status = ''
   filters.search = ''
+  pagination.page = 1
+  loadResources()
+}
+
+const handleFilterChange = () => {
   pagination.page = 1
   loadResources()
 }

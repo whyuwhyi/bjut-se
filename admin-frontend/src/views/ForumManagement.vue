@@ -25,7 +25,7 @@
     </div>
 
     <div class="filters">
-      <el-select v-model="filters.status" placeholder="选择状态" clearable style="width: 120px">
+      <el-select v-model="filters.status" placeholder="选择状态" clearable style="width: 120px" @change="handleFilterChange">
         <el-option label="正常" value="active" />
         <el-option label="已隐藏" value="hidden" />
         <el-option label="已删除" value="deleted" />
@@ -513,6 +513,11 @@ const handleTabChange = (tabName: string) => {
 const resetFilters = () => {
   filters.status = ''
   filters.search = ''
+  pagination.page = 1
+  loadPosts()
+}
+
+const handleFilterChange = () => {
   pagination.page = 1
   loadPosts()
 }

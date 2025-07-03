@@ -5,15 +5,9 @@ const Comment = require('../models/Comment')
 const User = require('../models/User')
 const Collection = require('../models/Collection')
 const { Op } = require('sequelize')
+const idGenerator = require('../utils/IdGenerator')
 
 class PostController {
-  static generatePostId() {
-    return 'POST' + Date.now().toString().slice(-5)
-  }
-
-  static generateTagId() {
-    return 'TAG' + Date.now().toString().slice(-6)
-  }
 
   static async getAllPosts(req, res) {
     try {
@@ -155,7 +149,7 @@ class PostController {
         })
       }
 
-      const postId = PostController.generatePostId()
+      const postId = idGenerator.generatePostId()
 
       const post = await Post.create({
         post_id: postId,
@@ -168,18 +162,27 @@ class PostController {
       await User.increment('post_count', { where: { phone_number: authorPhone } })
 
       if (tags && tags.length > 0) {
-        for (const tagName of tags) {
-          let tag = await PostTag.findOne({ where: { tag_name: tagName } })
-          
-          if (!tag) {
-            const tagId = PostController.generateTagId()
-            tag = await PostTag.create({
-              tag_id: tagId,
-              tag_name: tagName,
-              status: 'active'
-            })
+        // 验证所有标签都存在且为活跃状态
+        const validTags = await PostTag.findAll({
+          where: { 
+            tag_name: { [Op.in]: tags },
+            status: 'active'
           }
+        })
 
+        // 检查是否有无效标签
+        const validTagNames = validTags.map(tag => tag.tag_name)
+        const invalidTags = tags.filter(tagName => !validTagNames.includes(tagName))
+        
+        if (invalidTags.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `标签不存在或已禁用: ${invalidTags.join(', ')}`
+          })
+        }
+
+        // 为帖子添加标签关联
+        for (const tag of validTags) {
           await PostTagRelation.create({
             post_id: postId,
             tag_id: tag.tag_id
@@ -470,7 +473,7 @@ class PostController {
         }
       } else {
         // 如果没有收藏记录，创建新的
-        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
+        const collectionId = idGenerator.generateCollectionId()
         await Collection.create({
           collection_id: collectionId,
           user_phone: userPhone,

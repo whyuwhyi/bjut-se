@@ -1,4 +1,5 @@
 const { Resource, User, File, Collection, Comment, Rating, Category, Notification } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 const { Op } = require('sequelize')
 
 class ResourceController {
@@ -223,7 +224,7 @@ class ResourceController {
       } = req.body
 
       // 生成资源ID（如果没有提供）
-      const finalResourceId = resource_id || Math.floor(100000000 + Math.random() * 900000000).toString()
+      const finalResourceId = resource_id || idGenerator.generateResourceId()
 
       const resource = await Resource.create({
         resource_id: finalResourceId,
@@ -293,7 +294,7 @@ class ResourceController {
         }
       } else {
         // 新增收藏
-        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
+        const collectionId = idGenerator.generateCollectionId()
         await Collection.create({
           collection_id: collectionId,
           user_phone: userPhone,
@@ -369,7 +370,7 @@ class ResourceController {
 
   // 生成资源ID
   generateResourceId() {
-    return Math.floor(100000000 + Math.random() * 900000000).toString()
+    return idGenerator.generateResourceId()
   }
 
   // 审核资源（管理员功能）
@@ -413,7 +414,7 @@ class ResourceController {
       })
 
       // 发送通知给资源发布者
-      const notificationId = Math.floor(100000000 + Math.random() * 900000000).toString()
+      const notificationId = idGenerator.generateNotificationId()
       const isApproved = action === 'approve'
       
       await Notification.create({
@@ -733,7 +734,7 @@ class ResourceController {
         }
       } else {
         // 如果没有收藏记录，创建新的
-        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
+        const collectionId = idGenerator.generateCollectionId()
         await Collection.create({
           collection_id: collectionId,
           user_phone: userPhone,
@@ -796,7 +797,7 @@ class ResourceController {
 
   // 生成收藏ID
   generateCollectionId() {
-    return Math.floor(100000000 + Math.random() * 900000000).toString()
+    return idGenerator.generateResourceId()
   }
 }
 
