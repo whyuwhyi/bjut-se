@@ -1293,7 +1293,7 @@ class AdminController {
           title,
           content,
           action_type: 'navigate',
-          action_url: '/pages/resources/detail',
+          action_url: `/pages/resources/detail?id=${resource.resource_id}`,
           action_params: { resourceId: resource.resource_id },
           related_user_phone: req.user.phone_number,
           related_content_id: resource.resource_id,

@@ -207,6 +207,16 @@ class PostController {
       }
 
       await post.increment('view_count')
+      
+      // 重新获取帖子最新数据
+      await post.reload()
+      
+      // 更新缓存中的统计数据
+      try {
+        await updatePostStatsInCache(id, { viewCount: post.view_count, view_count: post.view_count })
+      } catch (cacheError) {
+        console.error('更新帖子浏览缓存失败:', cacheError)
+      }
 
       res.status(200).json({
         success: true,
@@ -535,12 +545,26 @@ class PostController {
         // 更新收藏计数
         await Post.increment('collection_count', { where: { post_id: postId } })
       }
+      
+      // 重新获取帖子最新数据
+      await post.reload()
+      
+      // 更新缓存中的收藏统计数据
+      try {
+        await updatePostStatsInCache(postId, { 
+          collection_count: post.collection_count,
+          favoriteCount: post.collection_count
+        })
+      } catch (cacheError) {
+        console.error('更新帖子收藏缓存失败:', cacheError)
+      }
 
       res.json({
         success: true,
         message: isCollected ? '收藏成功' : '取消收藏成功',
         data: {
-          isCollected
+          isCollected,
+          collection_count: post.collection_count
         }
       })
     } catch (error) {
@@ -672,6 +696,58 @@ class PostController {
         message: '获取筛选选项失败',
         error: error.message
       })
+    }
+  }
+}
+
+// 辅助函数：更新缓存中的帖子统计数据
+async function updatePostStatsInCache(postId, statsUpdate) {
+  try {
+    // 获取所有搜索缓存键
+    const cacheKeys = await searchCache.getKeys('search')
+    
+    if (cacheKeys.length === 0) {
+      console.log('没有找到相关缓存，跳过更新')
+      return
+    }
+    
+    let updatedCount = 0
+    
+    for (const key of cacheKeys) {
+      const cachedData = await searchCache.getByKey(key)
+      if (cachedData && cachedData.posts && Array.isArray(cachedData.posts)) {
+        let updated = false
+        const updatedPosts = cachedData.posts.map(post => {
+          if (post.id === postId || post.post_id === postId) {
+            updated = true
+            return {
+              ...post,
+              ...statsUpdate
+            }
+          }
+          return post
+        })
+        
+        if (updated) {
+          // 更新缓存中的数据
+          await searchCache.setByKey(key, {
+            ...cachedData,
+            posts: updatedPosts
+          })
+          updatedCount++
+        }
+      }
+    }
+    
+    console.log(`成功更新了 ${updatedCount} 个帖子缓存条目的统计数据`)
+  } catch (error) {
+    console.error('更新帖子缓存统计数据失败:', error)
+    // 如果更新失败，降级为清除相关缓存
+    try {
+      await searchCache.clearPattern('search')
+      console.log('降级清除了搜索缓存')
+    } catch (clearError) {
+      console.error('清除缓存也失败了:', clearError)
     }
   }
 }

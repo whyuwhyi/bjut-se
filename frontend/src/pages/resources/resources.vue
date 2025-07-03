@@ -8,45 +8,14 @@
 			@search="handleAdvancedSearch"
 		/>
 
-		<!-- 分类过滤 -->
-		<view class="category-filter">
-			<scroll-view class="category-scroll" scroll-x="true">
-				<view class="category-list">
-					<view 
-						class="category-item" 
-						:class="{ active: selectedCategory === null }"
-						@click="selectCategory(null)"
-					>
-						<text class="category-text">全部</text>
-					</view>
-					<view 
-						class="category-item" 
-						v-for="category in categories" 
-						:key="category.category_id"
-						:class="{ active: selectedCategory === category.category_id }"
-						@click="selectCategory(category.category_id)"
-					>
-						<text class="category-text">{{ category.category_name }}</text>
-					</view>
-				</view>
-			</scroll-view>
-		</view>
-		
-		<!-- 排序选项 -->
-		<view class="sort-section">
-			<picker 
-				:value="sortIndex" 
-				:range="sortOptions" 
-				@change="handleSortChange"
-				class="sort-picker"
-			>
-				<view class="sort-text">{{ sortOptions[sortIndex] }}</view>
-				<text class="sort-icon">▼</text>
-			</picker>
-		</view>
 
 		<!-- 资源列表 -->
-		<view class="resources-list">
+		<scroll-view 
+			class="resources-list"
+			refresher-enabled="true"
+			:refresher-triggered="refresherTriggered"
+			@refresherrefresh="onRefresh"
+		>
 			<view 
 				class="resource-item" 
 				v-for="(item, index) in resources" 
@@ -87,11 +56,16 @@
 					<text class="description-text">{{ item.description }}</text>
 				</view>
 			</view>
-		</view>
+		</scroll-view>
 
 		<!-- 上传按钮 -->
 		<view class="upload-btn" @click="goToUpload">
 			<image class="upload-icon" src="/static/icons/upload.png" mode="aspectFit"></image>
+		</view>
+		
+		<!-- 调试按钮 -->
+		<view class="debug-btn" @click="testUpdateStats" style="position: fixed; bottom: 200rpx; right: 40rpx; width: 100rpx; height: 100rpx; background: #ff6b6b; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 999;">
+			<text style="color: white; font-size: 24rpx;">测试</text>
 		</view>
 
 		<!-- 加载更多 -->
@@ -103,6 +77,7 @@
 
 <script>
 import AdvancedSearch from '@/components/AdvancedSearch.vue'
+import eventBus, { EVENTS } from '@/utils/eventBus'
 
 export default {
 	components: {
@@ -116,17 +91,14 @@ export default {
 			limit: 6,
 			hasMore: true,
 			loading: false,
-			categories: [],
-			selectedCategory: null,
 			searchParams: {},
-			sortOptions: ['最新发布', '最多下载', '最高评分', '最多收藏'],
-			sortIndex: 0
+			refresherTriggered: false
 		}
 	},
 	
 	onLoad() {
-		this.loadCategories()
 		this.loadResources()
+		this.initEventListeners()
 	},
 	
 	onShow() {
@@ -135,7 +107,19 @@ export default {
 		this.loadResources(true)
 	},
 	
+	onUnload() {
+		this.removeEventListeners()
+	},
+	
 	methods: {
+		// 下拉刷新
+		async onRefresh() {
+			this.refresherTriggered = true
+			this.page = 1
+			await this.loadResources(true)
+			this.refresherTriggered = false
+		},
+		
 		// 处理高级搜索
 		handleAdvancedSearch(searchParams) {
 			this.searchParams = searchParams
@@ -144,43 +128,6 @@ export default {
 			this.loadResources(true)
 		},
 		
-		async loadCategories() {
-			try {
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/categories`,
-					method: 'GET'
-				})
-				
-				if (response.statusCode === 200 && response.data.success) {
-					this.categories = response.data.data
-					console.log('加载到的分类数据:', this.categories)
-				} else {
-					console.error('加载分类失败:', response.data)
-					uni.showToast({
-						title: '加载分类失败',
-						icon: 'none'
-					})
-				}
-			} catch (error) {
-				console.error('加载分类失败:', error)
-				uni.showToast({
-					title: '加载分类失败',
-					icon: 'none'
-				})
-			}
-		},
-		
-		selectCategory(categoryId) {
-			this.selectedCategory = categoryId
-			this.page = 1
-			this.loadResources(true)
-		},
-		
-		handleSortChange(e) {
-			this.sortIndex = e.detail.value
-			this.page = 1
-			this.loadResources(true)
-		},
 		
 		// 加载资源列表
 		async loadResources(refresh = false) {
@@ -191,31 +138,6 @@ export default {
 					page: refresh ? 1 : this.page,
 					limit: this.limit,
 					...this.searchParams
-				}
-				
-				// 添加分类过滤
-				if (this.selectedCategory) {
-					params.category = this.selectedCategory
-				}
-				
-				// 添加排序
-				switch (this.sortIndex) {
-					case 0: // 最新发布
-						params.sort = 'created_at'
-						params.order = 'desc'
-						break
-					case 1: // 最多下载
-						params.sort = 'download_count'
-						params.order = 'desc'
-						break
-					case 2: // 最高评分
-						params.sort = 'rating'
-						params.order = 'desc'
-						break
-					case 3: // 最多收藏
-						params.sort = 'collection_count'
-						params.order = 'desc'
-						break
 				}
 				
 				const token = uni.getStorageSync('token')
@@ -234,10 +156,31 @@ export default {
 				if (response.statusCode === 200 && response.data.success) {
 					const { resources, pagination } = response.data.data
 					
+					// 调试：打印原始数据
+					console.log('原始资源数据:', resources)
+					
+					// 标准化资源数据，确保所有统计字段都存在且为响应式
+					const normalizedResources = resources.map(resource => {
+						const normalized = {
+							...resource,
+							// 确保统计字段都存在
+							viewCount: resource.viewCount || resource.view_count || 0,
+							downloadCount: resource.downloadCount || resource.download_count || 0,
+							favoriteCount: resource.favoriteCount || resource.collection_count || 0,
+							collection_count: resource.collection_count || resource.favoriteCount || 0,
+							rating: parseFloat(resource.rating) || 0,
+							// 确保ID字段存在
+							id: resource.id || resource.resource_id,
+							resource_id: resource.resource_id || resource.id
+						}
+						console.log('标准化后的资源:', normalized)
+						return normalized
+					})
+					
 					if (refresh) {
-						this.resources = resources
+						this.resources = normalizedResources
 					} else {
-						this.resources = [...this.resources, ...resources]
+						this.resources = [...this.resources, ...normalizedResources]
 					}
 					
 					this.hasMore = pagination.currentPage < pagination.totalPages
@@ -309,6 +252,121 @@ export default {
 			if (!time) return ''
 			const { formatTime } = require('@/utils/time.js')
 			return formatTime(time)
+		},
+		
+		// 初始化事件监听器
+		initEventListeners() {
+			eventBus.on(EVENTS.RESOURCE_FAVORITE_CHANGED, this.updateResourceFavorite)
+			eventBus.on(EVENTS.RESOURCE_DOWNLOAD_CHANGED, this.updateResourceDownload)
+			eventBus.on(EVENTS.RESOURCE_RATING_CHANGED, this.updateResourceRating)
+			eventBus.on(EVENTS.RESOURCE_VIEW_CHANGED, this.updateResourceView)
+		},
+		
+		// 移除事件监听器
+		removeEventListeners() {
+			eventBus.off(EVENTS.RESOURCE_FAVORITE_CHANGED, this.updateResourceFavorite)
+			eventBus.off(EVENTS.RESOURCE_DOWNLOAD_CHANGED, this.updateResourceDownload)
+			eventBus.off(EVENTS.RESOURCE_RATING_CHANGED, this.updateResourceRating)
+			eventBus.off(EVENTS.RESOURCE_VIEW_CHANGED, this.updateResourceView)
+		},
+		
+		// 更新资源收藏状态
+		updateResourceFavorite(data) {
+			const { resourceId, isFavorited, favoriteCount } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				r.id === resourceId || r.resource_id === resourceId
+			)
+			if (resourceIndex !== -1) {
+				const resource = this.resources[resourceIndex]
+				this.$set(resource, 'isFavorited', isFavorited)
+				this.$set(resource, 'favoriteCount', favoriteCount)
+				this.$set(resource, 'collection_count', favoriteCount)
+			}
+		},
+		
+		// 更新资源下载数
+		updateResourceDownload(data) {
+			const { resourceId, downloadCount } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				r.id === resourceId || r.resource_id === resourceId
+			)
+			if (resourceIndex !== -1) {
+				this.$set(this.resources[resourceIndex], 'downloadCount', downloadCount)
+			}
+		},
+		
+		// 更新资源评分
+		updateResourceRating(data) {
+			const { resourceId, rating } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				r.id === resourceId || r.resource_id === resourceId
+			)
+			if (resourceIndex !== -1) {
+				this.$set(this.resources[resourceIndex], 'rating', rating)
+			}
+		},
+		
+		// 更新资源浏览数
+		updateResourceView(data) {
+			const { resourceId, viewCount } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				r.id === resourceId || r.resource_id === resourceId
+			)
+			if (resourceIndex !== -1) {
+				this.$set(this.resources[resourceIndex], 'viewCount', viewCount)
+			}
+		},
+		
+		// 刷新单个资源数据（从详情页面返回时调用）
+		refreshResourceData(data) {
+			const { resourceId, viewCount, downloadCount, favoriteCount, rating } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				(r.id && r.id === resourceId) || 
+				(r.resource_id && r.resource_id === resourceId)
+			)
+			
+			if (resourceIndex !== -1) {
+				const resource = this.resources[resourceIndex]
+				
+				// 使用 Vue.set 确保响应式更新
+				if (viewCount !== undefined) {
+					this.$set(resource, 'viewCount', viewCount)
+				}
+				if (downloadCount !== undefined) {
+					this.$set(resource, 'downloadCount', downloadCount)
+				}
+				if (favoriteCount !== undefined) {
+					this.$set(resource, 'favoriteCount', favoriteCount)
+					this.$set(resource, 'collection_count', favoriteCount)
+				}
+				if (rating !== undefined) {
+					this.$set(resource, 'rating', rating)
+				}
+				
+				console.log('已更新资源数据:', resource)
+			} else {
+				console.log('未找到要更新的资源:', resourceId)
+			}
+		},
+		
+		// 测试方法：手动更新统计数据
+		testUpdateStats() {
+			if (this.resources.length > 0) {
+				const resource = this.resources[0]
+				console.log('更新前:', resource)
+				
+				// 模拟统计数据变化
+				this.$set(resource, 'viewCount', (resource.viewCount || 0) + 10)
+				this.$set(resource, 'downloadCount', (resource.downloadCount || 0) + 5)
+				this.$set(resource, 'favoriteCount', (resource.favoriteCount || 0) + 2)
+				this.$set(resource, 'collection_count', (resource.collection_count || 0) + 2)
+				
+				console.log('更新后:', resource)
+				uni.showToast({
+					title: '测试更新完成',
+					icon: 'success'
+				})
+			}
 		}
 	}
 }
@@ -316,82 +374,32 @@ export default {
 
 <style lang="scss" scoped>
 .resources-container {
+	width: 100%;
+	height: 100vh;
 	padding: 20rpx;
-	background-color: #f5f5f5;
-	min-height: 100vh;
-	
-	.category-filter {
-		margin: 20rpx 0;
-		background-color: #fff;
-		border-radius: 16rpx;
-		padding: 20rpx;
-		box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
-		
-		.category-scroll {
-			white-space: nowrap;
-			
-			.category-list {
-				display: inline-flex;
-				padding: 10rpx 0;
-				
-				.category-item {
-					display: inline-block;
-					padding: 10rpx 30rpx;
-					margin-right: 20rpx;
-					background-color: #f5f5f5;
-					border-radius: 30rpx;
-					transition: all 0.3s;
-					
-					&.active {
-						background-color: #007aff;
-						
-						.category-text {
-							color: #fff;
-						}
-					}
-					
-					.category-text {
-						font-size: 26rpx;
-						color: #333;
-					}
-					
-					&:last-child {
-						margin-right: 0;
-					}
-				}
-			}
-		}
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	overflow-y: auto;
+	box-sizing: border-box;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 	}
-	
-	.sort-section {
-		margin-bottom: 20rpx;
-		background-color: #fff;
-		border-radius: 16rpx;
-		padding: 20rpx;
-		box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
-		
-		.sort-picker {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			padding: 10rpx 20rpx;
-			background-color: #f5f5f5;
-			border-radius: 30rpx;
-			
-			.sort-text {
-				font-size: 26rpx;
-				color: #333;
-			}
-			
-			.sort-icon {
-				font-size: 24rpx;
-				color: #666;
-				margin-left: 10rpx;
-			}
-		}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
 	}
-	
-	.resources-list {
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+}
+
+.resources-list {
+	width: 100%;
 		.resource-item {
 			background: #fff;
 			border-radius: 16rpx;
@@ -438,6 +446,13 @@ export default {
 						font-weight: bold;
 						color: #333;
 						margin-bottom: 10rpx;
+						word-wrap: break-word;
+						word-break: break-all;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						display: -webkit-box;
+						-webkit-line-clamp: 2;
+						-webkit-box-orient: vertical;
 					}
 					
 					.resource-tags {
@@ -489,6 +504,13 @@ export default {
 					font-size: 28rpx;
 					color: #666;
 					line-height: 1.5;
+					word-wrap: break-word;
+					word-break: break-all;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					display: -webkit-box;
+					-webkit-line-clamp: 3;
+					-webkit-box-orient: vertical;
 				}
 			}
 		}
@@ -537,5 +559,4 @@ export default {
 			}
 		}
 	}
-}
 </style>

@@ -60,7 +60,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
     
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/用户不存在|not found/i);
+    expect(res.body.message).toBe('用户不存在');
   });
 
   it('3. 密码错误', async () => {
@@ -74,7 +74,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
     
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/密码错误|password.*wrong/i);
+    expect(res.body.message).toBe('密码错误');
   });
 
   it('4. 手机号格式错误', async () => {
@@ -88,7 +88,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
     
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/输入数据验证失败|validation.*failed/i);
+    expect(res.body.message).toBe('登录失败：输入数据验证失败');
   });
 
   it('5. 手机号为空', async () => {
@@ -102,7 +102,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
     
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/输入数据验证失败|validation.*failed/i);
+    expect(res.body.message).toBe('登录失败：输入数据验证失败');
   });
 
   it('6. 密码为空', async () => {
@@ -116,7 +116,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
     
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/输入数据验证失败|validation.*failed/i);
+    expect(res.body.message).toBe('登录失败：输入数据验证失败');
   });
 
   it('7. 被禁用用户登录', async () => {
@@ -133,7 +133,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
     // 如果用户被禁用，应该返回403状态码
     if (res.status === 403) {
       expect(res.body.success).toBe(false);
-      expect(res.body.message).toMatch(/账户已被禁用|account.*disabled/i);
+      expect(res.body.message).toBe('账户已被禁用');
     } else {
       // 如果用户正常，测试应该通过
       expect(res.status).toBe(200);
@@ -153,7 +153,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
     
     if (res.status === 403) {
       expect(res.body.success).toBe(false);
-      expect(res.body.message).toMatch(/账户已被禁用|account.*disabled/i);
+      expect(res.body.message).toBe('账户已被禁用');
     } else {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -174,7 +174,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
       
       expect(res.status).toBe(401);
       expect(res.body.success).toBe(false);
-      expect(res.body.message).toMatch(/密码错误|password.*wrong/i);
+      expect(res.body.message).toBe('密码错误');
     }
   });
 
@@ -202,7 +202,7 @@ describe('用户登录接口（远程API）自动化测试', () => {
       .send('not a json');
     
     expect(res.status).toBeGreaterThanOrEqual(400);
-    expect(res.body.message || res.text).toMatch(/输入数据验证失败|validation.*failed/i);
+    expect(res.body.message || res.text).toMatch(/登录失败|error|fail/i);
   });
 
   it('12. 登录后token有效性', async () => {

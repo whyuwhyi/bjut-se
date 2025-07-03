@@ -4,7 +4,7 @@
 		<view class="post-detail" v-if="post">
 			<view class="post-header">
 				<view class="author-info">
-					<image class="avatar" :src="post.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill" @click.stop="viewUserProfile(post.author.phone_number, post.author)"></image>
+					<image class="avatar" :src="post.author.avatar_url || '/static/images/default-avatar.png'" mode="aspectFill" @click.stop="viewUserProfile(post.author.phone_number, post.author)"></image>
 					<view class="author-details">
 						<text class="author-name">{{ post.author.nickname || post.author.name }}</text>
 						<text class="post-time">{{ formatTime(post.created_at) }}</text>
@@ -619,12 +619,18 @@ export default {
 			color: #333;
 			margin-bottom: 30rpx;
 			line-height: 1.4;
+			word-wrap: break-word;
+			word-break: break-all;
+			overflow-wrap: break-word;
 		}
 		
 		.post-body {
 			font-size: 28rpx;
 			line-height: 1.6;
 			color: #333;
+			word-wrap: break-word;
+			word-break: break-all;
+			overflow-wrap: break-word;
 		}
 	}
 	

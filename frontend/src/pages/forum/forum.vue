@@ -10,7 +10,12 @@
 			/>
 
 			<!-- 帖子列表 -->
-			<view class="posts-list">
+			<scroll-view 
+				class="posts-list"
+				refresher-enabled="true"
+				:refresher-triggered="refresherTriggered"
+				@refresherrefresh="onRefresh"
+			>
 				<view 
 					class="post-item" 
 					v-for="(post, index) in posts" 
@@ -55,17 +60,17 @@
 						</view>
 					</view>
 				</view>
-			</view>
-
-			<!-- 加载更多 -->
-			<view class="load-more" v-if="hasMore && !loading">
-				<button class="load-more-btn" @click="loadMore">加载更多</button>
-			</view>
-			
-			<!-- 加载中提示 -->
-			<view class="loading" v-if="loading">
-				<text class="loading-text">加载中...</text>
-			</view>
+				
+				<!-- 加载更多 -->
+				<view class="load-more" v-if="hasMore && !loading">
+					<button class="load-more-btn" @click="loadMore">加载更多</button>
+				</view>
+				
+				<!-- 加载中提示 -->
+				<view class="loading" v-if="loading">
+					<text class="loading-text">加载中...</text>
+				</view>
+			</scroll-view>
 		</view>
 		
 		<!-- 发布按钮 - 移到外层 -->
@@ -79,6 +84,7 @@
 import { navigateToUserProfile } from '@/utils/userUtils'
 import config from '@/utils/config'
 import AdvancedSearch from '@/components/AdvancedSearch.vue'
+import eventBus, { EVENTS } from '@/utils/eventBus'
 
 export default {
 	components: {
@@ -91,15 +97,35 @@ export default {
 			loading: false,
 			page: 1,
 			hasMore: true,
-			searchParams: {}
+			searchParams: {},
+			refresherTriggered: false
 		}
 	},
 	
 	onLoad() {
 		this.loadPosts()
+		this.initEventListeners()
+	},
+	
+	onShow() {
+		// 页面显示时重新加载帖子列表，确保数据同步
+		this.page = 1
+		this.loadPosts(true)
+	},
+	
+	onUnload() {
+		this.removeEventListeners()
 	},
 	
 	methods: {
+		// 下拉刷新
+		async onRefresh() {
+			this.refresherTriggered = true
+			this.page = 1
+			await this.loadPosts(true)
+			this.refresherTriggered = false
+		},
+		
 		viewUserProfile(userPhone, userInfo) {
 			navigateToUserProfile(userPhone, userInfo)
 		},
@@ -133,11 +159,28 @@ export default {
 				if (response.statusCode === 200 && response.data.success) {
 					const { posts, pagination } = response.data.data
 					
+					// 调试：打印原始数据
+					console.log('原始帖子数据:', posts)
+					
+					// 标准化帖子数据，确保所有统计字段都存在且为响应式
+					const normalizedPosts = posts.map(post => {
+						const normalized = {
+							...post,
+							// 确保统计字段都存在
+							view_count: post.view_count || 0,
+							comment_count: post.comment_count || 0,
+							collection_count: post.collection_count || 0,
+							like_count: post.like_count || 0
+						}
+						console.log('标准化后的帖子:', normalized)
+						return normalized
+					})
+					
 					if (refresh) {
-						this.posts = posts
+						this.posts = normalizedPosts
 						this.page = 1
 					} else {
-						this.posts = [...this.posts, ...posts]
+						this.posts = [...this.posts, ...normalizedPosts]
 					}
 					
 					this.hasMore = pagination.currentPage < pagination.totalPages
@@ -196,6 +239,86 @@ export default {
 		formatTime(time) {
 			const { formatTime } = require('@/utils/time.js')
 			return formatTime(time)
+		},
+		
+		// 初始化事件监听器
+		initEventListeners() {
+			eventBus.on(EVENTS.POST_LIKE_CHANGED, this.updatePostLike)
+			eventBus.on(EVENTS.POST_FAVORITE_CHANGED, this.updatePostFavorite)
+			eventBus.on(EVENTS.POST_VIEW_CHANGED, this.updatePostView)
+			eventBus.on(EVENTS.POST_COMMENT_CHANGED, this.updatePostComment)
+		},
+		
+		// 移除事件监听器
+		removeEventListeners() {
+			eventBus.off(EVENTS.POST_LIKE_CHANGED, this.updatePostLike)
+			eventBus.off(EVENTS.POST_FAVORITE_CHANGED, this.updatePostFavorite)
+			eventBus.off(EVENTS.POST_VIEW_CHANGED, this.updatePostView)
+			eventBus.off(EVENTS.POST_COMMENT_CHANGED, this.updatePostComment)
+		},
+		
+		// 更新帖子点赞数
+		updatePostLike(data) {
+			const { postId, likeCount } = data
+			const postIndex = this.posts.findIndex(p => p.post_id === postId)
+			if (postIndex !== -1) {
+				this.$set(this.posts[postIndex], 'like_count', likeCount)
+			}
+		},
+		
+		// 更新帖子收藏数
+		updatePostFavorite(data) {
+			const { postId, favoriteCount } = data
+			const postIndex = this.posts.findIndex(p => p.post_id === postId)
+			if (postIndex !== -1) {
+				this.$set(this.posts[postIndex], 'collection_count', favoriteCount)
+			}
+		},
+		
+		// 更新帖子浏览数
+		updatePostView(data) {
+			const { postId, viewCount } = data
+			const postIndex = this.posts.findIndex(p => p.post_id === postId)
+			if (postIndex !== -1) {
+				this.$set(this.posts[postIndex], 'view_count', viewCount)
+			}
+		},
+		
+		// 更新帖子评论数
+		updatePostComment(data) {
+			const { postId, commentCount } = data
+			const postIndex = this.posts.findIndex(p => p.post_id === postId)
+			if (postIndex !== -1) {
+				this.$set(this.posts[postIndex], 'comment_count', commentCount)
+			}
+		},
+		
+		// 刷新单个帖子数据（从详情页面返回时调用）
+		refreshPostData(data) {
+			const { postId, viewCount, commentCount, favoriteCount, likeCount } = data
+			const postIndex = this.posts.findIndex(p => p.post_id === postId)
+			
+			if (postIndex !== -1) {
+				const post = this.posts[postIndex]
+				
+				// 使用 Vue.set 确保响应式更新
+				if (viewCount !== undefined) {
+					this.$set(post, 'view_count', viewCount)
+				}
+				if (commentCount !== undefined) {
+					this.$set(post, 'comment_count', commentCount)
+				}
+				if (favoriteCount !== undefined) {
+					this.$set(post, 'collection_count', favoriteCount)
+				}
+				if (likeCount !== undefined) {
+					this.$set(post, 'like_count', likeCount)
+				}
+				
+				console.log('已更新帖子数据:', post)
+			} else {
+				console.log('未找到要更新的帖子:', postId)
+			}
 		}
 	}
 }
@@ -203,10 +326,29 @@ export default {
 
 <style lang="scss" scoped>
 .forum-container {
+	width: 100%;
+	height: 100vh;
 	padding: 20rpx;
-	min-height: 100vh;
-	background-color: #f5f5f5;
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	overflow-y: auto;
+	box-sizing: border-box;
 	position: relative;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+	}
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
 }
 
 .create-post-btn {
@@ -312,16 +454,21 @@ export default {
 				font-weight: bold;
 				margin-bottom: 8rpx;
 				width: 100%;
-				white-space: nowrap;
+				word-wrap: break-word;
+				word-break: break-all;
 				overflow: hidden;
 				text-overflow: ellipsis;
-				display: block;
+				display: -webkit-box;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
 			}
 			
 			.post-excerpt {
 				font-size: 26rpx;
 				color: #666;
 				line-height: 1.5;
+				word-wrap: break-word;
+				word-break: break-all;
 				display: -webkit-box;
 				-webkit-box-orient: vertical;
 				-webkit-line-clamp: 2;
@@ -364,7 +511,7 @@ export default {
 		
 		&:active {
 			transform: scale(0.98);
-			background: darken(#007aff, 5%);
+			background: #0051d5;
 		}
 	}
 }

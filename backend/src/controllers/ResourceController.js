@@ -300,6 +300,17 @@ class ResourceController {
 
       // 增加浏览次数
       await resource.increment('view_count')
+      
+      // 重新获取资源最新数据
+      await resource.reload()
+      
+      // 更新缓存中的统计数据而不是清除整个缓存
+      try {
+        await updateResourceStatsInCache(id, { viewCount: resource.view_count })
+      } catch (cacheError) {
+        console.error('更新缓存失败，降级清除缓存:', cacheError)
+        await searchCache.invalidate('resource', 'update')
+      }
 
       // 格式化返回数据
       const data = resource.toJSON()
@@ -418,6 +429,19 @@ class ResourceController {
         await resource.increment('collection_count')
         isFavorited = true
         message = '已收藏'
+      }
+
+      // 重新获取资源最新的收藏数
+      await resource.reload()
+      
+      // 更新缓存中的收藏统计数据
+      try {
+        await updateResourceStatsInCache(resourceId, { 
+          collection_count: resource.collection_count,
+          favoriteCount: resource.collection_count
+        })
+      } catch (cacheError) {
+        console.error('更新收藏缓存失败:', cacheError)
       }
 
       res.json({
@@ -540,7 +564,7 @@ class ResourceController {
           ? `您的资源"${resource.resource_name}"已通过审核并发布。${comment ? `审核意见：${comment}` : ''}`
           : `您的资源"${resource.resource_name}"审核未通过。${comment ? `拒绝原因：${comment}` : ''}`,
         action_type: 'navigate',
-        action_url: '/pages/resources/detail',
+        action_url: `/pages/resources/detail?id=${resource.resource_id}`,
         action_params: { resourceId: resource.resource_id }
       })
 
@@ -697,6 +721,16 @@ class ResourceController {
         resource.increment('download_count'),
         file.increment('download_count')
       ])
+      
+      // 重新获取资源最新的下载数
+      await resource.reload()
+      
+      // 更新缓存中的统计数据
+      try {
+        await updateResourceStatsInCache(resourceId, { downloadCount: resource.download_count })
+      } catch (cacheError) {
+        console.error('更新下载缓存失败:', cacheError)
+      }
 
       // 记录下载记录
       if (userPhone) {
@@ -826,77 +860,6 @@ class ResourceController {
     }
   }
 
-  // 切换收藏状态
-  async toggleFavorite(req, res) {
-    try {
-      const userPhone = req.user.phone_number
-      const { resourceId } = req.params
-      const { type = 'resource' } = req.body
-
-      // 检查资源是否存在
-      const resource = await Resource.findByPk(resourceId)
-      if (!resource) {
-        return res.status(404).json({
-          success: false,
-          message: '资源不存在'
-        })
-      }
-
-      // 查找现有收藏记录
-      const existingCollection = await Collection.findOne({
-        where: {
-          user_phone: userPhone,
-          content_id: resourceId,
-          collection_type: 'resource'
-        }
-      })
-
-      let isCollected = false
-
-      if (existingCollection) {
-        // 如果已收藏，切换状态
-        if (existingCollection.status === 'active') {
-          await existingCollection.update({ status: 'cancelled' })
-          isCollected = false
-          // 更新收藏计数
-          await Resource.decrement('collection_count', { where: { resource_id: resourceId } })
-        } else {
-          await existingCollection.update({ status: 'active' })
-          isCollected = true
-          // 更新收藏计数
-          await Resource.increment('collection_count', { where: { resource_id: resourceId } })
-        }
-      } else {
-        // 如果没有收藏记录，创建新的
-        const collectionId = idGenerator.generateCollectionId()
-        await Collection.create({
-          collection_id: collectionId,
-          user_phone: userPhone,
-          content_id: resourceId,
-          collection_type: 'resource',
-          status: 'active'
-        })
-        isCollected = true
-        // 更新收藏计数
-        await Resource.increment('collection_count', { where: { resource_id: resourceId } })
-      }
-
-      res.json({
-        success: true,
-        message: isCollected ? '收藏成功' : '取消收藏成功',
-        data: {
-          isCollected
-        }
-      })
-    } catch (error) {
-      console.error('切换收藏状态错误:', error)
-      res.status(500).json({
-        success: false,
-        message: '操作失败',
-        error: error.message
-      })
-    }
-  }
 
   // 检查收藏状态
   async checkFavoriteStatus(req, res) {
@@ -1056,6 +1019,59 @@ class ResourceController {
     } catch (error) {
       console.error('添加收藏状态失败:', error)
       return resources.map(r => ({ ...r, isFavorited: false }))
+    }
+  }
+
+}
+
+// 辅助函数：更新缓存中的资源统计数据
+async function updateResourceStatsInCache(resourceId, statsUpdate) {
+  try {
+    // 获取所有搜索缓存键
+    const cacheKeys = await searchCache.getKeys('search')
+    
+    if (cacheKeys.length === 0) {
+      console.log('没有找到相关缓存，跳过更新')
+      return
+    }
+    
+    let updatedCount = 0
+    
+    for (const key of cacheKeys) {
+      const cachedData = await searchCache.getByKey(key)
+      if (cachedData && cachedData.resources && Array.isArray(cachedData.resources)) {
+        let updated = false
+        const updatedResources = cachedData.resources.map(resource => {
+          if (resource.id === resourceId || resource.resource_id === resourceId) {
+            updated = true
+            return {
+              ...resource,
+              ...statsUpdate
+            }
+          }
+          return resource
+        })
+        
+        if (updated) {
+          // 更新缓存中的数据
+          await searchCache.setByKey(key, {
+            ...cachedData,
+            resources: updatedResources
+          })
+          updatedCount++
+        }
+      }
+    }
+    
+    console.log(`成功更新了 ${updatedCount} 个缓存条目的统计数据`)
+  } catch (error) {
+    console.error('更新缓存统计数据失败:', error)
+    // 如果更新失败，降级为清除相关缓存
+    try {
+      await searchCache.clearPattern('search')
+      console.log('降级清除了搜索缓存')
+    } catch (clearError) {
+      console.error('清除缓存也失败了:', clearError)
     }
   }
 }

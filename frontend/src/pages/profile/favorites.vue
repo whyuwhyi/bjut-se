@@ -745,7 +745,10 @@
 		font-weight: 600;
 		color: #333333;
 		margin-bottom: 8rpx;
-					@include text-ellipsis;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.item-desc {
@@ -753,7 +756,13 @@
 		color: #666666;
 		line-height: 1.4;
 		margin-bottom: 16rpx;
-					@include multi-ellipsis(2);
+		max-width: 100%;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: normal;
 	}
 
 	.item-meta {
