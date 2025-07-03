@@ -62,6 +62,7 @@ services:
     volumes:
       - backend_uploads:/app/uploads
       - backend_logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - app-network
     depends_on:

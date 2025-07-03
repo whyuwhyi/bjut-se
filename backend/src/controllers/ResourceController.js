@@ -107,16 +107,11 @@ class ResourceController {
 
       // 智能搜索条件 - 使用JOIN查询支持关联表搜索
       if (search) {
-        console.log('资源搜索词:', search)
         const searchCondition = searchHelper.buildResourceSearchCondition(search, {
           includeRelated: true // 启用关联表搜索，配合subQuery: false使用
         })
-        console.log('资源搜索条件结果:', searchCondition)
         if (searchCondition && (Object.keys(searchCondition).length > 0 || Object.getOwnPropertySymbols(searchCondition).length > 0)) {
           Object.assign(where, searchCondition)
-          console.log('应用搜索条件后的where:', where)
-        } else {
-          console.log('搜索条件为空，未应用')
         }
       }
 

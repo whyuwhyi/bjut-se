@@ -59,16 +59,11 @@ class PostController {
       
       // 智能搜索条件 - 使用JOIN查询支持关联表搜索
       if (search) {
-        console.log('帖子搜索词:', search)
         const searchCondition = searchHelper.buildPostSearchCondition(search, {
           includeRelated: true // 启用关联表搜索，配合subQuery: false使用
         })
-        console.log('帖子搜索条件结果:', searchCondition)
         if (searchCondition && (Object.keys(searchCondition).length > 0 || Object.getOwnPropertySymbols(searchCondition).length > 0)) {
           Object.assign(whereClause, searchCondition)
-          console.log('应用搜索条件后的whereClause:', whereClause)
-        } else {
-          console.log('搜索条件为空，未应用')
         }
       }
 

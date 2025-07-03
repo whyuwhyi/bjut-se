@@ -58,7 +58,6 @@ class SearchHelper {
     }
 
     const keywords = this.extractKeywords(searchTerm)
-    console.log('资源搜索关键词:', keywords)
     const searchConditions = []
     
     // 为每个关键词构建搜索条件
@@ -97,7 +96,6 @@ class SearchHelper {
     })
 
     if (searchConditions.length === 0) {
-      console.log('资源搜索条件为空')
       return {}
     }
     
@@ -105,7 +103,6 @@ class SearchHelper {
       ? { [Op.and]: searchConditions }
       : searchConditions[0]
     
-    console.log('资源搜索条件:', JSON.stringify(result, null, 2))
     return result
   }
 
@@ -121,7 +118,6 @@ class SearchHelper {
     }
 
     const keywords = this.extractKeywords(searchTerm)
-    console.log('帖子搜索关键词:', keywords)
     const searchConditions = []
     
     keywords.forEach(keyword => {
@@ -160,7 +156,6 @@ class SearchHelper {
     })
 
     if (searchConditions.length === 0) {
-      console.log('帖子搜索条件为空')
       return {}
     }
     
@@ -168,7 +163,6 @@ class SearchHelper {
       ? { [Op.and]: searchConditions }
       : searchConditions[0]
     
-    console.log('帖子搜索条件:', JSON.stringify(result, null, 2))
     return result
   }
 
