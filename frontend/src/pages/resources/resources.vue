@@ -260,8 +260,18 @@ export default {
 		},
 		
 		viewResource(resource) {
+			// 支持两种ID格式：新版本的id和旧版本的resource_id
+			const resourceId = resource.id || resource.resource_id
+			if (!resourceId) {
+				console.error('资源ID缺失:', resource)
+				uni.showToast({
+					title: '资源ID错误',
+					icon: 'none'
+				})
+				return
+			}
 			uni.navigateTo({
-				url: `./detail?id=${resource.resource_id}`
+				url: `./detail?id=${resourceId}`
 			})
 		},
 		
