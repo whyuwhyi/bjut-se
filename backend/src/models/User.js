@@ -58,6 +58,25 @@ const User = sequelize.define('User', {
     },
     comment: '邮箱地址'
   },
+  birthday: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    validate: {
+      isDate: true,
+      isBefore: new Date().toISOString().split('T')[0], // 不能是未来日期
+      isNotTooOld(value) {
+        if (value) {
+          const ninetyYearsAgo = new Date();
+          ninetyYearsAgo.setFullYear(ninetyYearsAgo.getFullYear() - 90);
+          const inputDate = new Date(value);
+          if (inputDate < ninetyYearsAgo) {
+            throw new Error('生日不能超过90年前');
+          }
+        }
+      }
+    },
+    comment: '生日日期'
+  },
   bio: {
     type: DataTypes.TEXT,
     allowNull: true,
