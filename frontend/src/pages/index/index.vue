@@ -452,11 +452,11 @@
 	border-radius: 24rpx;
 	overflow: hidden;
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-	
+
 	.banner-swiper {
 		width: 100%;
 		height: 300rpx;
-		
+
 		.banner-image {
 			width: 100%;
 			height: 100%;
@@ -474,18 +474,18 @@
 	border-radius: 24rpx;
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 	box-sizing: border-box;
-	
+
 	.quick-access-item {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 12rpx;
-		
+
 		.icon-img {
 			width: 80rpx;
 			height: 80rpx;
 		}
-		
+
 		.text {
 			font-size: 24rpx;
 			color: #333;
@@ -508,13 +508,13 @@
 	justify-content: space-between;
 	align-items: center;
 	margin-bottom: 24rpx;
-	
+
 	.section-title {
 		font-size: 32rpx;
 		font-weight: bold;
 		color: #333;
 	}
-	
+
 	.section-more {
 		font-size: 24rpx;
 		color: #007aff;
@@ -613,7 +613,7 @@
 		justify-content: center;
 		flex-shrink: 0;
 	}
-	
+
 	.resource-icon-emoji {
 		font-size: 40rpx;
 	}

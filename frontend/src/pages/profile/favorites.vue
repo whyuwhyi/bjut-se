@@ -34,8 +34,8 @@
 				</view>
 			</scroll-view>
 			<button v-if="filteredFavorites.length > 0" class="select-btn" @click="toggleSelectMode">
-				{{ isSelectMode ? '取消' : '选择' }}
-			</button>
+					{{ isSelectMode ? '取消' : '选择' }}
+				</button>
 		</view>
 
 		<!-- 收藏列表 -->
@@ -614,61 +614,61 @@
 		display: flex;
 		align-items: center;
 		padding-right: 20rpx;
-		
-		.filter-scroll {
+
+	.filter-scroll {
 			flex: 1;
-			white-space: nowrap;
+		white-space: nowrap;
 			padding: 16rpx 20rpx;
-		}
-		
-		.filter-list {
+	}
+
+	.filter-list {
 			display: inline-flex;
 			gap: 16rpx;
-		}
-		
-		.filter-item {
+	}
+
+	.filter-item {
 			display: inline-flex;
-			align-items: center;
+		align-items: center;
 			padding: 12rpx 24rpx;
-			border-radius: 24rpx;
+		border-radius: 24rpx;
 			background-color: #f5f5f5;
-			transition: all 0.3s ease;
-			
+		transition: all 0.3s ease;
+
 			&.active {
-				background-color: #007aff;
+		background-color: #007aff;
 				
 				.filter-text, .filter-count {
-					color: #ffffff;
+		color: #ffffff;
 				}
-			}
-			
-			.filter-text {
+	}
+
+	.filter-text {
 				font-size: 28rpx;
 				color: #333333;
 				margin-right: 8rpx;
-			}
-			
-			.filter-count {
+	}
+
+	.filter-count {
 				font-size: 24rpx;
 				color: #666666;
-			}
-		}
-
-		.select-btn {
+	}
+	}
+	
+	.select-btn {
 			padding: 12rpx 24rpx;
 			font-size: 28rpx;
 			color: #007aff;
 			background: none;
-			border: none;
-			min-width: 120rpx;
-			text-align: center;
+		border: none;
+		min-width: 120rpx;
+		text-align: center;
 			
 			&:after {
 				border: none;
 			}
 		}
 	}
-
+	
 	.favorites-list {
 		padding: 20rpx;
 		
@@ -686,99 +686,99 @@
 			
 			&.select-mode {
 				padding-left: 80rpx;
-			}
-			
+	}
+	
 			&.selected {
 				background-color: #f0f7ff;
 				border: 2rpx solid #007aff;
-			}
-			
-			.select-checkbox {
-				position: absolute;
+	}
+	
+	.select-checkbox {
+		position: absolute;
 				left: 24rpx;
-				top: 50%;
-				transform: translateY(-50%);
+		top: 50%;
+		transform: translateY(-50%);
 				width: 40rpx;
 				height: 40rpx;
 				display: flex;
 				align-items: center;
 				justify-content: center;
 				z-index: 1;
-				
-				.checkbox-icon {
+	
+	.checkbox-icon {
 					font-size: 36rpx;
 					line-height: 1;
-				}
-			}
-			
-			.item-icon {
-				width: 80rpx;
-				height: 80rpx;
+	}
+	}
+
+	.item-icon {
+		width: 80rpx;
+		height: 80rpx;
 				border-radius: 16rpx;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
 				background-color: #f5f5f5;
-				
+
 				&.icon-resource {
-					background-color: #e8f4fd;
-				}
-				
+		background-color: #e8f4fd;
+	}
+
 				&.icon-post {
-					background-color: #f0f9ff;
-				}
-				
-				.icon-emoji {
-					font-size: 36rpx;
+		background-color: #f0f9ff;
+	}
+
+	.icon-emoji {
+		font-size: 36rpx;
 					line-height: 1;
 				}
-			}
-			
-			.item-content {
-				flex: 1;
-				min-width: 0;
+	}
+
+	.item-content {
+		flex: 1;
+		min-width: 0;
 				padding-right: 80rpx;
-				
-				.item-title {
-					font-size: 32rpx;
-					font-weight: 600;
-					color: #333333;
-					margin-bottom: 8rpx;
+
+	.item-title {
+		font-size: 32rpx;
+		font-weight: 600;
+		color: #333333;
+		margin-bottom: 8rpx;
 					@include text-ellipsis;
-				}
-				
-				.item-desc {
-					font-size: 28rpx;
-					color: #666666;
-					line-height: 1.4;
-					margin-bottom: 16rpx;
+	}
+
+	.item-desc {
+		font-size: 28rpx;
+		color: #666666;
+		line-height: 1.4;
+		margin-bottom: 16rpx;
 					@include multi-ellipsis(2);
-				}
-				
-				.item-meta {
-					display: flex;
-					align-items: center;
-					gap: 16rpx;
-					flex-wrap: wrap;
-					
+	}
+
+	.item-meta {
+		display: flex;
+		align-items: center;
+		gap: 16rpx;
+		flex-wrap: wrap;
+
 					.item-author, .item-time {
-						font-size: 24rpx;
-						color: #999999;
-					}
-					
-					.item-tags {
-						display: flex;
-						gap: 8rpx;
+		font-size: 24rpx;
+		color: #999999;
+	}
+
+	.item-tags {
+		display: flex;
+		gap: 8rpx;
 						flex-wrap: wrap;
-						
-						.item-tag {
+
+	.item-tag {
 							padding: 4rpx 12rpx;
 							background-color: #f5f5f5;
 							border-radius: 12rpx;
 							font-size: 22rpx;
-							color: #666666;
-						}
+		color: #666666;
+	}
 					}
 				}
 			}
@@ -790,22 +790,22 @@
 				transform: translateY(-50%);
 				margin-left: 0;
 				z-index: 2;
-				
-				.action-btn {
+
+	.action-btn {
 					width: 64rpx;
 					height: 64rpx;
 					border-radius: 32rpx;
 					background-color: #f5f5f5;
-					display: flex;
-					align-items: center;
-					justify-content: center;
-					transition: all 0.3s ease;
-					
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.3s ease;
+
 					&:active {
-						background-color: #e0e0e0;
-					}
-					
-					.action-icon {
+		background-color: #e0e0e0;
+	}
+
+	.action-icon {
 						font-size: 32rpx;
 						line-height: 1;
 					}

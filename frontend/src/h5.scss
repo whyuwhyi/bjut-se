@@ -13,6 +13,9 @@ html, body {
   background-color: #f5f5f5;
   line-height: 1.6;
   color: #333;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 /* H5适配 */
@@ -23,12 +26,17 @@ html, body {
   }
   
   /* 为大屏幕优化布局 */
-  .container {
+  .container, 
+  .forum-container, 
+  .resources-container {
     max-width: 414px;
     margin: 0 auto;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
     min-height: 100vh;
+    height: 100%;
     background: white;
+    position: relative;
+    overflow-y: auto;
   }
   
   /* 导航栏适配 */
