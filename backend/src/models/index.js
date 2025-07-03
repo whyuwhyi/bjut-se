@@ -20,6 +20,7 @@ const UserFollow = require('./UserFollow')
 const VerificationCode = require('./VerificationCode')
 // 通知模块
 const Notification = require('./Notification')
+const NotificationRead = require('./NotificationRead')
 // 举报模块
 const ResourceReport = require('./ResourceReport')
 const PostReport = require('./PostReport')
@@ -231,20 +232,31 @@ User.hasMany(Notification, {
   sourceKey: 'phone_number',
   as: 'receivedNotifications'
 })
-User.hasMany(Notification, {
-  foreignKey: 'sender_phone',
-  sourceKey: 'phone_number',
-  as: 'sentNotifications'
-})
 Notification.belongsTo(User, {
   foreignKey: 'receiver_phone',
   targetKey: 'phone_number',
   as: 'receiver'
 })
-Notification.belongsTo(User, {
-  foreignKey: 'sender_phone',
+
+// 用户通知已读状态关系
+User.hasMany(NotificationRead, {
+  foreignKey: 'user_phone',
+  sourceKey: 'phone_number',
+  as: 'notificationReads'
+})
+NotificationRead.belongsTo(User, {
+  foreignKey: 'user_phone',
   targetKey: 'phone_number',
-  as: 'sender'
+  as: 'user'
+})
+
+Notification.hasMany(NotificationRead, {
+  foreignKey: 'notification_id',
+  as: 'readByUsers'
+})
+NotificationRead.belongsTo(Notification, {
+  foreignKey: 'notification_id',
+  as: 'notification'
 })
 
 // 收藏-资源关系（基于content_id匹配）
@@ -357,6 +369,7 @@ const models = {
   VerificationCode,
   // 通知模块
   Notification,
+  NotificationRead,
   // 举报模块
   ResourceReport,
   PostReport,

@@ -25,7 +25,7 @@
 		<!-- 最新公告 -->
 		<view class="notice-section card">
 			<view class="section-header">
-				<text class="section-title">最新公告</text>
+				<text class="section-title">最新通知</text>
 				<text class="section-more" @click="navigateTo('/pages/notification/messages')">更多</text>
 			</view>
 			<view class="notice-list">

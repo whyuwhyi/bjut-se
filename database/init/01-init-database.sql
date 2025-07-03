@@ -277,8 +277,7 @@ CREATE TABLE sub_tasks (
 -- 18. 通知表
 CREATE TABLE notifications (
     notification_id VARCHAR(9) PRIMARY KEY COMMENT '通知ID',
-    receiver_phone VARCHAR(11) NOT NULL COMMENT '接收者手机号',
-    sender_phone VARCHAR(11) COMMENT '发送者手机号',
+    receiver_phone VARCHAR(11) NULL COMMENT '接收者手机号（为空表示广播通知，面向全体用户）',
     type ENUM('system', 'study', 'interaction', 'resource', 'announcement') NOT NULL COMMENT '通知类型',
     priority ENUM('high', 'medium', 'low') DEFAULT 'medium' COMMENT '优先级',
     title VARCHAR(200) NOT NULL COMMENT '通知标题',
@@ -286,14 +285,26 @@ CREATE TABLE notifications (
     action_type ENUM('none', 'navigate', 'external_link') DEFAULT 'none' COMMENT '动作类型',
     action_url VARCHAR(500) COMMENT '动作URL',
     action_params JSON COMMENT '动作参数',
-    is_read BOOLEAN DEFAULT FALSE COMMENT '是否已读',
-    read_at TIMESTAMP NULL COMMENT '阅读时间',
+    is_read BOOLEAN DEFAULT FALSE COMMENT '是否已读（只对个人通知有效）',
+    read_at TIMESTAMP NULL COMMENT '阅读时间（只对个人通知有效）',
     expires_at TIMESTAMP NULL COMMENT '过期时间',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
-    FOREIGN KEY (sender_phone) REFERENCES users(phone_number) ON DELETE SET NULL
+    FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='通知表';
+
+-- 19. 广播通知已读状态表
+CREATE TABLE notification_reads (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
+    user_phone VARCHAR(11) NOT NULL COMMENT '用户手机号',
+    notification_id VARCHAR(9) NOT NULL COMMENT '通知ID',
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '阅读时间',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
+    FOREIGN KEY (notification_id) REFERENCES notifications(notification_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_notification (user_phone, notification_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='广播通知已读状态表';
 
 -- 21. 验证码表
 CREATE TABLE verification_codes (
@@ -465,9 +476,17 @@ INSERT INTO sub_tasks (task_id, title, description, completed, sort_order, deadl
 
 
 -- 插入通知
-INSERT INTO notifications (notification_id, receiver_phone, sender_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
-('600000001', '13800138002', NULL, 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', false, NOW(), NOW()),
-('600000002', '13800138003', '13800138002', 'interaction', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', false, NOW(), NOW());
+INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
+('600000001', '13800138002', 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', false, NOW(), NOW()),
+('600000002', '13800138003', 'system', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', false, NOW(), NOW());
+
+-- 插入一个广播通知示例（receiver_phone为NULL）
+INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
+('600000003', NULL, 'announcement', 'high', '系统维护通知', '系统将于今晚23:00-24:00进行维护，请合理安排学习时间。', 'none', false, NOW(), NOW());
+
+-- 插入广播通知已读状态示例（只有用户13800138002标记了这个广播通知为已读）
+INSERT INTO notification_reads (user_phone, notification_id, read_at, created_at, updated_at) VALUES
+('13800138002', '600000003', NOW(), NOW(), NOW());
 
 -- 插入测试举报数据
 INSERT INTO resource_reports (report_id, resource_id, reporter_phone, reason, description, status, created_at, updated_at) VALUES

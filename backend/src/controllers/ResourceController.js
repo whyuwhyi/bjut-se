@@ -1,4 +1,4 @@
-const { Resource, User, File, Collection, Comment, Rating, Category } = require('../models')
+const { Resource, User, File, Collection, Comment, Rating, Category, Notification } = require('../models')
 const { Op } = require('sequelize')
 
 class ResourceController {
@@ -372,7 +372,15 @@ class ResourceController {
       const { action, comment } = req.body // action: 'approve' | 'reject'
       const reviewerPhone = req.user.phone_number
 
-      const resource = await Resource.findByPk(resourceId)
+      const resource = await Resource.findOne({
+        where: { resource_id: resourceId },
+        include: [{
+          model: User,
+          as: 'publisher',
+          attributes: ['phone_number', 'name', 'nickname']
+        }]
+      })
+      
       if (!resource) {
         return res.status(404).json({
           success: false,
@@ -394,6 +402,24 @@ class ResourceController {
         reviewer_phone: reviewerPhone,
         review_comment: comment,
         reviewed_at: new Date()
+      })
+
+      // 发送通知给资源发布者
+      const notificationId = Math.floor(100000000 + Math.random() * 900000000).toString()
+      const isApproved = action === 'approve'
+      
+      await Notification.create({
+        notification_id: notificationId,
+        receiver_phone: resource.publisher_phone,
+        type: 'system',
+        priority: isApproved ? 'medium' : 'high',
+        title: isApproved ? '资源审核通过' : '资源审核被拒绝',
+        content: isApproved 
+          ? `您的资源"${resource.resource_name}"已通过审核并发布。${comment ? `审核意见：${comment}` : ''}`
+          : `您的资源"${resource.resource_name}"审核未通过。${comment ? `拒绝原因：${comment}` : ''}`,
+        action_type: 'navigate',
+        action_url: '/pages/resources/detail',
+        action_params: { resourceId: resource.resource_id }
       })
 
       res.json({
@@ -488,7 +514,12 @@ class ResourceController {
         })
       }
 
-      if (resource.status !== 'published') {
+      // 权限检查：管理员可以下载任何状态的资源，普通用户只能下载已发布的资源或自己的资源
+      const isAdmin = req.user?.role === 'admin'
+      const isOwner = req.user?.phone_number === resource.publisher_phone
+      const isPublished = resource.status === 'published'
+      
+      if (!isPublished && !isAdmin && !isOwner) {
         return res.status(403).json({
           success: false,
           message: '资源未发布，无法下载'

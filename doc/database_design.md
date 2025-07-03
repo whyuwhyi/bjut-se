@@ -25,6 +25,7 @@
 | **用户交互** | user_follows | 用户关注关系 | 2 |
 | | collections | 多类型收藏管理 | 5 |
 | **通知系统** | notifications | 统一消息通知 | 2 |
+| | notification_reads | 广播通知已读状态 | 动态 |
 | **举报管理** | resource_reports | 资源举报处理 | 2 |
 | | post_reports | 帖子举报处理 | 1 |
 | **用户反馈** | feedbacks | 用户反馈建议 | 动态 |
@@ -426,19 +427,84 @@
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
 | notification_id | VARCHAR(9) | PRIMARY KEY | 9位数字的通知唯一标识符 |
-| receiver_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 接收者手机号 |
-| sender_phone | VARCHAR(11) | FOREIGN KEY | 发送者手机号（系统通知可为空） |
+| receiver_phone | VARCHAR(11) | FOREIGN KEY | 接收者手机号（为空表示广播通知，面向全体用户） |
 | type | ENUM('system','study','interaction','resource','announcement') | NOT NULL | 通知类型 |
 | priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
 | title | VARCHAR(200) | NOT NULL | 通知标题 |
 | content | TEXT | NOT NULL | 通知内容 |
 | action_type | ENUM('navigate','external_link','none') | DEFAULT 'none' | 操作类型 |
 | action_url | VARCHAR(500) | | 操作链接 |
+| action_params | JSON | | 操作参数（JSON格式） |
 | is_read | BOOLEAN | DEFAULT FALSE | 是否已读 |
 | read_at | TIMESTAMP | | 已读时间 |
 | expires_at | TIMESTAMP | | 过期时间 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**广播通知功能：**
+- **个人通知**：receiver_phone 不为空，发送给特定用户
+- **广播通知**：receiver_phone 为空，面向全体用户
+- **通知类型**：系统公告、重要更新、维护通知等可设为广播
+- **管理界面**：管理员可通过后台发布广播通知
+- **查询逻辑**：用户查询通知需要包含个人通知和广播通知
+- **系统通知**：所有通知都是系统通知，无发送者身份
+
+**广播通知已读状态表 (notification_reads)：**
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| id | INT | PRIMARY KEY, AUTO_INCREMENT | 记录ID |
+| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号 |
+| notification_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 通知ID |
+| read_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 阅读时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**唯一约束：** `UNIQUE(user_phone, notification_id)` - 防止同一用户对同一通知重复标记已读
+
+**通知查询规则：**
+```sql
+-- 用户查询自己的通知（包括个人通知和广播通知）
+SELECT n.*, 
+       CASE 
+         WHEN n.receiver_phone IS NULL THEN nr.read_at IS NOT NULL
+         ELSE n.is_read 
+       END as is_read,
+       CASE 
+         WHEN n.receiver_phone IS NULL THEN nr.read_at
+         ELSE n.read_at 
+       END as read_at
+FROM notifications n
+LEFT JOIN notification_reads nr ON (n.receiver_phone IS NULL AND nr.notification_id = n.notification_id AND nr.user_phone = '用户手机号')
+WHERE n.receiver_phone = '用户手机号' OR n.receiver_phone IS NULL
+ORDER BY n.priority DESC, n.created_at DESC;
+```
+
+**通知管理规则：**
+- **广播通知创建**：在notifications表创建一条receiver_phone为NULL的记录
+- **个人通知创建**：在notifications表创建receiver_phone不为空的记录
+- **广播通知已读**：在notification_reads表插入记录
+- **个人通知已读**：更新notifications表的is_read和read_at字段
+- **存储优化**：广播通知内容只存储一份，已读状态分别记录
+
+**未读数量统计：**
+```sql
+-- 统计用户未读通知数量
+SELECT COUNT(*) FROM (
+  -- 个人通知未读数
+  SELECT 1 FROM notifications 
+  WHERE receiver_phone = '用户手机号' AND is_read = false
+  UNION ALL
+  -- 广播通知未读数
+  SELECT 1 FROM notifications n
+  WHERE n.receiver_phone IS NULL 
+    AND NOT EXISTS (
+      SELECT 1 FROM notification_reads nr 
+      WHERE nr.notification_id = n.notification_id 
+        AND nr.user_phone = '用户手机号'
+    )
+) AS unread_count;
+```
 
 ---
 
