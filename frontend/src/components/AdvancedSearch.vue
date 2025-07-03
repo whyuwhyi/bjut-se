@@ -130,25 +130,25 @@
 				<view class="range-selector">
 					<view class="range-input">
 						<text class="range-label">最低评分</text>
-						<slider 
-							:value="searchForm.minRating * 20"
-							@change="onMinRatingChange"
-							max="100"
-							activeColor="#007aff"
-							backgroundColor="#e9e9e9"
+						<input 
+							class="range-number-input"
+							type="digit"
+							v-model="searchForm.minRating"
+							placeholder="0.0"
+							@input="onMinRatingInput"
 						/>
-						<text class="range-value">{{ searchForm.minRating.toFixed(1) }}星</text>
+						<text class="range-value">星</text>
 					</view>
 					<view class="range-input">
 						<text class="range-label">最高评分</text>
-						<slider 
-							:value="searchForm.maxRating * 20"
-							@change="onMaxRatingChange"
-							max="100"
-							activeColor="#007aff"
-							backgroundColor="#e9e9e9"
+						<input 
+							class="range-number-input"
+							type="digit"
+							v-model="searchForm.maxRating"
+							placeholder="5.0"
+							@input="onMaxRatingInput"
 						/>
-						<text class="range-value">{{ searchForm.maxRating.toFixed(1) }}星</text>
+						<text class="range-value">星</text>
 					</view>
 				</view>
 			</view>
@@ -394,12 +394,14 @@ export default {
 		},
 		
 		// 评分范围处理
-		onMinRatingChange(e) {
-			this.searchForm.minRating = e.detail.value / 20
+		onMinRatingInput(e) {
+			const value = parseFloat(e.detail.value) || 0
+			this.searchForm.minRating = Math.min(Math.max(value, 0), 5)
 		},
 		
-		onMaxRatingChange(e) {
-			this.searchForm.maxRating = e.detail.value / 20
+		onMaxRatingInput(e) {
+			const value = parseFloat(e.detail.value) || 5
+			this.searchForm.maxRating = Math.min(Math.max(value, 0), 5)
 		},
 		
 		// 重置筛选条件
@@ -702,6 +704,13 @@ export default {
 					border-radius: 10rpx;
 					font-size: 24rpx;
 					text-align: center;
+					border: 1rpx solid #e0e0e0;
+					color: #333;
+					
+					&:focus {
+						background: #fff;
+						border-color: #007aff;
+					}
 				}
 			}
 		}

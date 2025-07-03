@@ -10,7 +10,12 @@
 
 
 		<!-- 资源列表 -->
-		<view class="resources-list">
+		<scroll-view 
+			class="resources-list"
+			refresher-enabled="true"
+			:refresher-triggered="refresherTriggered"
+			@refresherrefresh="onRefresh"
+		>
 			<view 
 				class="resource-item" 
 				v-for="(item, index) in resources" 
@@ -51,11 +56,16 @@
 					<text class="description-text">{{ item.description }}</text>
 				</view>
 			</view>
-		</view>
+		</scroll-view>
 
 		<!-- 上传按钮 -->
 		<view class="upload-btn" @click="goToUpload">
 			<image class="upload-icon" src="/static/icons/upload.png" mode="aspectFit"></image>
+		</view>
+		
+		<!-- 调试按钮 -->
+		<view class="debug-btn" @click="testUpdateStats" style="position: fixed; bottom: 200rpx; right: 40rpx; width: 100rpx; height: 100rpx; background: #ff6b6b; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 999;">
+			<text style="color: white; font-size: 24rpx;">测试</text>
 		</view>
 
 		<!-- 加载更多 -->
@@ -67,6 +77,7 @@
 
 <script>
 import AdvancedSearch from '@/components/AdvancedSearch.vue'
+import eventBus, { EVENTS } from '@/utils/eventBus'
 
 export default {
 	components: {
@@ -80,12 +91,14 @@ export default {
 			limit: 6,
 			hasMore: true,
 			loading: false,
-			searchParams: {}
+			searchParams: {},
+			refresherTriggered: false
 		}
 	},
 	
 	onLoad() {
 		this.loadResources()
+		this.initEventListeners()
 	},
 	
 	onShow() {
@@ -94,7 +107,19 @@ export default {
 		this.loadResources(true)
 	},
 	
+	onUnload() {
+		this.removeEventListeners()
+	},
+	
 	methods: {
+		// 下拉刷新
+		async onRefresh() {
+			this.refresherTriggered = true
+			this.page = 1
+			await this.loadResources(true)
+			this.refresherTriggered = false
+		},
+		
 		// 处理高级搜索
 		handleAdvancedSearch(searchParams) {
 			this.searchParams = searchParams
@@ -131,10 +156,31 @@ export default {
 				if (response.statusCode === 200 && response.data.success) {
 					const { resources, pagination } = response.data.data
 					
+					// 调试：打印原始数据
+					console.log('原始资源数据:', resources)
+					
+					// 标准化资源数据，确保所有统计字段都存在且为响应式
+					const normalizedResources = resources.map(resource => {
+						const normalized = {
+							...resource,
+							// 确保统计字段都存在
+							viewCount: resource.viewCount || resource.view_count || 0,
+							downloadCount: resource.downloadCount || resource.download_count || 0,
+							favoriteCount: resource.favoriteCount || resource.collection_count || 0,
+							collection_count: resource.collection_count || resource.favoriteCount || 0,
+							rating: parseFloat(resource.rating) || 0,
+							// 确保ID字段存在
+							id: resource.id || resource.resource_id,
+							resource_id: resource.resource_id || resource.id
+						}
+						console.log('标准化后的资源:', normalized)
+						return normalized
+					})
+					
 					if (refresh) {
-						this.resources = resources
+						this.resources = normalizedResources
 					} else {
-						this.resources = [...this.resources, ...resources]
+						this.resources = [...this.resources, ...normalizedResources]
 					}
 					
 					this.hasMore = pagination.currentPage < pagination.totalPages
@@ -206,6 +252,121 @@ export default {
 			if (!time) return ''
 			const { formatTime } = require('@/utils/time.js')
 			return formatTime(time)
+		},
+		
+		// 初始化事件监听器
+		initEventListeners() {
+			eventBus.on(EVENTS.RESOURCE_FAVORITE_CHANGED, this.updateResourceFavorite)
+			eventBus.on(EVENTS.RESOURCE_DOWNLOAD_CHANGED, this.updateResourceDownload)
+			eventBus.on(EVENTS.RESOURCE_RATING_CHANGED, this.updateResourceRating)
+			eventBus.on(EVENTS.RESOURCE_VIEW_CHANGED, this.updateResourceView)
+		},
+		
+		// 移除事件监听器
+		removeEventListeners() {
+			eventBus.off(EVENTS.RESOURCE_FAVORITE_CHANGED, this.updateResourceFavorite)
+			eventBus.off(EVENTS.RESOURCE_DOWNLOAD_CHANGED, this.updateResourceDownload)
+			eventBus.off(EVENTS.RESOURCE_RATING_CHANGED, this.updateResourceRating)
+			eventBus.off(EVENTS.RESOURCE_VIEW_CHANGED, this.updateResourceView)
+		},
+		
+		// 更新资源收藏状态
+		updateResourceFavorite(data) {
+			const { resourceId, isFavorited, favoriteCount } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				r.id === resourceId || r.resource_id === resourceId
+			)
+			if (resourceIndex !== -1) {
+				const resource = this.resources[resourceIndex]
+				this.$set(resource, 'isFavorited', isFavorited)
+				this.$set(resource, 'favoriteCount', favoriteCount)
+				this.$set(resource, 'collection_count', favoriteCount)
+			}
+		},
+		
+		// 更新资源下载数
+		updateResourceDownload(data) {
+			const { resourceId, downloadCount } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				r.id === resourceId || r.resource_id === resourceId
+			)
+			if (resourceIndex !== -1) {
+				this.$set(this.resources[resourceIndex], 'downloadCount', downloadCount)
+			}
+		},
+		
+		// 更新资源评分
+		updateResourceRating(data) {
+			const { resourceId, rating } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				r.id === resourceId || r.resource_id === resourceId
+			)
+			if (resourceIndex !== -1) {
+				this.$set(this.resources[resourceIndex], 'rating', rating)
+			}
+		},
+		
+		// 更新资源浏览数
+		updateResourceView(data) {
+			const { resourceId, viewCount } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				r.id === resourceId || r.resource_id === resourceId
+			)
+			if (resourceIndex !== -1) {
+				this.$set(this.resources[resourceIndex], 'viewCount', viewCount)
+			}
+		},
+		
+		// 刷新单个资源数据（从详情页面返回时调用）
+		refreshResourceData(data) {
+			const { resourceId, viewCount, downloadCount, favoriteCount, rating } = data
+			const resourceIndex = this.resources.findIndex(r => 
+				(r.id && r.id === resourceId) || 
+				(r.resource_id && r.resource_id === resourceId)
+			)
+			
+			if (resourceIndex !== -1) {
+				const resource = this.resources[resourceIndex]
+				
+				// 使用 Vue.set 确保响应式更新
+				if (viewCount !== undefined) {
+					this.$set(resource, 'viewCount', viewCount)
+				}
+				if (downloadCount !== undefined) {
+					this.$set(resource, 'downloadCount', downloadCount)
+				}
+				if (favoriteCount !== undefined) {
+					this.$set(resource, 'favoriteCount', favoriteCount)
+					this.$set(resource, 'collection_count', favoriteCount)
+				}
+				if (rating !== undefined) {
+					this.$set(resource, 'rating', rating)
+				}
+				
+				console.log('已更新资源数据:', resource)
+			} else {
+				console.log('未找到要更新的资源:', resourceId)
+			}
+		},
+		
+		// 测试方法：手动更新统计数据
+		testUpdateStats() {
+			if (this.resources.length > 0) {
+				const resource = this.resources[0]
+				console.log('更新前:', resource)
+				
+				// 模拟统计数据变化
+				this.$set(resource, 'viewCount', (resource.viewCount || 0) + 10)
+				this.$set(resource, 'downloadCount', (resource.downloadCount || 0) + 5)
+				this.$set(resource, 'favoriteCount', (resource.favoriteCount || 0) + 2)
+				this.$set(resource, 'collection_count', (resource.collection_count || 0) + 2)
+				
+				console.log('更新后:', resource)
+				uni.showToast({
+					title: '测试更新完成',
+					icon: 'success'
+				})
+			}
 		}
 	}
 }

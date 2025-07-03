@@ -483,13 +483,23 @@ export default {
 				color: #333;
 				margin-bottom: 15rpx;
 				line-height: 1.4;
+				max-width: 100%;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
 			}
 			
 			.post-excerpt {
-				display: block;
+				display: -webkit-box;
 				font-size: 26rpx;
 				color: #666;
 				line-height: 1.5;
+				max-width: 100%;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: normal;
 			}
 		}
 		

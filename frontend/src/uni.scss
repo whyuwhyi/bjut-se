@@ -20,6 +20,17 @@ $uni-color-success: #4cd964;
 $uni-color-warning: #f0ad4e;
 $uni-color-error: #dd524d;
 
+/* 修复 uni-ui 的 mix() 函数警告 */
+@use "sass:color";
+$uni-error-disable: color.mix(#fff, $uni-error, 50%);
+$uni-error-light: color.mix(#fff, $uni-error, 80%);
+$uni-primary-disable: color.mix(#fff, $uni-color-primary, 50%);
+$uni-primary-light: color.mix(#fff, $uni-color-primary, 80%);
+$uni-success-disable: color.mix(#fff, $uni-color-success, 50%);
+$uni-success-light: color.mix(#fff, $uni-color-success, 80%);
+$uni-warning-disable: color.mix(#fff, $uni-color-warning, 50%);
+$uni-warning-light: color.mix(#fff, $uni-color-warning, 80%);
+
 /* 文字基本颜色 */
 $uni-text-color: #333; // 基本色
 $uni-text-color-inverse: #fff; // 反色

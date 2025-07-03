@@ -4,7 +4,7 @@
 		<view class="post-detail" v-if="post">
 			<view class="post-header">
 				<view class="author-info">
-					<image class="avatar" :src="post.author.avatar_url || '/static/default-avatar.png'" mode="aspectFill" @click.stop="viewUserProfile(post.author.phone_number, post.author)"></image>
+					<image class="avatar" :src="post.author.avatar_url || '/static/images/default-avatar.png'" mode="aspectFill" @click.stop="viewUserProfile(post.author.phone_number, post.author)"></image>
 					<view class="author-details">
 						<text class="author-name">{{ post.author.nickname || post.author.name }}</text>
 						<text class="post-time">{{ formatTime(post.created_at) }}</text>

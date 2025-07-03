@@ -42,7 +42,7 @@
 		<!-- 热门资源 -->
 		<view class="resource-section card">
 			<view class="section-header">
-				<text class="section-title">热门资源</text>
+				<text class="section-title">最新资源</text>
 				<text class="section-more" @click="navigateTo('/pages/resources/resources')">更多</text>
 			</view>
 			<view class="resource-list">
@@ -65,7 +65,7 @@
 		<!-- 热门帖子 -->
 		<view class="forum-section card">
 			<view class="section-header">
-				<text class="section-title">热门帖子</text>
+				<text class="section-title">最新帖子</text>
 				<text class="section-more" @click="navigateTo('/pages/forum/forum')">更多</text>
 			</view>
 			<view class="forum-list">

@@ -435,6 +435,105 @@ class RedisSearchCache {
   }
 
   /**
+   * 获取指定模式的所有缓存键
+   * @param {string} type - 缓存类型
+   * @returns {Array} 缓存键列表
+   */
+  async getKeys(type) {
+    try {
+      if (this.useMemory) {
+        // 内存缓存模式
+        const keys = []
+        const pattern = `${this.config.keyPrefix}${type}:`
+        for (const key of this.memoryCache.keys()) {
+          if (key.startsWith(pattern)) {
+            keys.push(key)
+          }
+        }
+        return keys
+      }
+      
+      // Redis模式
+      const pattern = `${this.config.keyPrefix}${type}:*`
+      const keys = await this.redis.keys(pattern)
+      return keys
+    } catch (error) {
+      console.error('获取缓存键失败:', error)
+      return []
+    }
+  }
+
+  /**
+   * 根据键直接获取缓存数据
+   * @param {string} key - 缓存键
+   * @returns {Object|null} 缓存数据
+   */
+  async getByKey(key) {
+    try {
+      if (this.useMemory) {
+        const cached = this.memoryCache.get(key)
+        if (cached && Date.now() < cached.expiresAt) {
+          return cached.data
+        } else if (cached) {
+          this.memoryCache.delete(key)
+        }
+        return null
+      }
+      
+      const cached = await this.redis.get(key)
+      if (!cached) {
+        return null
+      }
+      
+      return JSON.parse(cached)
+    } catch (error) {
+      console.error('根据键获取缓存失败:', error)
+      return null
+    }
+  }
+
+  /**
+   * 根据键直接设置缓存数据
+   * @param {string} key - 缓存键
+   * @param {Object} data - 缓存数据
+   * @param {number} ttl - 过期时间（秒）
+   */
+  async setByKey(key, data, ttl = null) {
+    try {
+      // 从键中提取缓存类型以确定TTL
+      const keyParts = key.split(':')
+      const type = keyParts[1] || 'search'
+      const cacheTTL = ttl || this.getTTLForType(type)
+      
+      if (this.useMemory) {
+        const cacheEntry = {
+          data: data,
+          expiresAt: Date.now() + (cacheTTL * 1000)
+        }
+        this.memoryCache.set(key, cacheEntry)
+        return
+      }
+      
+      const serializedData = JSON.stringify(data)
+      await this.redis.setex(key, cacheTTL, serializedData)
+    } catch (error) {
+      console.error('根据键设置缓存失败:', error)
+    }
+  }
+
+  /**
+   * 清除匹配模式的缓存
+   * @param {string} type - 缓存类型
+   */
+  async clearPattern(type) {
+    try {
+      await this.clearType(type)
+    } catch (error) {
+      console.error('清除缓存模式失败:', error)
+    }
+  }
+
+  /**
    * 预热缓存
    * 在系统启动时预加载热门搜索结果
    */

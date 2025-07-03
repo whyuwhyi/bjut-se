@@ -205,6 +205,7 @@ import QRCode from 'qrcode'
 import ReportModal from '@/components/ReportModal.vue'
 import config from '@/utils/config'
 import { navigateToUserProfile } from '@/utils/userUtils'
+import eventBus, { EVENTS } from '@/utils/eventBus'
 
 export default {
 	components: {
@@ -246,6 +247,24 @@ export default {
 			this.resourceId = options.id
 			this.loadResourceDetail()
 			this.loadComments()
+		}
+	},
+	
+	onUnload() {
+		// 页面卸载时，通知列表页面刷新数据
+		const pages = getCurrentPages()
+		if (pages.length >= 2) {
+			const prevPage = pages[pages.length - 2]
+			// 如果前一个页面是资源列表页面，通知其刷新
+			if (prevPage.route === 'pages/resources/resources') {
+				prevPage.$vm.refreshResourceData({
+					resourceId: this.resourceId,
+					viewCount: this.resource.viewCount,
+					downloadCount: this.resource.downloadCount,
+					favoriteCount: this.resource.favoriteCount,
+					rating: this.resource.rating
+				})
+			}
 		}
 	},
 	
@@ -368,6 +387,12 @@ export default {
 						title: '下载成功',
 						icon: 'success'
 					})
+					
+					// 触发下载计数变化事件
+					eventBus.emit(EVENTS.RESOURCE_DOWNLOAD_CHANGED, {
+						resourceId: this.resourceId,
+						downloadCount: this.resource.downloadCount
+					})
 				}).catch(error => {
 					console.error('下载失败:', error)
 					uni.hideLoading()
@@ -393,6 +418,12 @@ export default {
 							// 增加下载计数
 							this.resource.downloadCount++
 							uni.hideLoading()
+							
+							// 触发下载计数变化事件
+							eventBus.emit(EVENTS.RESOURCE_DOWNLOAD_CHANGED, {
+								resourceId: this.resourceId,
+								downloadCount: this.resource.downloadCount
+							})
 							
 							// 在微信小程序中，可以打开文档或保存到相册
 							uni.openDocument({
@@ -446,6 +477,12 @@ export default {
 						uni.showToast({
 							title: '下载完成',
 							icon: 'success'
+						})
+						
+						// 触发下载计数变化事件
+						eventBus.emit(EVENTS.RESOURCE_DOWNLOAD_CHANGED, {
+							resourceId: this.resourceId,
+							downloadCount: this.resource.downloadCount
 						})
 						// 可以选择打开文件
 						plus.runtime.openFile(download.filename)
@@ -522,6 +559,13 @@ export default {
 					uni.showToast({
 						title: newFavoritedState ? '收藏成功' : '已取消收藏',
 						icon: 'success'
+					})
+					
+					// 触发收藏状态变化事件
+					eventBus.emit(EVENTS.RESOURCE_FAVORITE_CHANGED, {
+						resourceId: this.resourceId,
+						isFavorited: newFavoritedState,
+						favoriteCount: this.resource.favoriteCount
 					})
 				} else {
 					// 如果请求失败，恢复原始状态
@@ -635,6 +679,13 @@ export default {
 					})
 					// 重新加载资源详情以更新评分
 					this.loadResourceDetail()
+					
+					// 触发评分变化事件
+					eventBus.emit(EVENTS.RESOURCE_RATING_CHANGED, {
+						resourceId: this.resourceId,
+						rating: this.resource.rating,
+						userRating: rating
+					})
 				} else {
 					throw new Error(response.data.message || '评分失败')
 				}
