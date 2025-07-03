@@ -7,8 +7,11 @@
 				<input 
 					class="title-input" 
 					placeholder="请输入帖子标题..."
-					v-model="form.title"
+					:value="form.title"
+					@input="onTitleInput"
 					maxlength="200"
+					type="text"
+					confirm-type="done"
 				/>
 				<text class="char-count">{{ form.title.length }}/200</text>
 			</view>
@@ -28,30 +31,21 @@
 							<text class="tag-remove">✕</text>
 						</view>
 					</view>
-					<view class="tag-input-section">
-						<input 
-							class="tag-input" 
-							placeholder="输入标签名称..." 
-							v-model="newTag"
-							@confirm="addTag"
-							maxlength="20"
-						/>
-						<button class="add-tag-btn" @click="addTag" :disabled="!newTag.trim()">添加</button>
-					</view>
-					<view class="popular-tags" v-if="popularTags.length > 0">
-						<text class="popular-label">热门标签：</text>
-						<view class="popular-tag-list">
+					<view class="available-tags" v-if="allTags.length > 0">
+						<view class="available-tag-list">
 							<view 
-								class="popular-tag" 
-								v-for="tag in popularTags" 
+								class="available-tag" 
+								v-for="tag in allTags" 
 								:key="tag.tag_id"
-								@click="selectPopularTag(tag.tag_name)"
+								@click="selectTag(tag.tag_name)"
 								:style="{ backgroundColor: tag.tag_color + '20', color: tag.tag_color }"
+								:class="{ 'tag-selected': form.tags.includes(tag.tag_name) }"
 							>
-								<text class="popular-tag-text">{{ tag.tag_name }}</text>
+								<text class="tag-text">{{ tag.tag_name }}</text>
 							</view>
 						</view>
 					</view>
+					<text class="tag-tip" v-if="form.tags.length === 0">至少选择一个标签</text>
 				</view>
 			</view>
 			
@@ -121,8 +115,7 @@ export default {
 				content: '',
 				tags: []
 			},
-			newTag: '',
-			popularTags: [],
+			allTags: [],
 			showPreview: false,
 			publishing: false,
 			cursorPosition: 0
@@ -147,7 +140,7 @@ export default {
 	},
 	
 	onLoad(options) {
-		this.loadPopularTags()
+		this.loadAllTags()
 		// 编辑模式下加载原帖内容
 		if (options.mode === 'edit' && options.id) {
 			this.loadPostDetail(options.id)
@@ -155,7 +148,14 @@ export default {
 	},
 	
 	methods: {
-		async loadPopularTags() {
+		onTitleInput(e) {
+			// 确保在下一个事件循环中更新值
+			setTimeout(() => {
+				this.form.title = e.detail.value
+			}, 0)
+		},
+		
+		async loadAllTags() {
 			try {
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/posts/tags`,
@@ -163,59 +163,37 @@ export default {
 				})
 				
 				if (response.statusCode === 200 && response.data.success) {
-					this.popularTags = response.data.data.slice(0, 8) // 只显示前8个热门标签
+					this.allTags = response.data.data
 				}
 			} catch (error) {
-				console.error('加载热门标签失败:', error)
-			}
-		},
-		
-		addTag() {
-			const tag = this.newTag.trim()
-			if (!tag) return
-			
-			if (this.form.tags.includes(tag)) {
+				console.error('加载标签失败:', error)
 				uni.showToast({
-					title: '标签已存在',
+					title: '加载标签失败',
 					icon: 'none'
 				})
-				return
 			}
-			
-			if (this.form.tags.length >= 5) {
-				uni.showToast({
-					title: '最多只能添加5个标签',
-					icon: 'none'
-				})
-				return
-			}
-			
-			this.form.tags.push(tag)
-			this.newTag = ''
 		},
 		
 		removeTag(index) {
 			this.form.tags.splice(index, 1)
 		},
 		
-		selectPopularTag(tagName) {
-			if (this.form.tags.includes(tagName)) {
-				uni.showToast({
-					title: '标签已存在',
-					icon: 'none'
-				})
-				return
+		selectTag(tagName) {
+			const tagIndex = this.form.tags.indexOf(tagName)
+			if (tagIndex > -1) {
+				// 如果标签已经选中，则移除它
+				this.form.tags.splice(tagIndex, 1)
+			} else {
+				// 如果标签未选中，且未达到上限，则添加它
+				if (this.form.tags.length >= 5) {
+					uni.showToast({
+						title: '最多只能选择5个标签',
+						icon: 'none'
+					})
+					return
+				}
+				this.form.tags.push(tagName)
 			}
-			
-			if (this.form.tags.length >= 5) {
-				uni.showToast({
-					title: '最多只能添加5个标签',
-					icon: 'none'
-				})
-				return
-			}
-			
-			this.form.tags.push(tagName)
 		},
 		
 		insertFormat(before, after) {
@@ -342,73 +320,54 @@ export default {
 <style lang="scss" scoped>
 .create-container {
 	min-height: 100vh;
-	padding: 30rpx;
+	padding: 20rpx;
 	padding-bottom: 160rpx;
-	background: transparent !important;
-	
-	&::before {
-		content: '';
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: -1;
-		background-color: #FAEED1;
-		background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
-		background-size: 400% 400%;
-		animation: backgroundPan 15s ease infinite;
-	}
-}
-
-@keyframes backgroundPan {
-	0% {
-		background-position: 0% 50%;
-	}
-	50% {
-		background-position: 100% 50%;
-	}
-	100% {
-		background-position: 0% 50%;
-	}
+	background-color: #f5f5f5;
 }
 
 .form-section {
-	padding: 20rpx;
+	background: white;
+	border-radius: 20rpx;
+	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+	margin: 0 auto;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.form-item {
+	margin-bottom: 30rpx;
 	
-	.form-item {
-		background: white;
-		border-radius: 20rpx;
-		padding: 30rpx;
-		margin-bottom: 20rpx;
-		
-		.form-label {
-			display: block;
-			font-size: 28rpx;
-			font-weight: bold;
-			color: #333;
-			margin-bottom: 20rpx;
-		}
-		
-		.title-input {
-			width: 100%;
-			font-size: 30rpx;
-			border: 1rpx solid #e0e0e0;
-			border-radius: 8rpx;
-			padding: 20rpx;
-			margin-bottom: 10rpx;
-		}
-		
-		.char-count {
-			font-size: 22rpx;
-			color: #999;
-			text-align: right;
-			display: block;
-		}
+	.form-label {
+		display: block;
+		font-size: 28rpx;
+		color: #666;
+		margin-bottom: 15rpx;
+	}
+	
+	.title-input {
+		width: 100%;
+		height: 80rpx;
+		padding: 20rpx;
+		border: 1rpx solid #e0e0e0;
+		border-radius: 8rpx;
+		font-size: 28rpx;
+		background: #fafafa;
+		box-sizing: border-box;
+	}
+	
+	.char-count {
+		font-size: 22rpx;
+		color: #999;
+		text-align: right;
+		display: block;
+		margin-top: 8rpx;
 	}
 }
 
 .tag-section {
+	width: 100%;
+	
 	.selected-tags {
 		display: flex;
 		flex-wrap: wrap;
@@ -427,67 +386,52 @@ export default {
 				font-size: 24rpx;
 				margin-right: 8rpx;
 			}
-			
-			.tag-remove {
-				font-size: 20rpx;
-				font-weight: bold;
-			}
 		}
 	}
 	
-	.tag-input-section {
-		display: flex;
-		gap: 15rpx;
+	.available-tags {
 		margin-bottom: 20rpx;
 		
-		.tag-input {
-			flex: 1;
-			border: 1rpx solid #e0e0e0;
-			border-radius: 8rpx;
-			padding: 15rpx;
-			font-size: 26rpx;
-		}
-		
-		.add-tag-btn {
-			background: #007aff;
-			color: white;
-			border: none;
-			border-radius: 8rpx;
-			padding: 0 20rpx;
-			font-size: 24rpx;
-			
-			&[disabled] {
-				background: #ccc;
-			}
-		}
-	}
-	
-	.popular-tags {
-		.popular-label {
+		.available-label {
 			font-size: 24rpx;
 			color: #666;
-			margin-bottom: 15rpx;
+			text-align: center;
 			display: block;
 		}
 		
-		.popular-tag-list {
+		.available-tag-list {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 10rpx;
+			margin-top: 10rpx;
 			
-			.popular-tag {
+			.available-tag {
 				padding: 8rpx 16rpx;
 				border-radius: 20rpx;
+				background: #f8f8f8;
+				color: #666;
+				font-size: 24rpx;
 				
-				.popular-tag-text {
-					font-size: 22rpx;
+				&.tag-selected {
+					background: #007aff;
+					color: white;
 				}
 			}
 		}
 	}
+	
+	.tag-tip {
+		font-size: 24rpx;
+		color: #666;
+		text-align: center;
+		display: block;
+	}
 }
 
 .editor-section {
+	width: 100%;
+	box-sizing: border-box;
+	
 	.editor-toolbar {
 		display: flex;
 		align-items: center;
@@ -495,6 +439,9 @@ export default {
 		padding-bottom: 15rpx;
 		margin-bottom: 15rpx;
 		gap: 15rpx;
+		width: 100%;
+		box-sizing: border-box;
+		overflow-x: auto;
 		
 		.toolbar-item {
 			padding: 8rpx 12rpx;
@@ -530,18 +477,26 @@ export default {
 		font-size: 26rpx;
 		line-height: 1.5;
 		resize: none;
+		box-sizing: border-box;
+		background: #fafafa;
 	}
 	
 	.content-preview {
+		width: 100%;
 		min-height: 400rpx;
 		border: 1rpx solid #e0e0e0;
 		border-radius: 8rpx;
 		padding: 20rpx;
+		box-sizing: border-box;
+		background: #fafafa;
 		
 		.preview-content {
 			font-size: 26rpx;
 			line-height: 1.5;
 			color: #333;
+			width: 100%;
+			box-sizing: border-box;
+			word-wrap: break-word;
 		}
 	}
 }

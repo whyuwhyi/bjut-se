@@ -1,4 +1,5 @@
 const { User, Resource, Post, Collection, UserFollow, File, VerificationCode } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 const jwt = require('jsonwebtoken')
 const { validationResult } = require('express-validator')
 const config = require('../config/app')
@@ -7,6 +8,7 @@ const path = require('path')
 const fs = require('fs').promises
 const twilio = require('twilio');
 const { Op } = require('sequelize');
+const NotificationService = require('../services/NotificationService')
 
 
 class UserController {
@@ -83,7 +85,7 @@ class UserController {
   // 发送验证码
   async sendVerificationCode(req, res) {
     const { phone_number } = req.body;
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 生成6位验证码
+    const verificationCode = idGenerator.generateVerificationCode(6); // 生成6位验证码
 
     try {
       // 发送短信
@@ -193,9 +195,31 @@ class UserController {
 
       // 检查用户状态
       if (user.status !== 'active') {
-        return res.status(403).json({
+        let message = '账户无法登录'
+        let statusCode = 403
+        
+        switch (user.status) {
+          case 'inactive':
+            message = '账户已被停用，请联系管理员重新激活您的账户'
+            break
+          case 'banned':
+            message = '账户已被封禁，如有疑问请联系管理员申诉'
+            break
+          case 'deleted':
+            message = '账户已被删除，无法登录系统'
+            statusCode = 410 // Gone
+            break
+          default:
+            message = '账户状态异常，请联系管理员处理'
+        }
+        
+        return res.status(statusCode).json({
           success: false,
-          message: '账户已被禁用'
+          message,
+          data: {
+            status: user.status,
+            contactAdmin: true
+          }
         })
       }
 
@@ -249,6 +273,107 @@ class UserController {
     }
   }
 
+  // 获取其他用户的公开信息
+  async getUserProfile(req, res) {
+    try {
+      const { phone } = req.params
+      const currentUserPhone = req.user ? req.user.phone_number : null
+
+      const user = await User.findByPk(phone)
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        })
+      }
+
+      // 检查用户状态
+      if (user.status !== 'active') {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        })
+      }
+
+      // 获取隐私设置
+      const privacySettings = user.privacy_settings || {
+        show_email: false,
+        show_student_id: false,
+        show_real_name: true,
+        show_bio: true,
+        show_stats: true,
+        allow_follow: true
+      }
+
+      // 构建公开信息对象
+      const publicProfile = {
+        phone_number: user.phone_number,
+        nickname: user.nickname,
+        avatar_url: user.avatar_url,
+        created_at: user.created_at
+      }
+
+      // 根据隐私设置添加信息
+      if (privacySettings.show_real_name) {
+        publicProfile.name = user.name
+      }
+      
+      if (privacySettings.show_bio) {
+        publicProfile.bio = user.bio
+      }
+      
+      if (privacySettings.show_stats) {
+        publicProfile.resource_count = user.resource_count
+        publicProfile.post_count = user.post_count
+        publicProfile.follower_count = user.follower_count
+        publicProfile.following_count = user.following_count
+      }
+
+      // 根据隐私设置决定是否显示敏感信息
+      if (privacySettings.show_email) {
+        publicProfile.email = user.email
+      }
+      if (privacySettings.show_student_id) {
+        publicProfile.student_id = user.student_id
+      }
+      
+      // 如果是当前用户查看自己，添加隐私设置信息用于前端判断
+      if (currentUserPhone === phone) {
+        publicProfile.privacy_settings = user.privacy_settings
+      }
+
+      // 检查当前用户是否关注了这个用户
+      let isFollowing = false
+      let canFollow = privacySettings.allow_follow
+      
+      if (currentUserPhone && currentUserPhone !== phone && canFollow) {
+        const followRecord = await UserFollow.findOne({
+          where: {
+            follower_phone: currentUserPhone,
+            following_phone: phone,
+            status: 'active'
+          }
+        })
+        isFollowing = !!followRecord
+      }
+
+      res.json({
+        success: true,
+        data: {
+          user: publicProfile,
+          isFollowing,
+          canFollow
+        }
+      })
+    } catch (error) {
+      console.error('Get user profile error:', error)
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      })
+    }
+  }
+
   // 更新用户信息
   async updateProfile(req, res) {
     try {
@@ -261,7 +386,7 @@ class UserController {
         })
       }
 
-      const { name, nickname, email, student_id, bio } = req.body
+      const { name, nickname, email, student_id, bio, birthday } = req.body
       const phone_number = req.user.phone_number
 
       const user = await User.findByPk(phone_number)
@@ -291,7 +416,8 @@ class UserController {
         nickname: nickname || user.nickname,
         email: email || user.email,
         student_id: student_id || user.student_id,
-        bio: bio !== undefined ? bio : user.bio
+        bio: bio !== undefined ? bio : user.bio,
+        birthday: birthday !== undefined ? birthday : user.birthday
       })
 
       res.json({
@@ -356,15 +482,23 @@ class UserController {
   // 获取用户发布的资源
   async getUserResources(req, res) {
     try {
-      const { page = 1, limit = 10, status = 'published' } = req.query
+      const { page = 1, limit = 10, status } = req.query
       const phone_number = req.user.phone_number
       const offset = (page - 1) * limit
 
+      // 构建查询条件
+      const where = { publisher_phone: phone_number }
+      
+      // 如果status参数存在且不为空，则添加状态筛选
+      if (status && status !== '' && status !== 'all') {
+        where.status = status
+      } else {
+        // 如果没有指定状态或状态为空/all，则查询所有非删除状态的资源
+        where.status = { [Op.in]: ['draft', 'pending', 'published', 'rejected'] }
+      }
+
       const resources = await Resource.findAndCountAll({
-        where: {
-          publisher_phone: phone_number,
-          status
-        },
+        where,
         include: [
           {
             model: File,
@@ -376,6 +510,7 @@ class UserController {
         offset,
         limit: parseInt(limit)
       })
+
 
       res.json({
         success: true,
@@ -643,10 +778,17 @@ class UserController {
           await User.increment('follower_count', { where: { phone_number: following_phone } })
           isFollowing = true
           message = '关注成功'
+          
+          // 异步发送关注通知
+          try {
+            await NotificationService.notifyNewFollower(follower_phone, following_phone)
+          } catch (notificationError) {
+            console.error('发送关注通知失败:', notificationError)
+          }
         }
       } else {
         // 新关注
-        const follow_id = Date.now().toString().slice(-9)
+        const follow_id = idGenerator.generateFollowId()
         await UserFollow.create({
           follow_id,
           follower_phone,
@@ -658,6 +800,13 @@ class UserController {
         await User.increment('follower_count', { where: { phone_number: following_phone } })
         isFollowing = true
         message = '关注成功'
+        
+        // 异步发送关注通知
+        try {
+          await NotificationService.notifyNewFollower(follower_phone, following_phone)
+        } catch (notificationError) {
+          console.error('发送关注通知失败:', notificationError)
+        }
       }
 
       res.json({
@@ -676,10 +825,12 @@ class UserController {
 
   // 获取用户下载记录
 
-  // 获取用户统计信息
-  async getUserStats(req, res) {
+  // 更新用户隐私设置
+  async updatePrivacySettings(req, res) {
     try {
       const phone_number = req.user.phone_number
+      const { privacy_settings } = req.body
+
       const user = await User.findByPk(phone_number)
       if (!user) {
         return res.status(404).json({
@@ -687,13 +838,108 @@ class UserController {
           message: '用户不存在'
         })
       }
+
+      // 验证隐私设置格式
+      const allowedSettings = ['show_email', 'show_student_id', 'show_real_name', 'show_bio', 'show_stats', 'allow_follow']
+      const validSettings = {}
+      
+      for (const key of allowedSettings) {
+        if (key in privacy_settings && typeof privacy_settings[key] === 'boolean') {
+          validSettings[key] = privacy_settings[key]
+        }
+      }
+
+      // 合并现有设置和新设置
+      const currentSettings = user.privacy_settings || {
+        show_email: false,
+        show_student_id: false,
+        show_real_name: true,
+        show_bio: true,
+        show_stats: true,
+        allow_follow: true
+      }
+
+      const newSettings = { ...currentSettings, ...validSettings }
+
+      await user.update({ privacy_settings: newSettings })
+
+      res.json({
+        success: true,
+        message: '隐私设置更新成功',
+        data: {
+          privacy_settings: newSettings
+        }
+      })
+    } catch (error) {
+      console.error('Update privacy settings error:', error)
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      })
+    }
+  }
+
+  // 获取用户统计信息
+  async getUserStats(req, res) {
+    try {
+      const phone_number = req.user.phone_number
+      
+      // 先检查用户是否存在
+      const user = await User.findByPk(phone_number)
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        })
+      }
+
+      // 直接查询数据库获取准确的统计数据
+      const [resourceCount, postCount, collectionCount, followingCount, followerCount] = await Promise.all([
+        // 资源数：查询已发布的资源
+        Resource.count({ 
+          where: { 
+            publisher_phone: phone_number, 
+            status: 'published' 
+          } 
+        }),
+        // 帖子数：查询已发布的帖子
+        Post.count({ 
+          where: { 
+            author_phone: phone_number, 
+            status: 'active' 
+          } 
+        }),
+        // 收藏数：查询活跃的收藏
+        Collection.count({ 
+          where: { 
+            user_phone: phone_number, 
+            status: 'active' 
+          } 
+        }),
+        // 关注数：查询活跃的关注关系
+        UserFollow.count({ 
+          where: { 
+            follower_phone: phone_number, 
+            status: 'active' 
+          } 
+        }),
+        // 粉丝数：查询活跃的被关注关系
+        UserFollow.count({ 
+          where: { 
+            following_phone: phone_number, 
+            status: 'active' 
+          } 
+        })
+      ])
+
       res.json({
         success: true,
         data: {
-          resourceCount: user.resource_count,
-          postCount: user.post_count,
-          followingCount: user.following_count,
-          followerCount: user.follower_count
+          resourceCount,
+          postCount,
+          collectionCount,
+          followingCount,
+          followerCount
         }
       })
     } catch (error) {

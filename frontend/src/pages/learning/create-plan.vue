@@ -739,20 +739,8 @@ export default {
 <style lang="scss" scoped>
 .create-plan-container {
 	min-height: 100vh;
-	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
-	animation: gradientBG 15s ease infinite;
-}
-
-@keyframes gradientBG {
-	0% {
-		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
-	}
-	50% {
-		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
-	}
-	100% {
-		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
-	}
+	background-color: #f5f5f5;
+	padding-bottom: 120rpx; // 为底部操作栏留出空间
 }
 
 .navbar {
@@ -790,14 +778,15 @@ export default {
 }
 
 .form-container {
-	padding: 20rpx;
+	background-color: #fff;
+	border-radius: 20rpx;
+	margin: 20rpx;
+	padding: 30rpx;
+	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .form-section {
-	background: white;
-	border-radius: 16rpx;
-	padding: 30rpx;
-	margin-bottom: 20rpx;
+	margin-bottom: 40rpx;
 	
 	.section-title {
 		display: flex;
@@ -837,21 +826,27 @@ export default {
 
 .plan-title-input {
 	width: 100%;
+	height: 80rpx;
+	box-sizing: border-box;
 	font-size: 28rpx;
 	border: 2rpx solid #f0f0f0;
 	border-radius: 12rpx;
 	padding: 20rpx;
 	background: #fafafa;
+	line-height: 40rpx;
 }
 
 .plan-desc-input {
 	width: 100%;
+	height: 160rpx;
+	box-sizing: border-box;
 	min-height: 120rpx;
 	font-size: 28rpx;
 	border: 2rpx solid #f0f0f0;
 	border-radius: 12rpx;
 	padding: 20rpx;
 	background: #fafafa;
+	line-height: 40rpx;
 }
 
 .picker-item {

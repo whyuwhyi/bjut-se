@@ -12,10 +12,8 @@
 | **资源管理** | categories | 资源分类管理 | 2 |
 | | resources | 学习资源核心信息 | 3 |
 | | files | 资源关联文件 | 3 |
-| | tags | 资源标签体系 | 动态 |
-| | resource_tags | 资源标签关联 | 动态 |
 | **论坛交流** | posts | 论坛帖子内容 | 3 |
-| | post_tags | 帖子标签管理 | 3 |
+| | post_tags | 帖子标签管理 | 30 |
 | | post_tag_relations | 帖子标签关联 | 4 |
 | | comments | 评论回复系统 | 6 |
 | | ratings | 资源评分记录 | 3 |
@@ -24,10 +22,13 @@
 | | sub_tasks | 子任务细化管理 | 10 |
 | **用户交互** | user_follows | 用户关注关系 | 2 |
 | | collections | 多类型收藏管理 | 5 |
-| **通知系统** | notifications | 统一消息通知 | 2 |
+| **通知系统** | notifications | 统一消息通知 | 3 |
+| | notification_reads | 广播通知已读状态 | 动态 |
 | **举报管理** | resource_reports | 资源举报处理 | 2 |
 | | post_reports | 帖子举报处理 | 1 |
 | **用户反馈** | feedbacks | 用户反馈建议 | 动态 |
+| **搜索统计** | search_statistics | 搜索行为统计分析 | 动态 |
+| | hot_keywords | 热门搜索关键词管理 | 10 |
 | **系统辅助** | verification_codes | 验证码管理 | 临时 |
 
 ### 核心特性
@@ -35,8 +36,9 @@
 - **层级化学习管理**: 计划→任务→子任务三级管理体系，支持时间约束验证
 - **完整的内容治理**: 举报系统+审核流程+管理员处理机制
 - **多维度用户交互**: 关注、收藏、评论、评分等社交功能
-- **智能通知系统**: 分类通知+优先级管理+过期清理
+- **智能通知系统**: 分类通知+优先级管理+广播通知支持
 - **灵活的分类体系**: 支持资源分类和帖子标签的动态管理
+- **智能搜索系统**: 全文索引+缓存机制+搜索统计分析+热门关键词推荐
 
 ---
 
@@ -55,14 +57,16 @@
 | nickname | VARCHAR(50) | | 昵称 |
 | avatar_url | VARCHAR(500) | | 头像URL |
 | email | VARCHAR(100) | | 邮箱地址 |
+| birthday | DATE | | 生日日期 |
 | bio | TEXT | | 个人简介 |
 | gender | ENUM('M','F','U') | DEFAULT 'U' | 性别：M-男，F-女，U-未知 |
 | role | ENUM('user','admin') | DEFAULT 'user' | 用户角色：user-普通用户，admin-管理员 |
 | status | ENUM('active','inactive','banned') | DEFAULT 'active' | 用户状态 |
-| post_count | INT | DEFAULT 0 | 发表的帖子数量 |
-| resource_count | INT | DEFAULT 0 | 上传的资源数量 |
-| follower_count | INT | DEFAULT 0 | 粉丝数量 |
-| following_count | INT | DEFAULT 0 | 关注数量 |
+| post_count | INT | DEFAULT 0 | 发帖数 |
+| resource_count | INT | DEFAULT 0 | 资源数 |
+| follower_count | INT | DEFAULT 0 | 粉丝数 |
+| following_count | INT | DEFAULT 0 | 关注数 |
+| privacy_settings | JSON | DEFAULT | 隐私设置（JSON格式） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
@@ -75,6 +79,7 @@
 - 管理员账号需要手动设置或通过数据库初始化
 - 管理员权限验证通过后端中间件实现
 - 支持基于角色的访问控制 (RBAC)
+- birthday字段仅在个人资料编辑时可修改，注册时不需要填写
 
 ---
 
@@ -82,7 +87,7 @@
 
 ### 2.1 资源分类表 (categories)
 
-支持资源分类管理，分类可通过管理后台动态管理。资源分类是整个资源系统的核心组织方式，提供灵活的分类体系支持。
+支持资源分类管理，分类可通过管理后台动态管理。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
@@ -96,199 +101,68 @@
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-**分类系统特点：**
-- **双重标识**: 既有用户友好的分类名称，也有系统内部使用的分类值
-- **图标支持**: 支持emoji图标，提升用户体验
-- **灵活排序**: 通过sort_order字段支持自定义排序
-- **状态管理**: 支持启用/禁用分类，便于动态调整
-- **管理界面**: 分类可通过管理后台进行创建、编辑、删除和排序
-
-**预设分类示例：**
-- 编程开发 (programming) 📚
-- 设计素材 (design) 🎨  
-- 学术论文 (academic) 📖
-- 工具软件 (tools) 🛠️
-- 其他资源 (others) 📦
-
 ### 2.2 资源表 (resources)
 
-存储所有学习资源的核心信息和统计数据。
+存储学习资源的核心信息，支持完整的审核流程。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
 | resource_id | VARCHAR(9) | PRIMARY KEY | 9位数字的资源唯一标识符 |
-| publisher_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 发布者手机号（外键到用户表） |
+| publisher_phone | VARCHAR(11) | NOT NULL, FK | 发布者手机号（外键） |
 | resource_name | VARCHAR(100) | NOT NULL | 资源名称 |
 | description | TEXT | | 资源描述 |
-| collection_count | INT | DEFAULT 0 | 资源收藏次数，0-999999999 |
-| comment_count | INT | DEFAULT 0 | 资源评论数量，0-999999999 |
-| rating | DECIMAL(4,2) | DEFAULT 0.00 | 资源评分，1-5分 |
+| collection_count | INT | DEFAULT 0 | 收藏次数 |
+| comment_count | INT | DEFAULT 0 | 评论数量 |
+| rating | DECIMAL(4,2) | DEFAULT 0 | 资源评分(1-5分) |
 | view_count | INT | DEFAULT 0 | 浏览次数 |
-| status | ENUM('draft','pending','published','rejected','archived') | DEFAULT 'draft' | 资源状态：draft-草稿，pending-待审核，published-已发布，rejected-已拒绝，archived-已归档 |
-| reviewer_phone | VARCHAR(11) | FOREIGN KEY | 审核者手机号（外键到用户表） |
-| review_comment | TEXT | | 审核意见 |
-| reviewed_at | DATETIME | | 审核时间 |
 | download_count | INT | DEFAULT 0 | 下载次数 |
 | report_count | INT | DEFAULT 0 | 举报次数 |
-| category_id | VARCHAR(20) | FOREIGN KEY | 资源分类ID（外键到categories表） |
+| status | ENUM('draft','pending','published','rejected','archived') | DEFAULT 'draft' | 资源状态 |
+| reviewer_phone | VARCHAR(11) | FK | 审核者手机号（外键） |
+| review_comment | TEXT | | 审核意见 |
+| reviewed_at | DATE | | 审核时间 |
+| category_id | VARCHAR(20) | FK | 分类ID（外键） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-**资源审核工作流：**
-- **draft**: 草稿状态，用户编辑中
-- **pending**: 提交审核，等待管理员处理
-- **published**: 审核通过，公开展示
-- **rejected**: 审核拒绝，需要修改
-- **archived**: 已归档，不再展示
-
-**分类关联：**
-- 通过 `category_id` 字段关联到 `categories` 表
-- 支持分类筛选和统计功能
-- 当分类被删除时，相关资源的category_id设为NULL
-
+**状态说明**:
+- **draft**: 草稿状态，用户还在编辑
+- **pending**: 待审核状态，已提交等待管理员审核
+- **published**: 已发布状态，审核通过对外可见
+- **rejected**: 审核拒绝状态，需要修改后重新提交
+- **archived**: 已归档状态，不再对外展示
 
 ### 2.3 文件表 (files)
 
-存储资源关联的文件信息，支持多种存储方式。
+存储资源关联的具体文件信息。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| file_id | VARCHAR(9) | PRIMARY KEY | 9位数字的文件唯一标识符 |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源表 |
-| file_name | VARCHAR(255) | NOT NULL | 文件名称，1-255个字符 |
+| file_id | VARCHAR(9) | PRIMARY KEY | 文件唯一标识符 |
+| resource_id | VARCHAR(9) | NOT NULL, FK | 关联资源ID（外键） |
+| file_name | VARCHAR(255) | NOT NULL | 文件名称 |
 | file_size | BIGINT | | 文件大小（字节） |
 | file_type | VARCHAR(50) | | 文件类型/MIME类型 |
 | storage_path | VARCHAR(1000) | | 文件存储路径 |
-| storage_method | ENUM('local', 'cloud', 'table') | NOT NULL DEFAULT 'local' | 文件存储方式 |
-| content | LONGTEXT | | 文件内容（用于文本文件） |
+| storage_method | ENUM('local','cloud','table') | DEFAULT 'local' | 存储方式 |
 | download_count | INT | DEFAULT 0 | 下载次数 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-**文件存储架构：**
-- **本地存储**: 文件保存在Docker容器的持久化卷中
-- **路径组织**: `/uploads/files/{resource_id}_{filename}.{ext}`
-- **类型支持**: 支持文档、图片、音频、视频等多种文件类型
-- **安全下载**: 通过JWT认证控制文件访问权限
-
-
 ---
 
-## 3. 学习管理模块
+## 3. 论坛交流模块
 
-### 3.1 学习计划表 (study_plans)
+### 3.1 帖子表 (posts)
 
-用户个人学习计划管理，支持制定和跟踪学习目标。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| plan_id | VARCHAR(9) | PRIMARY KEY | 9位数字的计划唯一标识符 |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号（外键到用户表） |
-| title | VARCHAR(200) | NOT NULL | 计划标题，1-200个字符 |
-| description | TEXT | | 计划详细描述 |
-| start_date | DATE | NOT NULL | 开始日期 |
-| end_date | DATE | NOT NULL | 结束日期 |
-| status | ENUM('active','completed','paused','cancelled') | DEFAULT 'active' | 计划状态：active-进行中，completed-已完成，paused-已暂停，cancelled-已取消 |
-| progress_percent | INT | DEFAULT 0 | 整体进度百分比，0-100 |
-| plan_type | VARCHAR(50) | DEFAULT '自定义计划' | 计划类型（前端开发、算法练习、考试复习等） |
-| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**业务特点：**
-- 支持多种计划类型：自定义计划、前端开发、后端开发、算法练习、考试复习、项目实战等
-- 自动计算整体进度百分比，基于关联任务的完成情况
-- 支持计划状态管理：进行中、已完成、已暂停、已取消
-- 提供优先级管理，便于用户规划学习重点
-- 计划创建时自动记录学习活动并奖励经验值
-- 支持灵活的时间范围设定和进度跟踪
-
-**时间约束规则：**
-- **计划层级约束**：结束时间不得早于当前时间 `end_date >= CURDATE()`
-- **时间逻辑约束**：结束时间必须晚于开始时间 `end_date >= start_date`
-- **子任务时间约束**：所有关联任务的时间必须在计划时间范围内
-- **修改时验证**：变更计划时间时需要检查所有子任务的时间合法性
-
-### 3.2 学习任务表 (study_tasks)
-
-学习计划下的具体任务管理。
+存储论坛帖子的核心信息。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| task_id | VARCHAR(9) | PRIMARY KEY | 9位数字的任务唯一标识符 |
-| plan_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联学习计划表 |
-| title | VARCHAR(200) | NOT NULL | 任务标题 |
-| description | TEXT | | 任务描述 |
-| deadline | DATE | | 截止日期 |
-| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 任务优先级 |
-| status | ENUM('pending','in_progress','completed','cancelled') | DEFAULT 'pending' | 任务状态 |
-| estimated_hours | INT | | 预估学习时长（小时） |
-| actual_hours | INT | DEFAULT 0 | 实际学习时长（小时） |
-| tags | VARCHAR(500) | | 标签（JSON格式存储） |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**业务特点：**
-- 支持四种任务状态：待开始(pending)、进行中(in_progress)、已完成(completed)、已取消(cancelled)
-- 任务完成时自动记录学习活动，奖励经验值(20分)
-- 支持标签系统，以JSON格式存储便于搜索和分类
-- 提供预估时长和实际时长对比，帮助用户改善时间管理
-- 支持截止日期设定和逾期任务识别
-- 任务状态变更时自动更新所属计划的进度百分比
-- 支持子任务分解，便于大任务的管理和跟踪
-
-**时间约束规则：**
-- **任务层级约束**：任务时间必须在所属计划时间范围内
-- **开始时间约束**：任务开始时间不得早于计划开始时间 `task.start_date >= plan.start_date`
-- **截止时间约束**：任务截止时间不得晚于计划结束时间 `task.deadline <= plan.end_date`
-- **子任务时间约束**：所有关联子任务的时间必须在任务时间范围内
-- **级联验证**：变更任务时间时需要验证所有子任务的时间合法性
-
-### 3.3 子任务表 (sub_tasks)
-
-支持任务的细化分解，提供完整的二级任务管理功能。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| subtask_id | INT | PRIMARY KEY, AUTO_INCREMENT | 子任务ID |
-| task_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联学习任务表 |
-| title | VARCHAR(200) | NOT NULL | 子任务标题 |
-| description | TEXT | | 子任务详细描述 |
-| deadline | DATE | | 子任务截止日期 |
-| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 子任务优先级 |
-| completed | BOOLEAN | DEFAULT FALSE | 是否已完成 |
-| sort_order | INT | DEFAULT 0 | 排序顺序 |
-| estimated_minutes | INT | | 预估完成时间（分钟） |
-| notes | TEXT | | 子任务备注和说明 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**业务特点：**
-- **完整的二级任务管理**：支持任务的深度细化分解，提高任务管理精度
-- **层级化时间约束**：子任务截止时间必须在父任务时间范围内
-- **优先级管理**：支持子任务优先级设置，影响任务进度权重计算
-- **灵活排序**：提供拖拽排序功能，便于用户调整执行顺序
-- **进度传递**：子任务完成状态自动影响父任务和计划的整体进度
-- **时间估算**：支持子任务时间预估，帮助用户进行时间管理
-- **详细记录**：提供描述和备注字段，支持详细的任务说明
-
-**时间约束规则：**
-- 子任务截止时间必须在父任务的时间范围内：`subtask.deadline >= task.start_date AND subtask.deadline <= task.deadline`
-- 子任务时间变更时需要验证是否违反层级约束
-- 父任务时间变更时需要检查所有子任务的时间合法性
-
-## 4. 论坛交流模块
-
-### 4.1 帖子表 (posts)
-
-存储用户发布的帖子信息。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| post_id | VARCHAR(9) | PRIMARY KEY | 9位数字的帖子唯一标识符 |
-| author_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 作者手机号（外键到用户表） |
-| title | VARCHAR(200) | NOT NULL | 帖子标题，最多200个字符 |
-| content | TEXT | NOT NULL | 帖子内容（支持Markdown格式） |
+| post_id | VARCHAR(9) | PRIMARY KEY | 帖子唯一标识符 |
+| author_phone | VARCHAR(11) | NOT NULL, FK | 作者手机号（外键） |
+| title | VARCHAR(200) | NOT NULL | 帖子标题 |
+| content | TEXT | NOT NULL | 帖子内容(支持Markdown) |
 | view_count | INT | DEFAULT 0 | 浏览次数 |
 | comment_count | INT | DEFAULT 0 | 评论数量 |
 | collection_count | INT | DEFAULT 0 | 收藏次数 |
@@ -297,98 +171,165 @@
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 4.2 帖子标签表 (post_tags)
+### 3.2 帖子标签表 (post_tags)
 
-存储论坛帖子的标签信息，支持动态扩展。
+管理帖子标签系统，支持预设标签和使用统计。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| tag_id | VARCHAR(9) | PRIMARY KEY | 9位数字的标签唯一标识符 |
-| tag_name | VARCHAR(50) | UNIQUE, NOT NULL | 标签名称，1-50个字符 |
-| tag_color | VARCHAR(7) | DEFAULT '#007aff' | 标签颜色（十六进制） |
-| usage_count | INT | DEFAULT 0 | 使用次数统计 |
+| tag_id | VARCHAR(9) | PRIMARY KEY | 帖子标签ID |
+| tag_name | VARCHAR(50) | UNIQUE, NOT NULL | 标签名称 |
+| tag_color | VARCHAR(7) | DEFAULT '#007aff' | 标签颜色 |
+| usage_count | INT | DEFAULT 0 | 使用次数 |
 | status | ENUM('active','inactive') | DEFAULT 'active' | 标签状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 4.3 帖子标签关联表 (post_tag_relations)
+**业务规则**:
+- 用户发布帖子时只能选择已存在且状态为 'active' 的标签
+- 不允许用户主动创建新标签，所有标签需通过管理员或数据库初始化预设
+- 每次使用标签时自动增加 usage_count 计数
+- 标签按使用频率排序展示，热门标签优先显示
+- 支持30个预设标签，覆盖编程语言、技术方向、学习类型等分类
 
-实现帖子与标签的多对多关系。
+### 3.3 帖子标签关联表 (post_tag_relations)
+
+多对多关系：帖子与标签的关联。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| relation_id | INT | PRIMARY KEY, AUTO_INCREMENT | 关联记录唯一标识符 |
-| post_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联帖子表 |
-| tag_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联标签表 |
+| relation_id | INT | PRIMARY KEY AUTO_INCREMENT | 关联记录ID |
+| post_id | VARCHAR(9) | NOT NULL, FK | 帖子ID（外键） |
+| tag_id | VARCHAR(9) | NOT NULL, FK | 标签ID（外键） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 4.4 评论表 (comments)
+### 3.4 评论表 (comments)
 
-支持帖子和资源的多层级回复评论系统。
+支持帖子和资源的评论，以及评论回复功能。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| comment_id | INT | PRIMARY KEY, AUTO_INCREMENT | 评论唯一标识符 |
-| author_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 评论作者手机号（外键到用户表） |
-| post_id | VARCHAR(9) | FOREIGN KEY | 关联帖子ID（如果是帖子评论） |
-| resource_id | VARCHAR(9) | FOREIGN KEY | 关联资源ID（如果是资源评论） |
-| parent_comment_id | INT | FOREIGN KEY | 父评论ID（用于回复） |
+| comment_id | INT | PRIMARY KEY AUTO_INCREMENT | 评论ID |
+| author_phone | VARCHAR(11) | NOT NULL, FK | 评论作者手机号（外键） |
+| post_id | VARCHAR(9) | FK | 关联帖子ID（外键） |
+| resource_id | VARCHAR(9) | FK | 关联资源ID（外键） |
+| parent_comment_id | INT | FK | 父评论ID（外键，支持回复） |
 | content | TEXT | NOT NULL | 评论内容 |
 | status | ENUM('active','hidden','deleted') | DEFAULT 'active' | 评论状态 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-### 4.5 评分表 (ratings)
+### 3.5 评分表 (ratings)
 
 用户对资源的评分记录。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| rating_id | INT | PRIMARY KEY, AUTO_INCREMENT | 评分记录唯一标识符 |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 评分者手机号（外键） |
-| resource_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 关联资源表 |
-| rating | DECIMAL(3,2) | NOT NULL | 评分（1-5分） |
+| rating_id | INT | PRIMARY KEY AUTO_INCREMENT | 评分记录ID |
+| user_phone | VARCHAR(11) | NOT NULL, FK | 评分者手机号（外键） |
+| resource_id | VARCHAR(9) | NOT NULL, FK | 资源ID（外键） |
+| rating | DECIMAL(3,2) | NOT NULL | 评分(1-5分) |
 | review_text | TEXT | | 评价文字内容 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 评分时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
+**约束**: 每个用户对每个资源只能评分一次（UNIQUE KEY unique_user_resource）
+
+---
+
+## 4. 学习管理模块
+
+### 4.1 学习计划表 (study_plans)
+
+用户个人学习计划管理。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| plan_id | VARCHAR(9) | PRIMARY KEY | 学习计划ID |
+| user_phone | VARCHAR(11) | NOT NULL, FK | 用户手机号（外键） |
+| title | VARCHAR(200) | NOT NULL | 计划标题 |
+| description | TEXT | | 计划描述 |
+| start_date | DATE | | 开始日期 |
+| end_date | DATE | | 结束日期 |
+| status | ENUM('active','completed','paused','cancelled') | DEFAULT 'active' | 计划状态 |
+| progress_percent | INT | DEFAULT 0 | 进度百分比(0-100) |
+| plan_type | VARCHAR(50) | | 计划类型 |
+| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 计划优先级 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+### 4.2 学习任务表 (study_tasks)
+
+学习计划下的具体任务。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| task_id | VARCHAR(9) | PRIMARY KEY | 学习任务ID |
+| plan_id | VARCHAR(9) | NOT NULL, FK | 关联学习计划ID（外键） |
+| title | VARCHAR(200) | NOT NULL | 任务标题 |
+| description | TEXT | | 任务描述 |
+| deadline | DATE | | 截止日期 |
+| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 任务优先级 |
+| status | ENUM('pending','in_progress','completed','cancelled') | DEFAULT 'pending' | 任务状态 |
+| estimated_hours | INT | | 预估学习时长（小时） |
+| actual_hours | INT | DEFAULT 0 | 实际学习时长（小时） |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+### 4.3 子任务表 (sub_tasks)
+
+学习任务的进一步细分。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| sub_task_id | INT | PRIMARY KEY AUTO_INCREMENT | 子任务ID |
+| task_id | VARCHAR(9) | NOT NULL, FK | 关联学习任务ID（外键） |
+| title | VARCHAR(200) | NOT NULL | 子任务标题 |
+| description | TEXT | | 子任务描述 |
+| completed | BOOLEAN | DEFAULT FALSE | 是否完成 |
+| sort_order | INT | DEFAULT 0 | 排序顺序 |
+| deadline | DATE | | 截止日期 |
+| priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
+| estimated_minutes | INT | | 预估时长（分钟） |
+| notes | TEXT | | 备注 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 ---
 
 ## 5. 用户交互模块
 
-### 5.1 用户关注表 (user_follows)
+### 5.1 收藏表 (collections)
 
-实现用户间的关注关系，支持关注/取消关注功能。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| follow_id | VARCHAR(9) | PRIMARY KEY | 9位数字的关注记录唯一标识符 |
-| follower_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 关注者手机号（外键） |
-| following_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 被关注者手机号（外键） |
-| status | ENUM('active','cancelled') | DEFAULT 'active' | 关注状态：active-关注中，cancelled-已取消 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 关注时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**业务特点：**
-- 支持用户互相关注，构建社交网络
-- 提供关注列表和粉丝列表查询
-- 关注状态可以重复变更（关注→取消→重新关注）
-- 建立唯一索引防止重复关注记录
-
-### 5.2 收藏表 (collections)
-
-支持多种内容类型的收藏功能。
+统一管理用户对帖子和资源的收藏。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| collection_id | VARCHAR(9) | PRIMARY KEY | 9位数字的收藏记录唯一标识符 |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 关联用户表（收藏者） |
-| content_id | VARCHAR(9) | NOT NULL | 被收藏内容的唯一标识符，9位数字 |
-| collection_type | ENUM('post', 'resource') | NOT NULL | 收藏内容类型 |
+| collection_id | VARCHAR(9) | PRIMARY KEY | 收藏记录ID |
+| user_phone | VARCHAR(11) | NOT NULL, FK | 收藏者手机号（外键） |
+| content_id | VARCHAR(9) | NOT NULL | 被收藏内容ID |
+| collection_type | ENUM('post','resource') | NOT NULL | 收藏内容类型 |
 | status | ENUM('active','cancelled') | DEFAULT 'active' | 收藏状态 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 收藏时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**约束**: 每个用户对每个内容只能收藏一次（UNIQUE KEY unique_user_content）
+
+### 5.2 用户关注表 (user_follows)
+
+用户之间的关注关系。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| follow_id | VARCHAR(9) | PRIMARY KEY | 关注记录ID |
+| follower_phone | VARCHAR(11) | NOT NULL, FK | 关注者手机号（外键） |
+| following_phone | VARCHAR(11) | NOT NULL, FK | 被关注者手机号（外键） |
+| status | ENUM('active','cancelled') | DEFAULT 'active' | 关注状态 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**约束**: 每个用户对每个用户只能关注一次（UNIQUE KEY unique_follow）
 
 ---
 
@@ -396,24 +337,72 @@
 
 ### 6.1 通知表 (notifications)
 
-统一的消息通知管理系统。
+统一的消息通知系统，支持个人通知和广播通知。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
 | notification_id | VARCHAR(9) | PRIMARY KEY | 9位数字的通知唯一标识符 |
-| receiver_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 接收者手机号 |
-| sender_phone | VARCHAR(11) | FOREIGN KEY | 发送者手机号（系统通知可为空） |
-| type | ENUM('system','study','interaction','resource','announcement') | NOT NULL | 通知类型 |
+| receiver_phone | VARCHAR(11) | FK | 接收者手机号（为空表示广播通知，面向全体用户） |
+| type | ENUM('system','study','interaction','resource','announcement','follow_post','follow_resource','comment_reply','content_liked','content_commented','new_follower') | NOT NULL | 通知类型 |
 | priority | ENUM('high','medium','low') | DEFAULT 'medium' | 优先级 |
 | title | VARCHAR(200) | NOT NULL | 通知标题 |
 | content | TEXT | NOT NULL | 通知内容 |
-| action_type | ENUM('navigate','external_link','none') | DEFAULT 'none' | 操作类型 |
-| action_url | VARCHAR(500) | | 操作链接 |
-| is_read | BOOLEAN | DEFAULT FALSE | 是否已读 |
-| read_at | TIMESTAMP | | 已读时间 |
-| expires_at | TIMESTAMP | | 过期时间 |
+| action_type | ENUM('none','navigate','external_link') | DEFAULT 'none' | 动作类型 |
+| action_url | VARCHAR(500) | | 动作URL（页面路径或外部链接） |
+| action_params | JSON | | 动作参数（JSON格式） |
+| related_user_phone | VARCHAR(11) | FK | 相关用户手机号（如：内容发布者、评论者） |
+| related_content_id | VARCHAR(9) | | 相关内容ID（如：帖子ID、资源ID） |
+| related_content_type | ENUM('post','resource','comment') | | 相关内容类型 |
+| is_read | BOOLEAN | DEFAULT FALSE | 是否已读（仅用于个人通知） |
+| read_at | TIMESTAMP | | 阅读时间（仅用于个人通知） |
+| expires_at | TIMESTAMP | | 过期时间（可选） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**通知类型说明**:
+- **system**: 系统通知
+- **study**: 学习相关通知
+- **interaction**: 互动通知（关注、评论等）
+- **resource**: 资源相关通知
+- **announcement**: 公告通知
+- **follow_post**: 关注用户发布新帖子通知
+- **follow_resource**: 关注用户发布新资源通知
+- **comment_reply**: 评论回复通知
+- **content_liked**: 内容被收藏通知
+- **content_commented**: 内容被评论通知
+- **new_follower**: 新粉丝关注通知
+
+**关联字段说明**:
+- **related_user_phone**: 相关用户，如内容发布者、评论者、关注者
+- **related_content_id**: 相关内容ID，可以是帖子ID、资源ID等
+- **related_content_type**: 相关内容类型，区分是帖子、资源还是评论
+
+**索引优化**:
+- `idx_receiver_type`: 按接收者和类型查询优化
+- `idx_related_user`: 按相关用户查询优化
+- `idx_related_content`: 按相关内容查询优化
+- `idx_created_at`: 按创建时间排序优化
+
+### 6.2 广播通知已读状态表 (notification_reads)
+
+跟踪用户对广播通知的已读状态。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| id | INT | PRIMARY KEY AUTO_INCREMENT | 记录ID |
+| user_phone | VARCHAR(11) | NOT NULL, FK | 用户手机号（外键） |
+| notification_id | VARCHAR(9) | NOT NULL, FK | 通知ID（外键） |
+| read_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 阅读时间 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+**约束**: 每个用户对每个广播通知只能有一条已读记录（UNIQUE KEY unique_user_notification）
+
+**通知系统架构**:
+- **个人通知**: receiver_phone 指定具体用户，使用 is_read 字段标记已读状态
+- **广播通知**: receiver_phone 为 NULL，通过 notification_reads 表跟踪各用户的已读状态
+- **存储优化**: 广播通知内容只存储一次，避免数据重复
+- **查询效率**: 使用 LEFT JOIN 查询组合通知内容和已读状态
 
 ---
 
@@ -421,817 +410,378 @@
 
 ### 7.1 资源举报表 (resource_reports)
 
-处理用户对资源的举报投诉。
+资源举报处理系统。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| report_id | VARCHAR(9) | PRIMARY KEY | 9位数字的举报记录唯一标识符 |
-| resource_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 被举报资源ID |
-| reporter_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 举报者手机号 |
-| reason | ENUM('inappropriate','copyright','spam','offensive','other') | NOT NULL | 举报原因 |
-| description | TEXT | | 详细描述 |
-| status | ENUM('pending','processed','rejected') | DEFAULT 'pending' | 处理状态 |
-| processed_by | VARCHAR(11) | FOREIGN KEY | 处理人手机号 |
-| process_result | TEXT | | 处理结果说明 |
-| processed_at | TIMESTAMP | | 处理时间 |
+| report_id | VARCHAR(9) | PRIMARY KEY | 举报记录ID |
+| resource_id | VARCHAR(9) | NOT NULL, FK | 被举报资源ID（外键） |
+| reporter_phone | VARCHAR(11) | NOT NULL, FK | 举报者手机号（外键） |
+| reason | ENUM('inappropriate','spam','copyright','misleading','other') | NOT NULL | 举报原因 |
+| description | TEXT | NOT NULL | 举报说明 |
+| status | ENUM('pending','processing','resolved','rejected') | DEFAULT 'pending' | 处理状态 |
+| processed_by | VARCHAR(11) | FK | 处理者手机号（外键） |
+| process_comment | TEXT | | 处理说明 |
+| processed_at | DATE | | 处理时间 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**举报原因说明：**
-- **inappropriate**: 内容不当
-- **copyright**: 版权问题
-- **spam**: 垃圾信息
-- **offensive**: 攻击性内容
-- **other**: 其他原因
-
-**外键关系**:
-- `resource_id` → `resources.resource_id`
-- `reporter_phone` → `users.phone_number`
-- `processed_by` → `users.phone_number`
 
 ### 7.2 帖子举报表 (post_reports)
 
-处理用户对帖子的举报投诉。
+帖子举报处理系统。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| report_id | VARCHAR(9) | PRIMARY KEY | 9位数字的举报记录唯一标识符 |
-| post_id | VARCHAR(9) | FOREIGN KEY, NOT NULL | 被举报帖子ID |
-| reporter_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 举报者手机号 |
-| reason | ENUM('inappropriate','spam','offensive','harassment','false_info','other') | NOT NULL | 举报原因 |
-| description | TEXT | | 详细描述 |
-| status | ENUM('pending','processed','rejected') | DEFAULT 'pending' | 处理状态 |
-| processed_by | VARCHAR(11) | FOREIGN KEY | 处理人手机号 |
-| process_result | TEXT | | 处理结果说明 |
-| processed_at | TIMESTAMP | | 处理时间 |
+| report_id | VARCHAR(9) | PRIMARY KEY | 举报记录ID |
+| post_id | VARCHAR(9) | NOT NULL, FK | 被举报帖子ID（外键） |
+| reporter_phone | VARCHAR(11) | NOT NULL, FK | 举报者手机号（外键） |
+| reason | ENUM('inappropriate','spam','harassment','misleading','other') | NOT NULL | 举报原因 |
+| description | TEXT | NOT NULL | 举报说明 |
+| status | ENUM('pending','processing','resolved','rejected') | DEFAULT 'pending' | 处理状态 |
+| processed_by | VARCHAR(11) | FK | 处理者手机号（外键） |
+| process_comment | TEXT | | 处理说明 |
+| processed_at | DATE | | 处理时间 |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-**举报原因说明：**
-- **inappropriate**: 内容不当
-- **spam**: 垃圾信息
-- **offensive**: 攻击性内容
-- **harassment**: 骚扰行为
-- **false_info**: 虚假信息
-- **other**: 其他原因
-
-**外键关系**:
-- `post_id` → `posts.post_id`
-- `reporter_phone` → `users.phone_number`
-- `processed_by` → `users.phone_number`
-
-**举报处理流程：**
-1. 用户提交举报 → `pending` 状态
-2. 管理员审核举报 → 更新 `processed_by` 和 `process_result`
-3. 处理完成 → `processed` 状态，记录处理时间
-4. 若举报无效 → `rejected` 状态
-
 ---
 
-## 数据库关系设计
+## 8. 用户反馈模块
 
-### 核心关系架构
+### 8.1 用户反馈表 (feedbacks)
 
-#### 1. 用户中心关系体系
-- **用户表**为整个系统的核心，以手机号作为主键
-- 用户与其他业务实体形成一对多关系：
-  - 用户 ←→ 资源发布（1:N）
-  - 用户 ←→ 讨论发起（1:N）
-  - 用户 ←→ 评论发表（1:N）
-  - 用户 ←→ 学习计划（1:N）
-
-#### 2. 资源管理关系网络
-```
-分类表 ←--一对多--→ 资源表 ←--一对多--→ 文件表
-  ↑                    ↓
-分类管理            资源内容管理
-```
-
-#### 3. 学习管理关系网络
-```
-学习计划表 ←--一对多--→ 学习任务表 ←--一对多--→ 子任务表
-     ↓                    ↓                   ↓
-   进度跟踪             任务进度跟踪        子任务状态管理
-     ↓                    ↓                   ↓
- 自动更新              学习记录表          经验值系统
-     ↓                    ↓                   ↓
- 层级化时间约束        时间约束验证       时间冲突检测
-     ↓
-学习目标表（目标设定和追踪）
-```
-
-**层级化时间约束体系：**
-- **计划级约束**: `plan.end_date >= CURDATE()` 且 `plan.end_date >= plan.start_date`
-- **任务级约束**: `task.deadline <= plan.end_date` 且 `task.start_date >= plan.start_date`
-- **子任务级约束**: `subtask.deadline <= task.deadline` 且 `subtask.deadline >= task.start_date`
-- **级联验证**: 上级时间变更时自动验证下级时间合法性
-
-#### 4. 论坛交流关系层次
-```
-帖子表 ←--多对多--→ 帖子标签表（通过post_tag_relations）
-  ↓
-评论表（支持层级回复关系 parent_comment_id）
-  ↓
-资源表 ←--一对多--→ 评论表（资源评论）
-```
-
-#### 5. 用户社交关系网络
-```
-用户表 ←--多对多--→ 关注表（follower/followee）
-  ↓
-收藏表（支持多种内容类型收藏）
-  ↓
-通知表（系统消息和通知）
-```
-
-#### 6. 内容治理关系网络
-```
-资源表 ←--一对多--→ 资源举报表 ←--多对一--→ 用户表（举报者、处理者）
-帖子表 ←--一对多--→ 帖子举报表 ←--多对一--→ 用户表（举报者、处理者）
-  ↓                         ↓
-举报原因分类            处理状态管理
-  ↓                         ↓
-管理员审核              举报统计
-```
-
-#### 7. 用户反馈关系网络
-```
-用户表 ←--一对多--→ 用户反馈表
-  ↓                    ↓
-反馈类型分类        管理员回复
-  ↓                    ↓
-图片附件管理        处理状态跟踪
-```
-
-#### 8. 系统辅助关系网络
-```
-用户表 ←--一对多--→ 验证码表
-  ↓                    ↓
-手机号验证          过期时间管理
-  ↓                    ↓
-安全认证            定时清理
-```
-
-### 业务流程关系
-
-#### 资源分享流程
-1. 用户发布资源 → `resources` 表
-2. 选择资源分类 → `category_id` 字段关联
-3. 上传相关文件 → `files` 表
-4. 其他用户浏览资源 → 更新浏览统计字段
-
-#### 学习管理流程
-1. **创建学习计划** → `study_plans` 表（自动记录学习活动，奖励15经验值）
-   - 时间约束验证：结束时间 >= 当前时间
-   - 逻辑约束验证：结束时间 >= 开始时间
-2. **制定学习任务** → `study_tasks` 表
-   - 层级约束验证：任务时间必须在计划时间范围内
-   - 支持多个任务并行管理
-3. **分解子任务** → `sub_tasks` 表（可选，支持复杂任务管理）
-   - 子任务时间约束：必须在父任务时间范围内
-   - 支持优先级和时间估算设置
-4. **完成任务/子任务** → 状态更新（自动记录学习活动，奖励经验值）
-   - 子任务完成 → 影响任务进度计算
-   - 任务完成 → 影响计划进度计算
-5. **自动更新计划进度** → 基于任务和子任务完成情况实时计算
-   - 支持加权进度计算（基于优先级）
-   - 实时同步到前端界面
-6. **学习轨迹追踪** → `study_records` 表记录所有学习活动
-   - 详细记录时间投入和经验获得
-   - 支持学习效率分析
-
-#### 论坛交流流程
-1. 用户发布帖子 → `posts` 表
-2. 关联帖子标签 → `post_tag_relations` 表
-3. 其他用户评论 → `comments` 表
-4. 层级回复机制 → `parent_comment_id` 字段
-
----
-
-## 技术实现规范
-
-### 数据类型规范
-- **主键策略**：用户表使用业务主键（手机号），其他表使用自增ID或业务ID
-- **外键约束**：所有外键关系使用CASCADE删除或RESTRICT约束
-- **时间戳管理**：统一使用TIMESTAMP类型，自动维护创建和更新时间
-- **状态管理**：使用ENUM类型确保状态值的一致性和完整性
-- **字符编码**：全库使用UTF-8编码，支持emoji和多语言
-
-### 业务ID设计规范
-- **用户标识**：11位手机号（业务意义明确）
-- **学工号格式**：8位数字或S+9位数字（支持学生和教师）
-- **业务ID格式**：9位数字字符串（资源、活动、讨论等）
-- **自增ID**：用于关联表和统计表
-
-### 索引优化策略
-- **主键索引**：自动创建，无需额外配置
-- **外键索引**：自动创建，支持关联查询优化
-- **业务索引**：为高频查询字段创建复合索引
-- **唯一约束**：确保数据唯一性，自动创建唯一索引
-
-### 数据完整性保障
-- **级联删除**：用户删除时级联删除相关数据
-- **状态一致性**：使用ENUM类型约束状态字段
-- **非空约束**：关键业务字段设置NOT NULL
-- **长度限制**：合理设置字符串字段长度上限
-
----
-
-## 数据库选型建议
-
-### 推荐配置
-- **数据库引擎**：MySQL 8.0+ 或 PostgreSQL 13+
-- **存储引擎**：InnoDB（支持事务和外键约束）
-- **字符集**：utf8mb4（支持emoji和特殊字符）
-- **排序规则**：utf8mb4_unicode_ci
-
-### 性能优化方案
-- **读写分离**：主从复制，读请求分发到从库
-- **分库分表**：用户数据按手机号hash分片
-- **缓存策略**：热点数据使用Redis缓存
-- **索引优化**：定期分析查询模式，优化索引结构
-
-### 运维管理策略
-- **备份策略**：每日全量备份+实时增量备份
-- **监控告警**：数据库性能指标监控
-- **容量规划**：预估数据增长，提前扩容
-- **安全防护**：数据加密、访问控制、审计日志
-
----
-
-## 扩展性设计
-
-### 水平扩展支持
-- 用户表支持按手机号分片
-- 业务表支持按用户维度分片
-- 跨分片查询通过中间件处理
-
-### 功能模块扩展
-- 类型表设计支持动态添加新分类
-- 通知系统支持多种通知类型扩展
-- 文件存储支持多种存储方式
-
-### 数据迁移方案
-- 版本化数据库脚本管理
-- 支持平滑的结构变更
-- 数据迁移工具和回滚机制
-
-## 数据库设计总结
-
-本数据库设计充分考虑了教育资源平台的业务特点，构建了完整的学习生态系统：
-
-### 🎯 核心设计亮点
-
-1. **完整的学习管理体系**
-   - 三级学习管理：计划→任务→子任务
-   - 层级化时间约束验证系统
-   - 智能进度计算和经验值奖励
-
-2. **全面的内容治理机制**
-   - 资源审核流程（draft→pending→published/rejected）
-   - 用户举报系统（资源+帖子）
-   - 管理员处理工作流
-
-3. **丰富的用户交互功能**
-   - 多维度社交系统（关注、收藏、评论、评分）
-   - 分类通知系统（系统、学习、互动等）
-   - 用户反馈建议机制
-
-4. **健壮的系统架构**
-   - 基于角色的权限控制（user/admin）
-   - 完善的数据完整性约束
-   - 优化的索引和查询性能
-
-### 📊 数据规模说明
-
-- **24个核心表**，覆盖完整业务流程
-- **支持百万级用户**和海量学习数据
-- **模块化设计**，便于功能扩展和维护
-- **标准化字段**，确保数据一致性
-
-### 🔧 技术特色
-
-- **业务ID设计**：手机号+9位数字ID体系
-- **软删除机制**：状态管理而非物理删除
-- **时间约束系统**：多层级时间验证
-- **统计字段冗余**：提升查询性能
-
-### 🚀 扩展支持
-
-该设计支持用户的完整学习生态系统，从资源获取到学习计划管理，再到社区互动交流和系统反馈，为用户提供一站式的学习服务体验。数据库设计具备良好的扩展性，可支持未来功能迭代和系统升级需求。
-
----
-
-## 个人中心功能实现概述
-
-### 已实现功能模块
-
-✅ **用户统计信息**
-- 资源发布数量统计 (`resources` 表)
-- 帖子发布数量统计 (`posts` 表)
-- 关注和粉丝数量统计 (`user_follows` 表)
-- 收藏数量统计 (`collections` 表)
-
-✅ **我的资源管理**
-- 资源列表展示（支持状态筛选：published/pending/rejected）
-- 资源详情查看和编辑
-- 资源状态管理和审核流程
-- 文件关联和下载统计
-
-✅ **我的帖子管理**
-- 帖子列表展示（支持状态筛选：active/hidden/deleted）
-- 帖子内容管理和编辑
-- 评论数量和浏览统计
-- 帖子标签关联
-
-✅ **关注/粉丝管理**
-- 我的关注列表 (`user_follows` 表，follower_phone 查询）
-- 我的粉丝列表 (`user_follows` 表，following_phone 查询）
-- 关注/取消关注操作（状态切换：active/cancelled）
-- 双向关注检查和回关功能
-
-✅ **收藏管理**
-- 多类型收藏支持（resource/post 通过 `collection_type` 区分）
-- 收藏列表展示和筛选
-- 取消收藏操作（状态管理：active/cancelled）
-- 收藏内容详情关联
-
-### API接口设计
-
-#### 用户统计接口
-```http
-GET /api/v1/users/stats
-Authorization: Bearer {token}
-```
-**返回数据**: resourceCount, postCount, followingCount, followerCount, collectionCount
-
-#### 资源管理接口
-```http
-GET /api/v1/users/my-resources?status={status}&page={page}&limit={limit}
-Authorization: Bearer {token}
-```
-**支持状态**: published, pending, rejected
-**返回数据**: 用户发布的资源列表，包含文件信息和统计数据
-
-#### 帖子管理接口
-```http
-GET /api/v1/users/my-posts?status={status}&page={page}&limit={limit}
-Authorization: Bearer {token}
-```
-**支持状态**: active, hidden, deleted
-**返回数据**: 用户发布的帖子列表，包含标签和统计信息
-
-#### 关注管理接口
-```http
-GET /api/v1/users/following?page={page}&limit={limit}    # 获取关注列表
-GET /api/v1/users/followers?page={page}&limit={limit}    # 获取粉丝列表
-POST /api/v1/users/follow/{phone}                        # 关注/取消关注切换
-Authorization: Bearer {token}
-```
-
-#### 收藏管理接口
-```http
-GET /api/v1/users/my-collections?collection_type={type}&page={page}&limit={limit}
-DELETE /api/v1/collections/{content_id}?collection_type={type}
-Authorization: Bearer {token}
-```
-**支持类型**: resource, post
-
-### 数据库表结构优化
-
-#### 关键索引设计
-```sql
--- 用户统计查询优化
-CREATE INDEX idx_resources_publisher_status ON resources(publisher_phone, status);
-CREATE INDEX idx_posts_author_status ON posts(author_phone, status);
-CREATE INDEX idx_collections_user_status ON collections(user_phone, status);
-CREATE INDEX idx_user_follows_status ON user_follows(follower_phone, following_phone, status);
-
--- 分页查询优化
-CREATE INDEX idx_resources_created_at ON resources(created_at DESC);
-CREATE INDEX idx_posts_created_at ON posts(created_at DESC);
-CREATE INDEX idx_collections_created_at ON collections(created_at DESC);
-```
-
-#### 数据完整性约束
-- **唯一约束**: user_follows 表防止重复关注 `UNIQUE(follower_phone, following_phone)`
-- **唯一约束**: collections 表防止重复收藏 `UNIQUE(user_phone, content_id, collection_type)`
-- **外键约束**: 所有关联表设置级联删除或 SET NULL
-- **状态枚举**: 使用 ENUM 类型确保状态值一致性
-
-### 业务逻辑实现
-
-#### 关注系统设计
-- **关注操作**: 创建或更新 user_follows 记录，状态为 'active'
-- **取消关注**: 更新 status 为 'cancelled'（软删除，保留历史记录）
-- **重新关注**: 将已取消的关注记录状态改回 'active'
-- **互关检查**: 查询双向关注记录判断是否为互相关注
-
-#### 收藏系统设计
-- **多类型支持**: 通过 collection_type 区分资源收藏和帖子收藏
-- **内容关联**: content_id 字段存储被收藏内容的主键
-- **状态管理**: active/cancelled 状态实现软删除机制
-- **数据同步**: 收藏数变化时更新对应资源或帖子的统计字段
-
-#### 统计数据维护
-- **实时统计**: 通过 COUNT 查询实时计算统计数据
-- **缓存策略**: 可在 Redis 中缓存频繁查询的统计数据
-- **定时更新**: 可设置定时任务同步统计数据到主表字段
-
-### 性能优化策略
-
-#### 查询优化
-- **分页查询**: 使用 LIMIT/OFFSET 实现分页，避免大数据量查询
-- **状态筛选**: 利用状态字段索引快速筛选数据
-- **关联查询**: 适当使用 JOIN 减少 N+1 查询问题
-
-#### 数据同步优化
-- **批量操作**: 批量取消收藏等操作使用事务保证一致性
-- **异步处理**: 统计数据更新可异步处理，避免阻塞主流程
-- **读写分离**: 统计查询可分发到只读实例
-
-个人中心功能通过完善的数据库设计和 API 接口，为用户提供了完整的个人数据管理功能，支持资源管理、社交互动、内容收藏等核心需求，具备良好的扩展性和性能表现。
-
----
-
-## 8. 举报管理模块
-
-举报管理模块提供了完整的用户举报和管理员审核功能，支持对不当资源和帖子内容的举报处理流程。
-
-### 8.1 资源举报表 (resource_reports)
-
-用户对资源内容进行举报的记录表，支持多种举报原因和完整的处理流程。
+用户对平台的意见建议收集，支持管理员回复和处理跟踪。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| report_id | VARCHAR(9) | PRIMARY KEY | 举报记录ID，9位数字（以7开头） |
-| resource_id | VARCHAR(9) | NOT NULL | 被举报资源ID（外键） |
-| reporter_phone | VARCHAR(11) | NOT NULL | 举报者手机号（外键） |
-| reason | ENUM | NOT NULL | 举报原因：inappropriate, copyright, spam, offensive, other |
-| description | TEXT | | 详细描述 |
-| status | ENUM | DEFAULT 'pending' | 处理状态：pending-待处理，processed-已处理，rejected-已驳回 |
-| processed_by | VARCHAR(11) | | 处理人手机号（外键） |
-| process_result | TEXT | | 处理结果说明 |
-| processed_at | TIMESTAMP | | 处理时间 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**举报原因说明**:
-- **inappropriate**: 内容不当
-- **copyright**: 版权问题
-- **spam**: 垃圾信息
-- **offensive**: 冒犯性内容
-- **other**: 其他
-
-**外键关系**:
-- `resource_id` → `resources.resource_id`
-- `reporter_phone` → `users.phone_number`
-- `processed_by` → `users.phone_number`
-
-### 8.2 帖子举报表 (post_reports)
-
-用户对帖子内容进行举报的记录表，支持针对论坛内容的举报管理。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| report_id | VARCHAR(9) | PRIMARY KEY | 举报记录ID，9位数字（以7开头） |
-| post_id | VARCHAR(9) | NOT NULL | 被举报帖子ID（外键） |
-| reporter_phone | VARCHAR(11) | NOT NULL | 举报者手机号（外键） |
-| reason | ENUM | NOT NULL | 举报原因：inappropriate, spam, offensive, harassment, false_info, other |
-| description | TEXT | | 详细描述 |
-| status | ENUM | DEFAULT 'pending' | 处理状态：pending-待处理，processed-已处理，rejected-已驳回 |
-| processed_by | VARCHAR(11) | | 处理人手机号（外键） |
-| process_result | TEXT | | 处理结果说明 |
-| processed_at | TIMESTAMP | | 处理时间 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
-
-**帖子举报原因说明**:
-- **inappropriate**: 内容不当
-- **spam**: 垃圾信息
-- **offensive**: 冒犯性内容
-- **harassment**: 骚扰他人
-- **false_info**: 虚假信息
-- **other**: 其他
-
-**外键关系**:
-- `post_id` → `posts.post_id`
-- `reporter_phone` → `users.phone_number`
-- `processed_by` → `users.phone_number`
-
-**举报处理流程**:
-1. 用户提交举报 → `pending` 状态
-2. 管理员审核举报 → 更新 `processed_by` 和 `process_result`
-3. 处理完成 → `processed` 状态，记录处理时间
-4. 若举报无效 → `rejected` 状态
-
----
-
-## 9. 用户反馈模块
-
-### 9.1 用户反馈表 (feedbacks)
-
-用户向管理员提交系统反馈和建议的记录表，支持多种反馈类型和处理流程。
-
-| 字段名 | 数据类型 | 约束条件 | 描述 |
-|--------|----------|----------|------|
-| id | INT | PRIMARY KEY, AUTO_INCREMENT | 反馈记录ID |
-| user_phone | VARCHAR(11) | FOREIGN KEY, NOT NULL | 用户手机号（外键） |
-| type | VARCHAR(32) | NOT NULL | 反馈类型：bug/feature/ui/performance/content/other |
-| content | TEXT | NOT NULL | 反馈内容详情 |
-| contact | VARCHAR(64) | | 用户联系方式（可选） |
-| images | TEXT | | 图片URL数组，JSON字符串格式 |
-| status | VARCHAR(16) | DEFAULT 'pending' | 处理状态：pending-待处理，processing-处理中，resolved-已解决，closed-已关闭 |
+| id | INT | PRIMARY KEY AUTO_INCREMENT | 反馈记录ID |
+| user_phone | VARCHAR(11) | NOT NULL, FK | 用户手机号（外键） |
+| type | VARCHAR(32) | NOT NULL | 反馈类型（bug/feature/ui/performance/content/other） |
+| content | TEXT | NOT NULL | 反馈内容 |
+| contact | VARCHAR(64) | | 联系方式（可选） |
+| images | TEXT | | 图片URL数组，JSON字符串 |
+| status | VARCHAR(16) | DEFAULT 'pending' | 处理状态（pending/processing/resolved/closed） |
 | reply | TEXT | | 管理员回复内容 |
+| replied_by | VARCHAR(11) | FK | 回复管理员手机号（外键） |
+| replied_at | DATETIME | | 回复时间 |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
 **反馈类型说明**:
-- **bug**: 系统错误反馈
+- **bug**: 错误问题反馈
 - **feature**: 功能建议
-- **ui**: 界面设计问题
+- **ui**: 界面体验问题
 - **performance**: 性能问题
 - **content**: 内容相关问题
 - **other**: 其他类型反馈
 
-**处理状态流程**:
-1. **pending**: 用户提交后的初始状态
-2. **processing**: 管理员开始处理
-3. **resolved**: 问题已解决，等待用户确认
-4. **closed**: 反馈已关闭（问题解决或无效反馈）
+**处理状态说明**:
+- **pending**: 待处理，新提交的反馈
+- **processing**: 处理中，管理员正在跟进
+- **resolved**: 已处理，问题已解决
+- **closed**: 已关闭，无需继续跟进
 
-**外键关系**:
-- `user_phone` → `users.phone_number`
-
-### 9.2 反馈管理功能
-
-#### 用户反馈提交
-- 支持多种反馈类型选择
-- 可选择上传相关截图（最多3张）
-- 可留下联系方式便于跟进
-- 支持匿名反馈（不强制登录）
-
-#### 管理员处理流程
-1. **查看反馈列表**: 按状态、类型、时间筛选
-2. **详细审核**: 查看反馈内容、图片和用户信息
-3. **回复用户**: 提供解决方案或处理进度
-4. **状态更新**: 根据处理进度更新状态
-5. **批量操作**: 支持批量关闭、分类处理
-
-#### API接口设计
-```http
-# 用户提交反馈
-POST /api/v1/feedback
-Authorization: Bearer {token} (可选)
-Content-Type: application/json
-{
-  "type": "bug",
-  "content": "反馈内容",
-  "contact": "联系方式",
-  "images": ["image1.jpg", "image2.jpg"]
-}
-
-# 用户查看自己的反馈
-GET /api/v1/feedback/my?status={status}&page={page}&limit={limit}
-Authorization: Bearer {token}
-
-# 管理员查看所有反馈
-GET /api/v1/admin/feedback?type={type}&status={status}&page={page}&limit={limit}
-Authorization: Bearer {admin_token}
-
-# 管理员回复反馈
-POST /api/v1/admin/feedback/{id}/reply
-Authorization: Bearer {admin_token}
-Content-Type: application/json
-{
-  "reply": "回复内容",
-  "status": "resolved"
-}
-```
+**业务特性**:
+- 支持图片上传，便于问题描述
+- 完整的处理流程跟踪
+- 管理员回复自动通知用户
+- 处理状态变更时自动发送通知
 
 ---
 
-## 10. 系统辅助模块
+## 9. 系统辅助模块
 
-### 10.1 验证码表 (verification_codes)
+### 9.1 验证码表 (verification_codes)
 
-用于短信验证码和邮箱验证码的临时存储和验证。
+短信验证码管理（临时存储）。
 
 | 字段名 | 数据类型 | 约束条件 | 描述 |
 |--------|----------|----------|------|
-| id | INT | PRIMARY KEY, AUTO_INCREMENT | 验证码记录ID |
+| id | INT | PRIMARY KEY AUTO_INCREMENT | 记录ID |
 | phone_number | VARCHAR(11) | NOT NULL | 手机号 |
-| code | VARCHAR(6) | NOT NULL | 6位数字验证码 |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+| code | VARCHAR(6) | NOT NULL | 验证码 |
+| type | ENUM('register','login','reset_password') | NOT NULL | 验证码类型 |
 | expires_at | TIMESTAMP | NOT NULL | 过期时间 |
-| status | ENUM('valid','used','expired') | DEFAULT 'valid' | 验证码状态 |
+| used | BOOLEAN | DEFAULT FALSE | 是否已使用 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
-**业务特点**:
-- **安全性**: 6位随机数字码，5分钟有效期
-- **频率限制**: 同一手机号60秒内只能发送一次
-- **状态管理**: valid-有效，used-已使用，expired-已过期
-- **自动清理**: 定时清理过期的验证码记录
+---
 
-**验证流程**:
-1. **发送验证码**: 生成随机6位数字，设置5分钟过期时间
-2. **验证码校验**: 检查手机号、验证码、有效期和状态
-3. **使用后标记**: 验证成功后将状态更改为'used'
-4. **定时清理**: 每日清理过期和已使用的验证码
+## 10. 索引设计
 
-#### API接口设计
-```http
-# 发送验证码
-POST /api/v1/auth/send-code
-Content-Type: application/json
-{
-  "phone_number": "13800138000"
-}
+### 主要索引
 
-# 验证验证码
-POST /api/v1/auth/verify-code
-Content-Type: application/json
-{
-  "phone_number": "13800138000",
-  "code": "123456"
-}
-```
+1. **用户表索引**:
+   - PRIMARY KEY: phone_number
+   - UNIQUE INDEX: student_id
+   - INDEX: status, role
 
-### 10.2 索引优化建议
+2. **资源表索引**:
+   - PRIMARY KEY: resource_id
+   - INDEX: publisher_phone, status, category_id
+   - INDEX: (status, created_at) 用于列表查询
 
-#### 反馈表优化
+3. **帖子表索引**:
+   - PRIMARY KEY: post_id
+   - INDEX: author_phone, status
+   - INDEX: (status, created_at) 用于列表查询
+
+4. **评论表索引**:
+   - PRIMARY KEY: comment_id
+   - INDEX: post_id, resource_id, parent_comment_id
+   - INDEX: author_phone
+
+5. **通知表索引**:
+   - PRIMARY KEY: notification_id
+   - INDEX: receiver_phone, type, priority
+   - INDEX: (priority, created_at) 用于排序
+
+6. **通知已读表索引**:
+   - PRIMARY KEY: id
+   - UNIQUE INDEX: (user_phone, notification_id)
+   - INDEX: user_phone, notification_id
+
+---
+
+## 11. 外键约束关系
+
+### 主要外键关系
+
 ```sql
--- 反馈状态查询优化
-CREATE INDEX idx_feedbacks_status_created ON feedbacks(status, created_at DESC);
-CREATE INDEX idx_feedbacks_user_status ON feedbacks(user_phone, status);
-CREATE INDEX idx_feedbacks_type_status ON feedbacks(type, status);
-```
+-- 资源相关
+resources.publisher_phone → users.phone_number
+resources.reviewer_phone → users.phone_number
+resources.category_id → categories.category_id
+files.resource_id → resources.resource_id
 
-#### 验证码表优化
-```sql
--- 验证码查询优化
-CREATE INDEX idx_verification_phone_status ON verification_codes(phone_number, status, expires_at);
-CREATE INDEX idx_verification_expires ON verification_codes(expires_at);
-CREATE INDEX idx_verification_created ON verification_codes(created_at);
+-- 论坛相关
+posts.author_phone → users.phone_number
+post_tag_relations.post_id → posts.post_id
+post_tag_relations.tag_id → post_tags.tag_id
+comments.author_phone → users.phone_number
+comments.post_id → posts.post_id
+comments.resource_id → resources.resource_id
+comments.parent_comment_id → comments.comment_id
+
+-- 学习管理相关
+study_plans.user_phone → users.phone_number
+study_tasks.plan_id → study_plans.plan_id
+sub_tasks.task_id → study_tasks.task_id
+
+-- 用户交互相关
+user_follows.follower_phone → users.phone_number
+user_follows.following_phone → users.phone_number
+collections.user_phone → users.phone_number
+ratings.user_phone → users.phone_number
+ratings.resource_id → resources.resource_id
+
+-- 通知相关
+notifications.receiver_phone → users.phone_number
+notification_reads.user_phone → users.phone_number
+notification_reads.notification_id → notifications.notification_id
+
+-- 举报相关
+resource_reports.resource_id → resources.resource_id
+resource_reports.reporter_phone → users.phone_number
+resource_reports.processed_by → users.phone_number
+post_reports.post_id → posts.post_id
+post_reports.reporter_phone → users.phone_number
+post_reports.processed_by → users.phone_number
+
+-- 反馈相关
+feedbacks.user_phone → users.phone_number
+feedbacks.replied_by → users.phone_number
 ```
 
 ---
 
-## 学习管理模块增强设计
+## 12. 数据完整性约束
 
-### 子任务管理系统
+### 唯一性约束
 
-#### API设计规范
+1. **用户相关**:
+   - 每个手机号只能注册一个账户
+   - 每个学号只能被一个用户使用
 
-**子任务管理接口**
-```http
-# 获取任务的所有子任务
-GET /api/v1/study-plans/tasks/{taskId}/subtasks
-Authorization: Bearer {token}
+2. **收藏相关**:
+   - 每个用户对每个内容只能收藏一次
 
-# 创建子任务
-POST /api/v1/study-plans/tasks/{taskId}/subtasks
-Authorization: Bearer {token}
-Content-Type: application/json
-{
-  "title": "子任务标题",
-  "description": "子任务描述",
-  "deadline": "2024-12-31",
-  "priority": "medium",
-  "estimated_minutes": 120,
-  "notes": "备注信息"
-}
+3. **关注相关**:
+   - 每个用户对每个用户只能关注一次
 
-# 更新子任务
-PUT /api/v1/study-plans/subtasks/{subtaskId}
-Authorization: Bearer {token}
-Content-Type: application/json
+4. **评分相关**:
+   - 每个用户对每个资源只能评分一次
 
-# 批量更新子任务排序
-PATCH /api/v1/study-plans/tasks/{taskId}/subtasks/reorder
-Authorization: Bearer {token}
-Content-Type: application/json
-{
-  "subtasks": [
-    {"subtask_id": 1, "sort_order": 1},
-    {"subtask_id": 2, "sort_order": 2}
-  ]
-}
+5. **通知相关**:
+   - 每个用户对每个广播通知只能有一条已读记录
 
-# 切换子任务完成状态
-PATCH /api/v1/study-plans/subtasks/{subtaskId}/toggle
-Authorization: Bearer {token}
+### 业务规则约束
 
-# 删除子任务
-DELETE /api/v1/study-plans/subtasks/{subtaskId}
-Authorization: Bearer {token}
+1. **时间约束**:
+   - 学习计划的结束时间不能早于开始时间
+   - 子任务的截止时间不能晚于父任务的截止时间
+
+2. **状态转换约束**:
+   - 资源状态只能按照 draft → pending → published/rejected 的流程转换
+   - 学习任务完成后不能回退到进行中状态
+
+3. **数据一致性约束**:
+   - 评论数、收藏数等统计字段与实际记录数保持一致
+   - 用户的关注数、粉丝数与关注关系表保持一致
+
+---
+
+## 13. 性能优化建议
+
+### 查询优化
+
+1. **分页查询优化**:
+   - 使用基于游标的分页替代 OFFSET/LIMIT
+   - 合理使用复合索引支持排序和筛选
+
+2. **统计查询优化**:
+   - 使用冗余字段存储计数，定期同步
+   - 对于复杂统计使用缓存或物化视图
+
+3. **全文搜索优化**:
+   - 对标题、内容字段建立全文索引
+   - 考虑引入Elasticsearch等专门的搜索引擎
+
+### 存储优化
+
+1. **JSON字段优化**:
+   - 合理使用JSON字段存储灵活数据结构
+   - 避免JSON字段过大影响查询性能
+
+2. **文件存储优化**:
+   - 大文件使用云存储，数据库只存储元数据
+   - 实现文件去重机制
+
+3. **数据归档策略**:
+   - 定期归档历史数据
+   - 实现软删除机制保护重要数据
+
+---
+
+## 14. 安全考虑
+
+### 数据安全
+
+1. **敏感信息保护**:
+   - 密码使用bcrypt加密存储
+   - 个人隐私信息根据privacy_settings控制可见性
+
+2. **SQL注入防护**:
+   - 使用参数化查询
+   - 对用户输入进行严格验证
+
+3. **权限控制**:
+   - 基于角色的访问控制(RBAC)
+   - API级别的权限验证
+
+### 业务安全
+
+1. **防刷机制**:
+   - 验证码有效期和使用次数限制
+   - API调用频率限制
+
+2. **内容安全**:
+   - 举报系统配合人工审核
+   - 敏感词过滤机制
+
+3. **数据备份**:
+   - 定期数据库备份
+   - 重要操作日志记录
+
+---
+
+## 15. 搜索统计模块
+
+### 15.1 搜索统计表 (search_statistics)
+
+搜索行为统计分析表，用于记录和分析用户搜索行为，支持搜索性能优化和热门内容推荐。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| id | INT | PRIMARY KEY, AUTO_INCREMENT | 统计记录唯一标识 |
+| search_term | VARCHAR(255) | NOT NULL | 搜索关键词 |
+| search_type | ENUM | NOT NULL | 搜索类型（resource/post/mixed） |
+| search_count | INT | DEFAULT 1 | 该关键词搜索次数 |
+| result_count | INT | DEFAULT 0 | 搜索结果数量 |
+| user_phone | VARCHAR(11) | NULL | 搜索用户手机号（游客搜索为NULL） |
+| search_filters | JSON | NULL | 搜索时使用的筛选条件 |
+| response_time_ms | INT | NULL | 搜索响应时间（毫秒） |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 首次搜索时间 |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE | 最后搜索时间 |
+
+**索引设计**:
+- `idx_search_term`: 搜索词索引，支持快速查找相同搜索词
+- `idx_search_type`: 搜索类型索引，支持按类型统计
+- `idx_search_count`: 搜索次数索引，支持热门搜索排序
+- `idx_created_at`: 时间索引，支持时间范围查询
+
+**业务逻辑**:
+- 记录每次搜索行为的详细信息
+- 支持游客搜索统计（user_phone为NULL）
+- 相同搜索词会累加搜索次数并更新时间
+- 用于生成搜索报告和热门内容推荐
+
+### 15.2 热门搜索关键词表 (hot_keywords)
+
+热门搜索关键词管理表，基于搜索统计数据维护的热门关键词列表，用于搜索建议和热门推荐。
+
+| 字段名 | 数据类型 | 约束条件 | 描述 |
+|--------|----------|----------|------|
+| id | INT | PRIMARY KEY, AUTO_INCREMENT | 关键词记录唯一标识 |
+| keyword | VARCHAR(255) | NOT NULL, UNIQUE | 关键词内容 |
+| search_count | INT | DEFAULT 0 | 累计搜索次数 |
+| result_count | INT | DEFAULT 0 | 平均搜索结果数量 |
+| category | ENUM | DEFAULT 'mixed' | 主要搜索类别（resource/post/mixed） |
+| last_searched_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 最后搜索时间 |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 关键词创建时间 |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE | 信息更新时间 |
+
+**索引设计**:
+- `idx_search_count`: 搜索次数降序索引，支持热门排序
+- `idx_last_searched`: 最后搜索时间降序索引，支持活跃度排序
+- `idx_category`: 类别索引，支持分类别推荐
+
+**业务逻辑**:
+- 自动从搜索统计中生成和更新热门关键词
+- 支持按搜索频次和活跃度排序
+- 用于搜索建议和热门搜索推荐功能
+- 定期清理过期或低频关键词
+
+### 15.3 全文索引设计
+
+为提升搜索性能，在关键表的文本字段上建立了全文索引：
+
+**资源内容索引**:
+```sql
+ALTER TABLE resources ADD FULLTEXT INDEX ft_resource_content (resource_name, description);
 ```
 
-#### 时间约束验证系统
-
-**验证层级架构**
-```javascript
-// 1. 前端实时验证
-function validateSubtaskTime(subtask, parentTask) {
-  if (subtask.deadline > parentTask.deadline) {
-    return { valid: false, message: '子任务截止时间不能晚于任务截止时间' }
-  }
-  if (subtask.deadline < parentTask.start_date) {
-    return { valid: false, message: '子任务截止时间不能早于任务开始时间' }
-  }
-  return { valid: true }
-}
-
-// 2. 后端API验证
-async function validateTimeConstraints(req, res, next) {
-  const { taskId, deadline } = req.body
-  const task = await StudyTask.findByPk(taskId)
-  const plan = await StudyPlan.findByPk(task.plan_id)
-  
-  // 层级化验证
-  if (deadline > task.deadline || deadline < task.start_date) {
-    return res.status(400).json({
-      success: false,
-      message: '子任务时间不在任务时间范围内'
-    })
-  }
-  
-  next()
-}
-
-// 3. 数据库约束
-ALTER TABLE sub_tasks 
-ADD CONSTRAINT check_deadline_range 
-CHECK (deadline IS NULL OR (
-  deadline >= (SELECT start_date FROM study_tasks 
-               WHERE task_id = sub_tasks.task_id) AND
-  deadline <= (SELECT deadline FROM study_tasks 
-               WHERE task_id = sub_tasks.task_id)
-))
+**帖子内容索引**:
+```sql
+ALTER TABLE posts ADD FULLTEXT INDEX ft_post_content (title, content);
 ```
 
-#### 进度计算算法优化
-
-**加权进度计算**
-```javascript
-// 子任务进度影响任务进度
-function calculateTaskProgress(task) {
-  const subtasks = task.subtasks || []
-  if (subtasks.length === 0) {
-    return task.status === 'completed' ? 100 : 0
-  }
-  
-  // 基于优先级的加权计算
-  const weights = { high: 3, medium: 2, low: 1 }
-  let totalWeight = 0
-  let completedWeight = 0
-  
-  subtasks.forEach(subtask => {
-    const weight = weights[subtask.priority] || 1
-    totalWeight += weight
-    if (subtask.completed) {
-      completedWeight += weight
-    }
-  })
-  
-  return totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0
-}
-
-// 任务进度影响计划进度
-function calculatePlanProgress(plan) {
-  const tasks = plan.tasks || []
-  if (tasks.length === 0) return 0
-  
-  let totalWeight = 0
-  let weightedProgress = 0
-  
-  tasks.forEach(task => {
-    const weight = getTaskWeight(task.priority)
-    const taskProgress = calculateTaskProgress(task)
-    totalWeight += weight
-    weightedProgress += (taskProgress * weight)
-  })
-  
-  return totalWeight > 0 ? Math.round(weightedProgress / totalWeight) : 0
-}
+**分类名称索引**:
+```sql
+ALTER TABLE categories ADD FULLTEXT INDEX ft_category_name (category_name);
 ```
 
-### 业务规则总结
+**标签名称索引**:
+```sql
+ALTER TABLE post_tags ADD FULLTEXT INDEX ft_tag_name (tag_name);
+```
 
-#### 时间约束层级
-1. **计划级别**：end_date >= CURDATE()（严格约束）
-2. **任务级别**：时间范围必须在计划时间内（范围约束）
-3. **子任务级别**：时间范围必须在任务时间内（范围约束）
+**全文索引特性**:
+- 支持中文全文检索
+- 提供相关性评分
+- 支持布尔搜索和短语搜索
+- 自动处理停用词和词干化
 
-#### 数据一致性保障
-- 上级时间变更时级联验证下级时间
-- 删除操作的级联处理（CASCADE）
-- 状态变更的自动进度更新
-- 并发操作的事务保护
+---
 
-#### 用户体验优化
-- 实时的时间约束提示
-- 智能的默认时间推荐
-- 批量操作的原子性保证
-- 错误信息的友好展示
-
+这个数据库设计支持完整的教育资源平台功能，具有良好的扩展性和维护性。通过合理的表结构设计、索引优化、搜索缓存机制和统计分析功能，能够满足平台的性能、安全和智能化需求。

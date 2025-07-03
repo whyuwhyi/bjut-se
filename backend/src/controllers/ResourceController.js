@@ -1,83 +1,156 @@
-const { Resource, User, File, Collection, Comment, Rating, Category } = require('../models')
+const { Resource, User, File, Collection, Comment, Rating, Category, Notification } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
+const searchHelper = require('../utils/SearchHelper')
+const searchCache = require('../utils/RedisSearchCache')
+const NotificationService = require('../services/NotificationService')
 const { Op } = require('sequelize')
 
 class ResourceController {
-  // 获取资源列表（支持分页、筛选、排序）
+  // 获取资源列表（支持智能搜索、高级筛选、排序）
   async getResources(req, res) {
     try {
       const {
         page = 1,
         limit = 10,
         categories,
-        sortBy = 'created_at',
+        sortBy = 'relevance',
         sortOrder = 'DESC',
         search,
-        status = 'published'
+        status = 'published',
+        // 新增高级筛选参数
+        dateFrom,
+        dateTo,
+        minRating,
+        maxRating,
+        minViews,
+        maxViews,
+        fileTypes
       } = req.query
 
       const userPhone = req.user?.phone_number // 获取当前用户手机号（如果已登录）
+      
+      // 构建缓存键参数（排除用户相关信息）
+      const cacheParams = {
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 10,
+        categories,
+        sortBy,
+        sortOrder,
+        search,
+        status,
+        dateFrom,
+        dateTo,
+        minRating: minRating ? parseFloat(minRating) : undefined,
+        maxRating: maxRating ? parseFloat(maxRating) : undefined,
+        minViews: minViews ? parseInt(minViews) : undefined,
+        maxViews: maxViews ? parseInt(maxViews) : undefined,
+        fileTypes
+      }
+      
+      // 尝试从缓存获取结果
+      const cachedResult = await searchCache.get('search', cacheParams)
+      if (cachedResult) {
+        // 需要为缓存结果添加用户特定的收藏状态
+        let resourcesWithFavorites = cachedResult.resources
+        if (userPhone && cachedResult.resources.length > 0) {
+          try {
+            // 获取用户的收藏记录
+            const userCollections = await Collection.findAll({
+              where: {
+                user_phone: userPhone,
+                collection_type: 'resource',
+                status: 'active'
+              },
+              attributes: ['content_id']
+            })
+            
+            const collectedIds = userCollections.map(c => c.content_id)
+            
+            resourcesWithFavorites = cachedResult.resources.map(resource => ({
+              ...resource,
+              isFavorited: collectedIds.includes(resource.id || resource.resource_id)
+            }))
+          } catch (error) {
+            console.error('添加收藏状态失败:', error)
+            resourcesWithFavorites = cachedResult.resources.map(r => ({ ...r, isFavorited: false }))
+          }
+        } else {
+          resourcesWithFavorites = cachedResult.resources.map(r => ({ ...r, isFavorited: false }))
+        }
+        
+        return res.json({
+          success: true,
+          data: {
+            ...cachedResult,
+            resources: resourcesWithFavorites
+          }
+        })
+      }
       const offset = (page - 1) * limit
       const where = { status }
       const include = [
         {
           model: User,
           as: 'publisher',
-          attributes: ['name', 'nickname']
+          attributes: ['name', 'nickname', 'avatar_url']
         },
         {
           model: File,
           as: 'files',
           attributes: ['file_id', 'file_name', 'file_type', 'file_size']
+        },
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['category_id', 'category_name', 'category_value', 'icon']
         }
       ]
 
-      // 分类关联
-      include.push({
-        model: Category,
-        as: 'category',
-        attributes: ['category_id', 'category_name', 'category_value', 'icon']
-      })
-
-      // 搜索条件
+      // 智能搜索条件 - 使用JOIN查询支持关联表搜索
       if (search) {
-        where[Op.or] = [
-          { resource_name: { [Op.like]: `%${search}%` } },
-          { description: { [Op.like]: `%${search}%` } }
-        ]
-      }
-
-      // 分类筛选
-      if (categories) {
-        const categoryList = categories.split(',')
-        where.category_id = {
-          [Op.in]: categoryList
+        const searchCondition = searchHelper.buildResourceSearchCondition(search, {
+          includeRelated: true // 启用关联表搜索，配合subQuery: false使用
+        })
+        if (searchCondition && (Object.keys(searchCondition).length > 0 || Object.getOwnPropertySymbols(searchCondition).length > 0)) {
+          Object.assign(where, searchCondition)
         }
       }
 
-      // 排序处理
-      let order = []
-      switch (sortBy) {
-        case 'download':
-          order = [['download_count', sortOrder]]
-          break
-        case 'rating':
-          order = [['rating', sortOrder]]
-          break
-        case 'view':
-          order = [['view_count', sortOrder]]
-          break
-        case 'latest':
-        default:
-          order = [['created_at', sortOrder]]
-          break
+      // 高级筛选条件
+      const advancedFilters = searchHelper.buildAdvancedFilters({
+        categories,
+        status: [status],
+        dateFrom,
+        dateTo,
+        minRating,
+        maxRating,
+        minViews,
+        maxViews
+      })
+      Object.assign(where, advancedFilters)
+
+      // 文件类型筛选
+      if (fileTypes) {
+        const typeList = fileTypes.split(',').map(t => t.trim()).filter(t => t)
+        if (typeList.length > 0) {
+          include[1].where = {
+            file_type: { [Op.in]: typeList }
+          }
+          include[1].required = true
+        }
       }
+
+      // 智能排序处理
+      const order = searchHelper.buildSortCondition(sortBy, sortOrder, search)
 
       const { count, rows } = await Resource.findAndCountAll({
         where,
         include,
         order,
         limit: parseInt(limit),
-        offset: parseInt(offset)
+        offset: parseInt(offset),
+        distinct: true, // 避免JOIN重复计数
+        subQuery: false // 禁用子查询，使用JOIN查询
       })
 
       // 如果用户已登录，获取收藏状态
@@ -94,10 +167,10 @@ class ResourceController {
         userCollections = collections.map(c => c.content_id)
       }
 
-      // 格式化返回数据
-      const resources = rows.map(resource => {
+      // 格式化返回数据并计算相关性评分
+      let resources = rows.map(resource => {
         const data = resource.toJSON()
-        return {
+        const formatted = {
           id: data.resource_id,
           title: data.resource_name,
           description: data.description,
@@ -109,21 +182,59 @@ class ResourceController {
           isFavorited: userCollections.includes(data.resource_id),
           files: data.files || [],
           category: data.category?.category_name || '未分类',
-          collection_count: data.collection_count || 0
+          collection_count: data.collection_count || 0,
+          // 新增字段
+          publisherAvatar: data.publisher?.avatar_url,
+          categoryInfo: data.category,
+          fileCount: data.files?.length || 0
         }
+
+        // 计算相关性评分（如果有搜索词）
+        if (search) {
+          formatted.relevanceScore = searchHelper.calculateRelevanceScore({
+            resource_name: data.resource_name,
+            description: data.description,
+            category_name: data.category?.category_name,
+            publisher_name: data.publisher?.nickname || data.publisher?.name,
+            view_count: data.view_count,
+            download_count: data.download_count,
+            collection_count: data.collection_count,
+            rating: data.rating
+          }, search, 'resource')
+
+          // 高亮搜索关键词
+          formatted.titleHighlighted = searchHelper.highlightKeywords(formatted.title, search)
+          formatted.descriptionHighlighted = searchHelper.highlightKeywords(formatted.description, search)
+        }
+
+        return formatted
       })
+
+      // 如果有搜索词且按相关性排序，重新排序结果
+      if (search && sortBy === 'relevance') {
+        resources.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
+      }
+
+      const responseData = {
+        resources,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      }
+      
+      // 将结果存储到缓存（不包含用户特定的收藏状态）
+      const cacheData = {
+        resources: resources.map(r => ({ ...r, isFavorited: undefined })),
+        pagination: responseData.pagination
+      }
+      await searchCache.set('search', cacheParams, cacheData)
 
       res.json({
         success: true,
-        data: {
-          resources,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total: count,
-            totalPages: Math.ceil(count / limit)
-          }
-        }
+        data: responseData
       })
     } catch (error) {
       console.error('获取资源列表错误:', error)
@@ -140,7 +251,8 @@ class ResourceController {
     try {
       const { id } = req.params
 
-      const resource = await Resource.findByPk(id, {
+      const resource = await Resource.findOne({
+        where: { resource_id: id },
         include: [
           {
             model: User,
@@ -189,9 +301,16 @@ class ResourceController {
       // 增加浏览次数
       await resource.increment('view_count')
 
+      // 格式化返回数据
+      const data = resource.toJSON()
+      const formatted = {
+        ...data,
+        category: data.category?.category_name || '未分类'
+      }
+
       res.json({
         success: true,
-        data: resource
+        data: formatted
       })
     } catch (error) {
       console.error('获取资源详情错误:', error)
@@ -215,7 +334,7 @@ class ResourceController {
       } = req.body
 
       // 生成资源ID（如果没有提供）
-      const finalResourceId = resource_id || Math.floor(100000000 + Math.random() * 900000000).toString()
+      const finalResourceId = resource_id || idGenerator.generateResourceId()
 
       const resource = await Resource.create({
         resource_id: finalResourceId,
@@ -227,6 +346,9 @@ class ResourceController {
       })
       // 新增：发布资源后自增用户资源数
       await User.increment('resource_count', { where: { phone_number: userPhone } })
+
+      // 清除相关缓存
+      await searchCache.invalidate('resource', 'create')
 
       res.status(201).json({
         success: true,
@@ -285,7 +407,7 @@ class ResourceController {
         }
       } else {
         // 新增收藏
-        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
+        const collectionId = idGenerator.generateCollectionId()
         await Collection.create({
           collection_id: collectionId,
           user_phone: userPhone,
@@ -361,7 +483,7 @@ class ResourceController {
 
   // 生成资源ID
   generateResourceId() {
-    return Math.floor(100000000 + Math.random() * 900000000).toString()
+    return idGenerator.generateResourceId()
   }
 
   // 审核资源（管理员功能）
@@ -371,7 +493,15 @@ class ResourceController {
       const { action, comment } = req.body // action: 'approve' | 'reject'
       const reviewerPhone = req.user.phone_number
 
-      const resource = await Resource.findByPk(resourceId)
+      const resource = await Resource.findOne({
+        where: { resource_id: resourceId },
+        include: [{
+          model: User,
+          as: 'publisher',
+          attributes: ['phone_number', 'name', 'nickname']
+        }]
+      })
+      
       if (!resource) {
         return res.status(404).json({
           success: false,
@@ -392,9 +522,46 @@ class ResourceController {
         status: newStatus,
         reviewer_phone: reviewerPhone,
         review_comment: comment,
-        reviewed_at: new Date()
+        reviewed_at: new Date(),
+        category_id: resource.category_id
       })
 
+      // 发送通知给资源发布者
+      const notificationId = idGenerator.generateNotificationId()
+      const isApproved = action === 'approve'
+      
+      await Notification.create({
+        notification_id: notificationId,
+        receiver_phone: resource.publisher_phone,
+        type: 'system',
+        priority: isApproved ? 'medium' : 'high',
+        title: isApproved ? '资源审核通过' : '资源审核被拒绝',
+        content: isApproved 
+          ? `您的资源"${resource.resource_name}"已通过审核并发布。${comment ? `审核意见：${comment}` : ''}`
+          : `您的资源"${resource.resource_name}"审核未通过。${comment ? `拒绝原因：${comment}` : ''}`,
+        action_type: 'navigate',
+        action_url: '/pages/resources/detail',
+        action_params: { resourceId: resource.resource_id }
+      })
+
+      // 清除相关缓存
+      await searchCache.invalidate('resource', 'update')
+
+      // 如果资源审核通过，异步推送通知给关注者
+      if (action === 'approve') {
+        try {
+          await NotificationService.notifyFollowersAboutNewContent(
+            resource.publisher_phone,
+            'resource',
+            resource.resource_id,
+            resource.resource_name
+          )
+        } catch (notificationError) {
+          // 通知推送失败不影响审核结果
+          console.error('推送关注者通知失败:', notificationError)
+        }
+      }
+      
       res.json({
         success: true,
         message: action === 'approve' ? '资源审核通过' : '资源已拒绝',
@@ -432,6 +599,11 @@ class ResourceController {
             model: File,
             as: 'files',
             attributes: ['file_id', 'file_name', 'file_type', 'file_size']
+          },
+          {
+            model: Category,
+            as: 'category',
+            attributes: ['category_id', 'category_name', 'category_value', 'icon']
           }
         ],
         order: [['created_at', 'ASC']],
@@ -439,10 +611,29 @@ class ResourceController {
         offset: parseInt(offset)
       })
 
+      // 格式化返回数据
+      const resources = rows.map(resource => {
+        const data = resource.toJSON()
+        return {
+          id: data.resource_id,
+          title: data.resource_name,
+          description: data.description,
+          uploaderName: data.publisher?.nickname || data.publisher?.name || '匿名用户',
+          uploadTime: data.created_at,
+          viewCount: data.view_count,
+          downloadCount: data.download_count,
+          rating: parseFloat(data.rating),
+          files: data.files || [],
+          category: data.category?.category_name || '未分类',
+          collection_count: data.collection_count || 0,
+          status: data.status
+        }
+      })
+
       res.json({
         success: true,
         data: {
-          resources: rows,
+          resources,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
@@ -487,7 +678,12 @@ class ResourceController {
         })
       }
 
-      if (resource.status !== 'published') {
+      // 权限检查：管理员可以下载任何状态的资源，普通用户只能下载已发布的资源或自己的资源
+      const isAdmin = req.user?.role === 'admin'
+      const isOwner = req.user?.phone_number === resource.publisher_phone
+      const isPublished = resource.status === 'published'
+      
+      if (!isPublished && !isAdmin && !isOwner) {
         return res.status(403).json({
           success: false,
           message: '资源未发布，无法下载'
@@ -523,7 +719,7 @@ class ResourceController {
             }
           })
         } else {
-          // 直接文件访问，返回文件流
+          // 其他情况都返回文件流（包括 application/octet-stream 或默认情况）
           const filePath = path.join(process.cwd(), 'uploads', file.storage_path)
           
           // 检查文件是否存在
@@ -581,9 +777,286 @@ class ResourceController {
     }
   }
 
+  // 删除资源
+  async deleteResource(req, res) {
+    try {
+      const { id } = req.params
+      const userPhone = req.user.phone_number
+
+      // 查找资源
+      const resource = await Resource.findOne({
+        where: { 
+          resource_id: id,
+          status: { [Op.in]: ['draft', 'pending', 'published', 'rejected'] }
+        }
+      })
+
+      if (!resource) {
+        return res.status(404).json({
+          success: false,
+          message: '资源不存在'
+        })
+      }
+
+      // 验证权限：只能删除自己的资源
+      if (resource.publisher_phone !== userPhone) {
+        return res.status(403).json({
+          success: false,
+          message: '您没有权限删除这个资源'
+        })
+      }
+
+      // 软删除：将状态改为archived
+      await resource.update({ status: 'archived' })
+
+      // 清除相关缓存
+      await searchCache.invalidate('resource', 'delete')
+
+      res.status(200).json({
+        success: true,
+        message: '删除资源成功'
+      })
+    } catch (error) {
+      console.error('删除资源失败:', error)
+      res.status(500).json({
+        success: false,
+        message: '删除资源失败',
+        errors: [error.message]
+      })
+    }
+  }
+
+  // 切换收藏状态
+  async toggleFavorite(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { resourceId } = req.params
+      const { type = 'resource' } = req.body
+
+      // 检查资源是否存在
+      const resource = await Resource.findByPk(resourceId)
+      if (!resource) {
+        return res.status(404).json({
+          success: false,
+          message: '资源不存在'
+        })
+      }
+
+      // 查找现有收藏记录
+      const existingCollection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource'
+        }
+      })
+
+      let isCollected = false
+
+      if (existingCollection) {
+        // 如果已收藏，切换状态
+        if (existingCollection.status === 'active') {
+          await existingCollection.update({ status: 'cancelled' })
+          isCollected = false
+          // 更新收藏计数
+          await Resource.decrement('collection_count', { where: { resource_id: resourceId } })
+        } else {
+          await existingCollection.update({ status: 'active' })
+          isCollected = true
+          // 更新收藏计数
+          await Resource.increment('collection_count', { where: { resource_id: resourceId } })
+        }
+      } else {
+        // 如果没有收藏记录，创建新的
+        const collectionId = idGenerator.generateCollectionId()
+        await Collection.create({
+          collection_id: collectionId,
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource',
+          status: 'active'
+        })
+        isCollected = true
+        // 更新收藏计数
+        await Resource.increment('collection_count', { where: { resource_id: resourceId } })
+      }
+
+      res.json({
+        success: true,
+        message: isCollected ? '收藏成功' : '取消收藏成功',
+        data: {
+          isCollected
+        }
+      })
+    } catch (error) {
+      console.error('切换收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '操作失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 检查收藏状态
+  async checkFavoriteStatus(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { resourceId } = req.params
+
+      const collection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: resourceId,
+          collection_type: 'resource',
+          status: 'active'
+        }
+      })
+
+      res.json({
+        success: true,
+        data: {
+          isCollected: !!collection
+        }
+      })
+    } catch (error) {
+      console.error('检查收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '检查收藏状态失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 获取搜索建议
+  async getSearchSuggestions(req, res) {
+    try {
+      const { q: searchTerm } = req.query
+      
+      // 这里可以从数据库获取热门搜索关键词和用户搜索历史
+      // 暂时使用模拟数据
+      const hotKeywords = [
+        '数据结构', '算法', '计算机网络', '操作系统', '数据库',
+        '机器学习', '深度学习', '前端开发', '后端开发', 'Python'
+      ]
+      
+      const searchHistory = [] // 可以从用户session或数据库获取
+      
+      const suggestions = searchHelper.generateSearchSuggestions(
+        searchTerm, 
+        searchHistory, 
+        hotKeywords
+      )
+      
+      res.json({
+        success: true,
+        data: {
+          suggestions,
+          hotKeywords: hotKeywords.slice(0, 5)
+        }
+      })
+    } catch (error) {
+      console.error('获取搜索建议错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '获取搜索建议失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 获取高级筛选选项
+  async getFilterOptions(req, res) {
+    try {
+      // 获取所有分类
+      const categories = await Category.findAll({
+        where: { status: 'active' },
+        attributes: ['category_id', 'category_name', 'icon'],
+        order: [['sort_order', 'ASC'], ['category_name', 'ASC']]
+      })
+
+      // 获取文件类型统计
+      const fileTypes = await File.findAll({
+        attributes: ['file_type'],
+        group: ['file_type'],
+        raw: true
+      })
+
+      // 获取评分范围
+      const ratingRange = await Resource.findOne({
+        attributes: [
+          [require('sequelize').fn('MIN', require('sequelize').col('rating')), 'minRating'],
+          [require('sequelize').fn('MAX', require('sequelize').col('rating')), 'maxRating']
+        ],
+        raw: true
+      })
+
+      res.json({
+        success: true,
+        data: {
+          categories: categories.map(cat => ({
+            id: cat.category_id,
+            name: cat.category_name,
+            icon: cat.icon
+          })),
+          fileTypes: fileTypes.map(ft => ft.file_type).filter(Boolean),
+          ratingRange: {
+            min: parseFloat(ratingRange?.minRating || 0),
+            max: parseFloat(ratingRange?.maxRating || 5)
+          },
+          sortOptions: [
+            { value: 'relevance', label: '相关性' },
+            { value: 'latest', label: '最新发布' },
+            { value: 'download', label: '下载最多' },
+            { value: 'rating', label: '评分最高' },
+            { value: 'view', label: '浏览最多' },
+            { value: 'collection', label: '收藏最多' }
+          ]
+        }
+      })
+    } catch (error) {
+      console.error('获取筛选选项错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '获取筛选选项失败',
+        error: error.message
+      })
+    }
+  }
+
   // 生成收藏ID
   generateCollectionId() {
-    return Math.floor(100000000 + Math.random() * 900000000).toString()
+    return idGenerator.generateResourceId()
+  }
+  
+  // 为资源列表添加用户收藏状态
+  async addFavoriteStatus(resources, userPhone) {
+    if (!userPhone || !resources.length) {
+      return resources.map(r => ({ ...r, isFavorited: false }))
+    }
+    
+    try {
+      // 获取用户的收藏记录
+      const userCollections = await Collection.findAll({
+        where: {
+          user_phone: userPhone,
+          collection_type: 'resource',
+          status: 'active'
+        },
+        attributes: ['content_id']
+      })
+      
+      const collectedIds = userCollections.map(c => c.content_id)
+      
+      return resources.map(resource => ({
+        ...resource,
+        isFavorited: collectedIds.includes(resource.id || resource.resource_id)
+      }))
+    } catch (error) {
+      console.error('添加收藏状态失败:', error)
+      return resources.map(r => ({ ...r, isFavorited: false }))
+    }
   }
 }
 

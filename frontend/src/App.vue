@@ -1,9 +1,15 @@
 <script lang="ts">
     import Vue from 'vue';
+    import auth from './utils/auth.js';
+    
     export default Vue.extend({
         mpType: 'app',
         onLaunch() {
             console.log('App Launch')
+            
+            // 初始化身份验证系统
+            auth.init()
+            
             // 临时注释掉登录检查，直接进入首页
             //setTimeout(() => {
               //  uni.reLaunch({
@@ -13,9 +19,15 @@
         },
         onShow() {
             console.log('App Show')
+            
+            // 应用显示时检查用户状态
+            auth.onAppShow()
         },
         onHide() {
             console.log('App Hide')
+            
+            // 应用隐藏时的处理
+            auth.onAppHide()
         }
     } as any);
 </script>

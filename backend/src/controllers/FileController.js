@@ -1,4 +1,5 @@
 const { File, Resource } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 const path = require('path')
 const fs = require('fs')
 
@@ -31,7 +32,7 @@ class FileController {
       }
 
       // 生成文件ID
-      const fileId = Math.floor(100000000 + Math.random() * 900000000).toString()
+      const fileId = idGenerator.generateNumericId(9)
 
       // 创建文件记录
       const file = await File.create({
@@ -70,6 +71,73 @@ class FileController {
       res.json({ success: true, url })
     } catch (error) {
       res.status(500).json({ success: false, message: '图片上传失败', error: error.message })
+    }
+  }
+
+  // 下载文件
+  async downloadFile(req, res) {
+    try {
+      const { fileId } = req.params
+      
+      // 查找文件记录
+      const file = await File.findOne({
+        where: { file_id: fileId },
+        include: [{
+          model: Resource,
+          as: 'resource',
+          attributes: ['resource_id', 'status', 'publisher_phone']
+        }]
+      })
+
+      if (!file) {
+        return res.status(404).json({
+          success: false,
+          message: '文件不存在'
+        })
+      }
+
+      // 检查资源状态 - 只有已发布的资源或资源所有者/管理员可以下载
+      const canDownload = 
+        file.resource.status === 'published' || 
+        file.resource.publisher_phone === req.user.phone_number ||
+        req.user.role === 'admin'
+
+      if (!canDownload) {
+        return res.status(403).json({
+          success: false,
+          message: '无权限下载此文件'
+        })
+      }
+
+      // 构建文件路径
+      const filePath = path.join(process.cwd(), 'uploads', file.storage_path)
+      
+      // 检查文件是否存在
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({
+          success: false,
+          message: '文件不存在于服务器'
+        })
+      }
+
+      // 更新下载次数
+      await file.increment('download_count')
+
+      // 设置响应头
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.file_name)}"`)
+      res.setHeader('Content-Type', file.file_type || 'application/octet-stream')
+      
+      // 发送文件
+      res.sendFile(filePath)
+      
+      console.log(`User ${req.user.phone_number} downloaded file ${fileId}`)
+    } catch (error) {
+      console.error('File download error:', error)
+      res.status(500).json({
+        success: false,
+        message: '文件下载失败',
+        error: error.message
+      })
     }
   }
 }

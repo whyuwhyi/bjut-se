@@ -65,6 +65,9 @@ services:
     volumes:
       - backend_uploads:/app/uploads
       - backend_logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+    # 需要访问Docker socket的权限
+    user: "0:0"
     networks:
       - app-network
     depends_on:

@@ -543,6 +543,11 @@ export default {
 	padding: 20rpx;
 	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 1024rpx;
+	margin: 0 auto;
 }
 
 @keyframes gradientBG {
@@ -564,24 +569,40 @@ export default {
 	align-items: center;
 	padding: 32rpx;
 	background-color: #ffffff;
-	border-bottom: 1rpx solid #e0e0e0;
+	border-radius: 24rpx;
+	margin-bottom: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 }
 
-.plan-selector .selector-trigger {
-	display: flex;
-	align-items: center;
-	gap: 12rpx;
+.plan-selector {
+	flex: 1;
+	min-width: 0;
+	
+	.selector-trigger {
+		display: flex;
+		align-items: center;
+		gap: 12rpx;
+		max-width: 100%;
+	}
 }
 
 .current-plan {
 	font-size: 32rpx;
 	font-weight: 600;
 	color: #333333;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex: 1;
+	min-width: 0;
 }
 
 .dropdown-icon {
 	font-size: 24rpx;
 	color: #666666;
+	flex-shrink: 0;
 }
 
 .plan-actions {
@@ -606,11 +627,13 @@ export default {
 
 /* 当前计划概览 */
 .current-plan-overview {
-	margin: 32rpx;
+	margin: 0 0 32rpx 0;
 	background-color: #ffffff;
-	border-radius: 16rpx;
+	border-radius: 24rpx;
 	padding: 32rpx;
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .plan-header {
@@ -618,6 +641,9 @@ export default {
 	justify-content: space-between;
 	align-items: center;
 	margin-bottom: 16rpx;
+	width: 100%;
+	box-sizing: border-box;
+	gap: 16rpx;
 }
 
 .plan-title {
@@ -626,6 +652,11 @@ export default {
 	color: #007aff;
 	text-decoration: underline;
 	text-decoration-color: rgba(0, 122, 255, 0.3);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex: 1;
+	min-width: 0;
 }
 
 .plan-status {
@@ -633,6 +664,8 @@ export default {
 	border-radius: 12rpx;
 	font-size: 22rpx;
 	color: #ffffff;
+	flex-shrink: 0;
+	white-space: nowrap;
 }
 
 .plan-status.status-active {
@@ -706,10 +739,13 @@ export default {
 
 /* 任务部分 */
 .tasks-section {
-	margin: 16rpx 32rpx;
+	margin: 0 0 32rpx 0;
 	background-color: #ffffff;
-	border-radius: 16rpx;
+	border-radius: 24rpx;
 	padding: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .section-header {
@@ -799,6 +835,11 @@ export default {
 	font-weight: 500;
 	display: block;
 	margin-bottom: 8rpx;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .task-item.completed .task-title {
@@ -810,6 +851,11 @@ export default {
 	color: #666666;
 	display: block;
 	margin-bottom: 12rpx;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .task-meta {
@@ -889,10 +935,13 @@ export default {
 
 /* 学习统计部分 */
 .stats-section {
-	margin: 16rpx 32rpx;
+	margin: 0 0 32rpx 0;
 	background-color: #ffffff;
-	border-radius: 16rpx;
+	border-radius: 24rpx;
 	padding: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .stats-grid {
@@ -925,8 +974,8 @@ export default {
 /* 创建按钮 */
 .create-btn {
 	position: fixed;
-	right: 30rpx;
-	bottom: 120rpx;
+	right: 40rpx;
+	bottom: 160rpx;
 	width: 120rpx;
 	height: 120rpx;
 	border-radius: 50%;
@@ -934,16 +983,17 @@ export default {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.15);
+	z-index: 100;
 	transition: all 0.3s ease;
 	
 	&:active {
 		transform: scale(0.95);
-		background: rgba(0, 122, 255, 0.15);
+		background: rgba(0, 122, 255, 0.2);
 	}
 }
-
-.create-icon {
+	
+	.create-icon {
 	width: 60rpx;
 	height: 60rpx;
 }

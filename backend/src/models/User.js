@@ -58,6 +58,25 @@ const User = sequelize.define('User', {
     },
     comment: '邮箱地址'
   },
+  birthday: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    validate: {
+      isDate: true,
+      isBefore: new Date().toISOString().split('T')[0], // 不能是未来日期
+      isNotTooOld(value) {
+        if (value) {
+          const ninetyYearsAgo = new Date();
+          ninetyYearsAgo.setFullYear(ninetyYearsAgo.getFullYear() - 90);
+          const inputDate = new Date(value);
+          if (inputDate < ninetyYearsAgo) {
+            throw new Error('生日不能超过90年前');
+          }
+        }
+      }
+    },
+    comment: '生日日期'
+  },
   bio: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -82,22 +101,46 @@ const User = sequelize.define('User', {
   post_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    validate: {
+      min: 0
+    },
     comment: '发帖数'
   },
   resource_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    validate: {
+      min: 0
+    },
     comment: '资源数'
   },
   follower_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    validate: {
+      min: 0
+    },
     comment: '粉丝数'
   },
   following_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
+    validate: {
+      min: 0
+    },
     comment: '关注数'
+  },
+  privacy_settings: {
+    type: DataTypes.JSON,
+    defaultValue: {
+      show_email: false,
+      show_student_id: false,
+      show_real_name: true,
+      show_bio: true,
+      show_stats: true,
+      allow_follow: true
+    },
+    comment: '隐私设置'
   }
 }, {
   tableName: 'users',

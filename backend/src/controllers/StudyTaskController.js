@@ -1,10 +1,11 @@
 const { StudyTask, SubTask, StudyPlan } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 
 // 创建学习任务
 const createTask = async (req, res) => {
   try {
     const { phone_number } = req.user
-    const { plan_id, title, description, deadline, priority, estimated_hours, tags } = req.body
+    const { plan_id, title, description, deadline, priority, estimated_hours } = req.body
 
     // 验证学习计划是否存在且属于当前用户
     const plan = await StudyPlan.findOne({
@@ -22,7 +23,7 @@ const createTask = async (req, res) => {
     }
 
     // 生成9位数字ID
-    const task_id = Date.now().toString().slice(-9)
+    const task_id = idGenerator.generateTaskId()
 
     const task = await StudyTask.create({
       task_id,
@@ -32,7 +33,6 @@ const createTask = async (req, res) => {
       deadline,
       priority: priority || 'medium',
       estimated_hours,
-      tags: tags ? JSON.stringify(tags) : null,
       status: 'pending'
     })
 
@@ -80,21 +80,9 @@ const getTaskById = async (req, res) => {
       })
     }
 
-    // 解析标签
-    const taskData = task.toJSON()
-    if (taskData.tags) {
-      try {
-        taskData.tags = JSON.parse(taskData.tags)
-      } catch (e) {
-        taskData.tags = []
-      }
-    } else {
-      taskData.tags = []
-    }
-
     res.json({
       success: true,
-      data: taskData
+      data: task
     })
   } catch (error) {
     console.error('获取任务详情失败:', error)
@@ -176,11 +164,6 @@ const updateTask = async (req, res) => {
         success: false,
         message: '学习任务不存在'
       })
-    }
-
-    // 处理标签数据
-    if (updateData.tags) {
-      updateData.tags = JSON.stringify(updateData.tags)
     }
 
     await task.update(updateData)

@@ -222,11 +222,18 @@ export default {
 		},
 		
 		viewProfile(user) {
-			// 跳转到用户详情页面（如果有的话）
-			uni.showToast({
-				title: `查看 ${user.nickname || user.name} 的资料`,
-				icon: 'none'
-			})
+			// 跳转到用户详情页面
+			const userPhone = user.phone_number
+			if (userPhone) {
+				uni.navigateTo({
+					url: `./user-detail?phone=${userPhone}`
+				})
+			} else {
+				uni.showToast({
+					title: '用户信息错误',
+					icon: 'none'
+				})
+			}
 		},
 		
 		goToShare() {

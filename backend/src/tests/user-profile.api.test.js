@@ -1,116 +1,142 @@
-const request = require('supertest');
-const fs = require('fs');
-const path = require('path');
+const request = require('supertest')
+const app = require('../app')
+const { User } = require('../models')
 
-const API_URL = 'https://rixin.whywhy.me';
-const TEST_PHONE = '18256800695';
-const TEST_PASSWORD = '123456';
+describe('User Profile API Tests', () => {
+  let testUser1, testUser2, authToken
 
-let token = '';
+  beforeEach(async () => {
+    // 创建测试用户1
+    testUser1 = await User.create({
+      phone_number: '13800138001',
+      name: '测试用户1',
+      nickname: '昵称1',
+      password: 'hashedpassword123',
+      email: 'test1@example.com',
+      student_id: '20230001',
+      bio: '这是测试用户1的个人简介',
+      avatar_url: '/uploads/avatars/user1.jpg',
+      status: 'active',
+      post_count: 5,
+      resource_count: 3,
+      follower_count: 10,
+      following_count: 8
+    })
 
-beforeAll(async () => {
-  const res = await request(API_URL)
-    .post('/api/v1/users/login')
-    .send({ phone_number: TEST_PHONE, password: TEST_PASSWORD })
-    .set('Content-Type', 'application/json');
-  expect(res.status).toBe(200);
-  token = res.body.data.token;
-}, 30000);
+    // 创建测试用户2
+    testUser2 = await User.create({
+      phone_number: '13800138002',
+      name: '测试用户2',
+      nickname: '昵称2',
+      password: 'hashedpassword123',
+      email: 'test2@example.com',
+      student_id: 'S202300002',
+      bio: '这是测试用户2的个人简介',
+      avatar_url: '/uploads/avatars/user2.jpg',
+      status: 'active',
+      post_count: 3,
+      resource_count: 7,
+      follower_count: 5,
+      following_count: 12
+    })
 
-describe('用户信息修改与头像上传（远程API自动化测试）', () => {
-  // 1. 正常修改昵称
-  it('1. 正常修改昵称', async () => {
-    const res = await request(API_URL)
-      .put('/api/v1/users/profile')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ nickname: '新昵称' });
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.message).toMatch(/更新成功|修改成功/);
-    expect(res.body.data.user.nickname).toBe('新昵称');
-  }, 30000);
+    // 登录获取token
+    const loginResponse = await request(app)
+      .post('/api/v1/users/login')
+      .send({
+        phone_number: '13800138001',
+        password: 'hashedpassword123'
+      })
+    
+    authToken = loginResponse.body.data.token
+  })
 
-  // 2. 修改头像成功
-  it('2. 修改头像成功', async () => {
-    const filePath = path.resolve(__dirname, 'test-desktop.jpg');
-    expect(fs.existsSync(filePath)).toBe(true);
-    const res = await request(API_URL)
-      .post('/api/v1/users/avatar')
-      .set('Authorization', `Bearer ${token}`)
-      .attach('avatar', filePath);
-    expect([200, 201]).toContain(res.status);
-    expect(res.body.success).toBe(true);
-    expect(res.body.message).toMatch(/头像上传成功|修改成功/);
-    expect(res.body.data.avatar_url).toMatch(/\/uploads\/avatars\//);
-  }, 30000);
+  afterEach(async () => {
+    // 清理测试数据
+    await User.destroy({ where: { phone_number: ['13800138001', '13800138002'] } })
+  })
 
-  // 3. 未登录修改信息
-  it('3. 未登录修改信息', async () => {
-    const res = await request(API_URL)
-      .put('/api/v1/users/profile')
-      .send({ nickname: '未登录昵称' });
-    expect([401, 403]).toContain(res.status);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/未授权|token|登录|访问令牌缺失/);
-  }, 30000);
+  describe('GET /api/v1/users/:phone/profile', () => {
+    test('应该能够获取其他用户的公开信息（未登录）', async () => {
+      const response = await request(app)
+        .get('/api/v1/users/13800138002/profile')
 
-  // 4. 昵称为空
-  it('4. 昵称为空', async () => {
-    const res = await request(API_URL)
-      .put('/api/v1/users/profile')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ nickname: '' });
-    expect([400, 500]).toContain(res.status);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/输入数据验证失败|不能为空|服务器内部错误/);
-  }, 30000);
+      expect(response.status).toBe(200)
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.user).toMatchObject({
+        phone_number: '13800138002',
+        name: '测试用户2',
+        nickname: '昵称2',
+        bio: '这是测试用户2的个人简介',
+        avatar_url: '/uploads/avatars/user2.jpg',
+        post_count: 3,
+        resource_count: 7,
+        follower_count: 5,
+        following_count: 12
+      })
+      
+      // 不应该包含私密信息
+      expect(response.body.data.user.email).toBeUndefined()
+      expect(response.body.data.user.student_id).toBeUndefined()
+      expect(response.body.data.isFollowing).toBe(false)
+    })
 
-  // 5. 昵称超长
-  it('5. 昵称超长', async () => {
-    const res = await request(API_URL)
-      .put('/api/v1/users/profile')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ nickname: 'A'.repeat(51) });
-    expect([400, 500]).toContain(res.status);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/输入数据验证失败|长度不能超过|服务器内部错误/);
-  }, 30000);
+    test('应该能够获取其他用户的公开信息（已登录）', async () => {
+      const response = await request(app)
+        .get('/api/v1/users/13800138002/profile')
+        .set('Authorization', `Bearer ${authToken}`)
 
-  // 6. 上传非图片文件
-  it('6. 上传非图片文件', async () => {
-    const filePath = path.resolve(__dirname, 'test.txt');
-    expect(fs.existsSync(filePath)).toBe(true);
-    const res = await request(API_URL)
-      .post('/api/v1/users/avatar')
-      .set('Authorization', `Bearer ${token}`)
-      .attach('avatar', filePath);
-    expect([400, 500]).toContain(res.status);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/只能上传图片文件|格式不正确|服务器内部错误/);
-  }, 30000);
+      expect(response.status).toBe(200)
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.user).toMatchObject({
+        phone_number: '13800138002',
+        name: '测试用户2',
+        nickname: '昵称2',
+        bio: '这是测试用户2的个人简介'
+      })
+      
+      // 应该包含关注状态
+      expect(response.body.data.isFollowing).toBe(false)
+      
+      // 不应该包含私密信息
+      expect(response.body.data.user.email).toBeUndefined()
+      expect(response.body.data.user.student_id).toBeUndefined()
+    })
 
-  // 7. 上传超大图片
-  it('7. 上传超大图片', async () => {
-    const filePath = path.resolve(__dirname, 'large-image.jpg');
-    expect(fs.existsSync(filePath)).toBe(true);
-    const res = await request(API_URL)
-      .post('/api/v1/users/avatar')
-      .set('Authorization', `Bearer ${token}`)
-      .attach('avatar', filePath);
-    expect([400, 500]).toContain(res.status);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/文件大小超出限制|文件过大|服务器内部错误/);
-  }, 30000);
+    test('用户查看自己的信息应该包含私密字段', async () => {
+      const response = await request(app)
+        .get('/api/v1/users/13800138001/profile')
+        .set('Authorization', `Bearer ${authToken}`)
 
-  // 8. 数据库异常
-  it('8. 数据库异常', async () => {
-    // 此用例仅作结构展示，实际运行需断开数据库或用mock server
-    expect(true).toBe(true);
-  }, 30000);
+      expect(response.status).toBe(200)
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.user).toMatchObject({
+        phone_number: '13800138001',
+        name: '测试用户1',
+        email: 'test1@example.com',
+        student_id: '20230001'
+      })
+    })
 
-  // 9. 头像上传失败
-  it('9. 头像上传失败', async () => {
-    // 此用例仅作结构展示，实际运行需模拟存储服务异常
-    expect(true).toBe(true);
-  }, 30000);
-}); 
+    test('查询不存在的用户应该返回404', async () => {
+      const response = await request(app)
+        .get('/api/v1/users/99999999999/profile')
+
+      expect(response.status).toBe(404)
+      expect(response.body.success).toBe(false)
+      expect(response.body.message).toBe('用户不存在')
+    })
+
+    test('查询被禁用用户应该返回404', async () => {
+      // 禁用用户2
+      await testUser2.update({ status: 'banned' })
+
+      const response = await request(app)
+        .get('/api/v1/users/13800138002/profile')
+
+      expect(response.status).toBe(404)
+      expect(response.body.success).toBe(false)
+      expect(response.body.message).toBe('用户不存在')
+    })
+  })
+})

@@ -120,7 +120,22 @@
 						throw new Error(response.data.message || '获取通知详情失败')
 					}
 					
-					this.notification = response.data.data
+					const notificationData = response.data.data.notification
+					
+					// 转换后端数据格式为前端需要的格式
+					this.notification = {
+						id: notificationData.notification_id,
+						type: notificationData.type,
+						priority: notificationData.priority,
+						title: notificationData.title,
+						content: notificationData.content,
+						senderName: notificationData.related_user ? notificationData.related_user.name : '',
+						isRead: notificationData.is_read,
+						isStarred: false, // 目前后端没有收藏功能
+						createTime: new Date(notificationData.created_at),
+						linkUrl: notificationData.action_url || '',
+						attachments: [] // 目前没有附件功能
+					}
 					
 					// 标记为已读
 					if (!this.notification.isRead) {
@@ -140,7 +155,7 @@
 				try {
 					await uni.request({
 						url: `${this.$config.apiBaseUrl}/notifications/${this.notificationId}/read`,
-						method: 'PUT',
+						method: 'PATCH',
 						header: {
 							'Authorization': `Bearer ${uni.getStorageSync('token')}`
 						}
@@ -387,9 +402,25 @@
 				const icons = {
 					system: '⚙️',
 					study: '📚',
-					interaction: '💬',
+					resource: '📁',
+					announcement: '📢',
 					activity: '🎯'
 				};
+				
+				// 对于互动类型，根据通知内容选择合适的图标
+				if (type === 'interaction') {
+					if (this.notification.title.includes('关注用户发布')) {
+						return this.notification.content.includes('帖子') ? '👥' : '👤'
+					} else if (this.notification.title.includes('新的关注者')) {
+						return '👋'
+					} else if (this.notification.title.includes('收到新评论')) {
+						return '💭'
+					} else if (this.notification.title.includes('被收藏')) {
+						return '❤️'
+					}
+					return '💬'
+				}
+				
 				return icons[type] || '📢';
 			},
 			

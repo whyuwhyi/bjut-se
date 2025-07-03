@@ -80,12 +80,12 @@ export default {
 			uni.removeStorageSync('autoLoginPhone')
 			uni.removeStorageSync('autoLoginPassword')
 		} else {
-		// 检查是否有保存的登录信息
-		const savedInfo = uni.getStorageSync('savedLoginInfo')
-		if (savedInfo) {
-			this.loginForm.phone_number = savedInfo.phone_number
-			this.loginForm.password = savedInfo.password
-			this.rememberMe = true
+			// 检查是否有保存的登录信息
+			const savedInfo = uni.getStorageSync('savedLoginInfo')
+			if (savedInfo) {
+				this.loginForm.phone_number = savedInfo.phone_number
+				this.loginForm.password = savedInfo.password
+				this.rememberMe = true
 			}
 		}
 	},
@@ -130,6 +130,7 @@ export default {
 					// 保存用户信息
 					uni.setStorageSync('userInfo', result.data.user)
 					uni.setStorageSync('token', result.data.token)
+					uni.setStorageSync('currentUserPhone', result.data.user.phone_number)
 					
 					// 如果选择记住密码
 					if (this.rememberMe) {
@@ -140,6 +141,10 @@ export default {
 					} else {
 						uni.removeStorageSync('savedLoginInfo')
 					}
+					
+					// 启动身份验证监控
+					const auth = require('@/utils/auth.js').default
+					auth.startPeriodicCheck()
 					
 					uni.showToast({
 						title: '登录成功',
@@ -153,10 +158,7 @@ export default {
 						})
 					}, 1000)
 				} else {
-					uni.showToast({
-						title: result.message || '登录失败',
-						icon: 'none'
-					})
+					this.handleLoginError(result)
 				}
 			} catch (error) {
 				console.error('登录错误:', error)
@@ -169,7 +171,7 @@ export default {
 		// 调用登录API
 		async login() {
 			try {
-				// 调用后端API
+				// 使用新的request工具调用API（不需要身份验证）
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/users/login`,
 					method: 'POST',
@@ -199,6 +201,51 @@ export default {
 				content: '请联系管理员重置密码',
 				showCancel: false
 			})
+		},
+		
+		handleLoginError(result) {
+			let title = result.message || '登录失败'
+			let content = ''
+			let showContactAdmin = false
+			
+			// 检查是否有详细的状态信息
+			if (result.data && result.data.status) {
+				switch (result.data.status) {
+					case 'inactive':
+						title = '账户已停用'
+						content = '您的账户已被停用，请联系管理员重新激活'
+						showContactAdmin = true
+						break
+					case 'banned':
+						title = '账户已封禁'
+						content = '您的账户已被封禁，如有疑问请联系管理员申诉'
+						showContactAdmin = true
+						break
+					case 'deleted':
+						title = '账户已删除'
+						content = '您的账户已被删除，无法登录系统'
+						break
+					default:
+						showContactAdmin = result.data.contactAdmin
+				}
+			}
+			
+			if (content) {
+				// 显示详细错误信息的对话框
+				uni.showModal({
+					title,
+					content: content + (showContactAdmin ? '\n\n管理员联系方式：请通过官方渠道联系' : ''),
+					showCancel: false,
+					confirmText: '我知道了'
+				})
+			} else {
+				// 简单的错误提示
+				uni.showToast({
+					title,
+					icon: 'none',
+					duration: 3000
+				})
+			}
 		},
 		
 		goToRegister() {
@@ -392,23 +439,24 @@ export default {
 }
 
 .register-link {
-	text-align: center;
-	margin-top: 30rpx; /* 增加顶部间距 */
+	text-align: right;
+	margin-top: 30rpx;
+	padding-right: 32rpx;
 	
 	.register-text {
-		color: rgba(255, 255, 255, 0.8); /* 调整颜色 */
-		font-size: 30rpx; /* 调整字体大小 */
+		color: #666;
+		font-size: 28rpx;
 	}
 	
 	.register-action {
-		color: #FFDE6B; /* 调整为更柔和的黄色 */
-		font-size: 30rpx; /* 调整字体大小 */
-		font-weight: bold;
-		margin-left: 10rpx;
-		transition: color 0.2s ease; /* 添加过渡效果 */
+		color: #007aff;
+		font-size: 28rpx;
+		font-weight: 500;
+		margin-left: 8rpx;
+		transition: opacity 0.2s ease;
 		
 		&:active {
-			color: #FFE58B; /* 点击时颜色变浅 */
+			opacity: 0.8;
 		}
 	}
 }

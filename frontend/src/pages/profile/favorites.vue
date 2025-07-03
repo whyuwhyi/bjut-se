@@ -1,5 +1,22 @@
 <template>
 	<view class="favorites-container">
+		<!-- 搜索栏 -->
+		<view class="search-section">
+			<view class="search-input-container">
+				<input 
+					class="search-input" 
+					v-model="searchKeyword"
+					placeholder="搜索收藏内容..."
+					@input="handleSearchInput"
+					@confirm="performSearch"
+				/>
+				<text class="search-icon" @click="performSearch">🔍</text>
+			</view>
+			<view class="search-actions" v-if="searchKeyword">
+				<button class="clear-search-btn" @click="clearSearch">清除</button>
+			</view>
+		</view>
+
 		<!-- 顶部筛选栏 -->
 		<view class="filter-section">
 			<scroll-view class="filter-scroll" scroll-x="true">
@@ -16,15 +33,9 @@
 					</view>
 				</view>
 			</scroll-view>
-		</view>
-
-		<!-- 操作栏 -->
-		<view class="action-bar" v-if="filteredFavorites.length > 0">
-			<view class="select-controls">
-				<button class="select-btn" @click="toggleSelectMode">
+			<button v-if="filteredFavorites.length > 0" class="select-btn" @click="toggleSelectMode">
 					{{ isSelectMode ? '取消' : '选择' }}
 				</button>
-			</view>
 		</view>
 
 		<!-- 收藏列表 -->
@@ -99,6 +110,8 @@
 </template>
 
 <script>
+	import config from '@/utils/config'
+	
 	export default {
 		data() {
 			return {
@@ -111,7 +124,10 @@
 					{ name: '帖子', value: 'post', count: 0 }
 				],
 				favorites: [],
-				itemToDelete: null
+				itemToDelete: null,
+				searchKeyword: '',
+				filteredBySearch: [],
+				searchTimer: null
 			}
 		},
 		
@@ -129,13 +145,29 @@
 			})
 		},
 		
+		onUnload() {
+			// 清理定时器
+			if (this.searchTimer) {
+				clearTimeout(this.searchTimer)
+			}
+		},
+		
 		computed: {
 			filteredFavorites() {
-				const type = this.favoriteTypes[this.selectedType];
-				if (type.value === 'all') {
-					return this.favorites;
+				let filtered = this.favorites;
+				
+				// 如果有搜索关键词，使用搜索结果
+				if (this.searchKeyword.trim()) {
+					filtered = this.filteredBySearch;
 				}
-				return this.favorites.filter(item => item.type === type.value);
+				
+				// 按类型筛选
+				const type = this.favoriteTypes[this.selectedType];
+				if (type.value !== 'all') {
+					filtered = filtered.filter(item => item.type === type.value);
+				}
+				
+				return filtered;
 			}
 		},
 		
@@ -151,7 +183,7 @@
 					}
 					
 					const response = await uni.request({
-						url: `${this.$config.apiBaseUrl}/users/my-collections`,
+						url: `${config.apiBaseUrl}/users/my-collections`,
 						method: 'GET',
 						header: {
 							'Authorization': `Bearer ${token}`
@@ -288,7 +320,7 @@
 					const token = uni.getStorageSync('token')
 					
 					const response = await uni.request({
-						url: `${this.$config.apiBaseUrl}/collections/${item.contentId}`,
+						url: `${config.apiBaseUrl}/collections/${item.contentId}`,
 						method: 'DELETE',
 						header: {
 							'Authorization': `Bearer ${token}`
@@ -361,7 +393,7 @@
 								const token = uni.getStorageSync('token')
 								const deletePromises = this.selectedItems.map(item => 
 									uni.request({
-										url: `${this.$config.apiBaseUrl}/collections/${item.contentId}`,
+										url: `${config.apiBaseUrl}/collections/${item.contentId}`,
 										method: 'DELETE',
 										header: {
 											'Authorization': `Bearer ${token}`
@@ -439,6 +471,39 @@
 						day: '2-digit'
 					});
 				}
+			},
+			
+			// 搜索相关方法
+			handleSearchInput() {
+				// 实时搜索，防抖处理
+				clearTimeout(this.searchTimer);
+				this.searchTimer = setTimeout(() => {
+					this.performSearch();
+				}, 500);
+			},
+			
+			performSearch() {
+				const keyword = this.searchKeyword.trim().toLowerCase();
+				if (!keyword) {
+					this.filteredBySearch = [];
+					return;
+				}
+				
+				this.filteredBySearch = this.favorites.filter(item => {
+					// 搜索标题
+					const titleMatch = item.title.toLowerCase().includes(keyword);
+					// 搜索描述
+					const descMatch = item.description.toLowerCase().includes(keyword);
+					// 搜索作者
+					const authorMatch = item.author.toLowerCase().includes(keyword);
+					
+					return titleMatch || descMatch || authorMatch;
+				});
+			},
+			
+			clearSearch() {
+				this.searchKeyword = '';
+				this.filteredBySearch = [];
 			}
 		}
 	}
@@ -447,195 +512,248 @@
 <style scoped>
 	.favorites-container {
 		min-height: 100vh;
-		padding: 20rpx;
-		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
-		animation: gradientBG 15s ease infinite;
+		padding-bottom: 120rpx; /* 为底部操作栏留出空间 */
+		position: relative;
+		
+		&::before {
+			content: '';
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			z-index: -1;
+			background-color: #FAEED1;
+			background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+			background-size: 400% 400%;
+			animation: gradientBG 15s ease infinite;
+		}
 	}
 
 	@keyframes gradientBG {
 		0% {
-			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+			background-position: 0% 50%;
 		}
 		50% {
-			background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+			background-position: 100% 50%;
 		}
 		100% {
-			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+			background-position: 0% 50%;
 		}
 	}
 
-	/* 顶部筛选栏 */
-	.filter-section {
+	.search-section {
+		position: sticky;
+		top: 0;
+		z-index: 101;
 		background-color: #ffffff;
 		padding: 20rpx;
-		border-bottom: 1rpx solid #e0e0e0;
+		border-bottom: 1rpx solid #f0f0f0;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+		
+		.search-input-container {
+			position: relative;
+			background-color: #f8f8f8;
+			border-radius: 24rpx;
+			padding: 0 60rpx 0 24rpx;
+			display: flex;
+			align-items: center;
+			
+			.search-input {
+				flex: 1;
+				height: 80rpx;
+				font-size: 28rpx;
+				color: #333333;
+				background: transparent;
+				border: none;
+				outline: none;
+				
+				&::placeholder {
+					color: #999999;
+				}
+			}
+			
+			.search-icon {
+				position: absolute;
+				right: 24rpx;
+				top: 50%;
+				transform: translateY(-50%);
+				font-size: 32rpx;
+				color: #007aff;
+				cursor: pointer;
+			}
+		}
+		
+		.search-actions {
+			margin-top: 16rpx;
+			display: flex;
+			justify-content: flex-end;
+			
+			.clear-search-btn {
+				padding: 8rpx 16rpx;
+				font-size: 24rpx;
+				color: #666666;
+				background: #f0f0f0;
+				border: none;
+				border-radius: 16rpx;
+				
+				&:after {
+					border: none;
+				}
+			}
+		}
 	}
 
+	.filter-section {
+		position: sticky;
+		top: 120rpx; /* 在搜索栏下方 */
+		z-index: 99;
+		background-color: #ffffff;
+		border-bottom: 1rpx solid #f0f0f0;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+		display: flex;
+		align-items: center;
+		padding-right: 20rpx;
+
 	.filter-scroll {
+			flex: 1;
 		white-space: nowrap;
+			padding: 16rpx 20rpx;
 	}
 
 	.filter-list {
-		display: flex;
-		gap: 20rpx;
+			display: inline-flex;
+			gap: 16rpx;
 	}
 
 	.filter-item {
-		flex-shrink: 0;
-		display: flex;
+			display: inline-flex;
 		align-items: center;
-		gap: 8rpx;
-		padding: 12rpx 20rpx;
-		background-color: #f0f0f0;
+			padding: 12rpx 24rpx;
 		border-radius: 24rpx;
+			background-color: #f5f5f5;
 		transition: all 0.3s ease;
-	}
 
-	.filter-item.active {
+			&.active {
 		background-color: #007aff;
+				
+				.filter-text, .filter-count {
 		color: #ffffff;
+				}
 	}
 
 	.filter-text {
-		font-size: 26rpx;
-		color: inherit;
+				font-size: 28rpx;
+				color: #333333;
+				margin-right: 8rpx;
 	}
 
 	.filter-count {
-		font-size: 22rpx;
-		opacity: 0.8;
+				font-size: 24rpx;
+				color: #666666;
 	}
-
-	/* 操作栏 */
-	.action-bar {
-		background: white;
-		padding: 20rpx 30rpx;
-		border-bottom: 1rpx solid #f0f0f0;
-		position: relative;
-	}
-	
-	.select-controls {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
 	}
 	
 	.select-btn {
-		position: absolute;
-		right: 30rpx;
-		background: #007aff;
-		color: white;
+			padding: 12rpx 24rpx;
+			font-size: 28rpx;
+			color: #007aff;
+			background: none;
 		border: none;
-		border-radius: 8rpx;
-		padding: 12rpx 32rpx;
-		font-size: 28rpx;
 		min-width: 120rpx;
 		text-align: center;
+			
+			&:after {
+				border: none;
+			}
+		}
 	}
 	
-	.select-text {
-		font-size: 24rpx;
-		color: #666;
-		margin-right: 20rpx;
-	}
-
-	/* 收藏项选择模式 */
-	.favorite-item.select-mode {
-		padding-left: 60rpx;
+	.favorites-list {
+		padding: 20rpx;
+		
+		.favorite-item {
+			position: relative;
+			display: flex;
+			align-items: flex-start;
+			gap: 20rpx;
+			padding: 24rpx;
+			margin-bottom: 20rpx;
+			background-color: #ffffff;
+			border-radius: 16rpx;
+			box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+			transition: all 0.3s ease;
+			
+			&.select-mode {
+				padding-left: 80rpx;
 	}
 	
-	.favorite-item.selected {
-		background-color: #f0f8ff;
-		border-left: 4rpx solid #007aff;
+			&.selected {
+				background-color: #f0f7ff;
+				border: 2rpx solid #007aff;
 	}
 	
 	.select-checkbox {
 		position: absolute;
-		left: 20rpx;
+				left: 24rpx;
 		top: 50%;
 		transform: translateY(-50%);
-		z-index: 10;
-	}
+				width: 40rpx;
+				height: 40rpx;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 1;
 	
 	.checkbox-icon {
-		font-size: 32rpx;
+					font-size: 36rpx;
+					line-height: 1;
 	}
-
-	/* 收藏列表 */
-	.favorites-list {
-		padding: 32rpx;
-	}
-
-	.favorite-item {
-		display: flex;
-		align-items: flex-start;
-		background-color: #ffffff;
-		border-radius: 16rpx;
-		padding: 24rpx;
-		margin-bottom: 16rpx;
-		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
-		transition: all 0.3s ease;
-		position: relative;
-	}
-
-	.favorite-item:active {
-		transform: scale(0.98);
-		background-color: #f8f8f8;
 	}
 
 	.item-icon {
 		width: 80rpx;
 		height: 80rpx;
-		border-radius: 50%;
+				border-radius: 16rpx;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		margin-right: 24rpx;
 		flex-shrink: 0;
-	}
+				background-color: #f5f5f5;
 
-	.item-icon.icon-resource {
+				&.icon-resource {
 		background-color: #e8f4fd;
 	}
 
-	.item-icon.icon-post {
+				&.icon-post {
 		background-color: #f0f9ff;
-	}
-
-	.item-icon.icon-activity {
-		background-color: #f8f0ff;
 	}
 
 	.icon-emoji {
 		font-size: 36rpx;
+					line-height: 1;
+				}
 	}
 
 	.item-content {
 		flex: 1;
 		min-width: 0;
-	}
+				padding-right: 80rpx;
 
 	.item-title {
 		font-size: 32rpx;
 		font-weight: 600;
 		color: #333333;
-		display: block;
 		margin-bottom: 8rpx;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+					@include text-ellipsis;
 	}
 
 	.item-desc {
 		font-size: 28rpx;
 		color: #666666;
 		line-height: 1.4;
-		display: block;
 		margin-bottom: 16rpx;
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		overflow: hidden;
+					@include multi-ellipsis(2);
 	}
 
 	.item-meta {
@@ -643,14 +761,8 @@
 		align-items: center;
 		gap: 16rpx;
 		flex-wrap: wrap;
-	}
 
-	.item-author {
-		font-size: 24rpx;
-		color: #999999;
-	}
-
-	.item-time {
+					.item-author, .item-time {
 		font-size: 24rpx;
 		color: #999999;
 	}
@@ -658,40 +770,48 @@
 	.item-tags {
 		display: flex;
 		gap: 8rpx;
-	}
+						flex-wrap: wrap;
 
 	.item-tag {
-		padding: 4rpx 8rpx;
-		background-color: #f0f0f0;
-		border-radius: 8rpx;
-		font-size: 20rpx;
+							padding: 4rpx 12rpx;
+							background-color: #f5f5f5;
+							border-radius: 12rpx;
+							font-size: 22rpx;
 		color: #666666;
 	}
-
-	.item-actions {
-		display: flex;
-		flex-direction: column;
-		gap: 12rpx;
-		margin-left: 16rpx;
-	}
+					}
+				}
+			}
+			
+			.item-actions.delete-bottom {
+				position: absolute;
+				right: 24rpx;
+				top: 50%;
+				transform: translateY(-50%);
+				margin-left: 0;
+				z-index: 2;
 
 	.action-btn {
-		width: 60rpx;
-		height: 60rpx;
-		border-radius: 50%;
-		background-color: #f0f0f0;
+					width: 64rpx;
+					height: 64rpx;
+					border-radius: 32rpx;
+					background-color: #f5f5f5;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		transition: all 0.3s ease;
-	}
 
-	.action-btn:active {
+					&:active {
 		background-color: #e0e0e0;
 	}
 
 	.action-icon {
-		font-size: 24rpx;
+						font-size: 32rpx;
+						line-height: 1;
+					}
+				}
+			}
+		}
 	}
 
 	/* 空状态 */
@@ -781,14 +901,5 @@
 	.batch-btn.delete {
 		background-color: #ff3b30;
 		color: #ffffff;
-	}
-
-	.item-actions.delete-bottom {
-		position: absolute;
-		right: 24rpx;
-		bottom: 24rpx;
-		margin-left: 0;
-		flex-direction: column;
-		z-index: 2;
 	}
 </style>

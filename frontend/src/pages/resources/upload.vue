@@ -6,12 +6,21 @@
 				
 				<view class="form-item">
 					<text class="form-label">资源标题</text>
-					<input class="form-input" placeholder="请输入资源标题" v-model="uploadForm.title"/>
+					<uni-easyinput
+						class="form-input"
+						placeholder="请输入资源标题"
+						v-model="uploadForm.title"
+						trim="true"
+					/>
 				</view>
 				
 				<view class="form-item">
 					<text class="form-label">资源描述</text>
-					<textarea class="form-textarea" placeholder="请详细描述资源内容..." v-model="uploadForm.description"></textarea>
+					<textarea 
+						class="form-textarea" 
+						placeholder="请详细描述资源内容..." 
+						v-model="uploadForm.description"
+					></textarea>
 				</view>
 				
 				<view class="form-item">
@@ -33,7 +42,23 @@
 					<view class="upload-content" v-if="!uploadForm.file">
 						<text class="upload-icon">📁</text>
 						<text class="upload-text">点击选择文件</text>
-						<text class="upload-tips">支持 PDF、DOC、PPT、ZIP 等格式，最大 50MB</text>
+						<text class="upload-tips">支持以下格式，最大 100MB</text>
+						<view class="file-type-list">
+							<text class="file-type-category">📄 文档类：</text>
+							<text class="file-type-items">PDF、DOC、DOCX、XLS、XLSX、PPT、PPTX、TXT</text>
+							
+							<text class="file-type-category">🗜️ 压缩包：</text>
+							<text class="file-type-items">ZIP、RAR</text>
+							
+							<text class="file-type-category">🖼️ 图片：</text>
+							<text class="file-type-items">JPEG、PNG、GIF</text>
+							
+							<text class="file-type-category">🎵 音频：</text>
+							<text class="file-type-items">MP3、WAV、OGG</text>
+							
+							<text class="file-type-category">🎬 视频：</text>
+							<text class="file-type-items">MP4、AVI、MKV</text>
+						</view>
 					</view>
 					<view class="file-info" v-else>
 						<text class="file-icon">{{ getFileIcon(uploadForm.file.type) }}</text>
@@ -63,12 +88,16 @@
 
 <script>
 export default {
+	components: {
+		'uni-easyinput': () => import('@dcloudio/uni-ui/lib/uni-easyinput/uni-easyinput.vue')
+	},
 	data() {
 		return {
 			uploadForm: {
 				title: '',
 				description: '',
 				category: '',
+				categoryId: '',
 				file: null
 			},
 			categories: [],
@@ -99,6 +128,15 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.categories = response.data.data
+					console.log('分类数据', this.categories)
+					// 自动选中第一个分类
+					if (this.categories.length > 0 && this.selectedCategory === -1) {
+						this.selectedCategory = 0
+						const selectedCat = this.categories[0]
+						this.uploadForm.category = selectedCat.name
+						this.uploadForm.categoryId = String(selectedCat.category_id || '')
+						console.log('自动选中分类', selectedCat, 'categoryId:', this.uploadForm.categoryId)
+					}
 				}
 			} catch (error) {
 				console.error('加载分类失败:', error)
@@ -109,10 +147,9 @@ export default {
 			this.selectedCategory = e.detail.value
 			const selectedCat = this.categories[e.detail.value]
 			this.uploadForm.category = selectedCat.name
-			this.uploadForm.categoryId = selectedCat.id || selectedCat.category_id
+			this.uploadForm.categoryId = String(selectedCat.category_id || '')
+			console.log('手动选择分类', selectedCat, 'categoryId:', this.uploadForm.categoryId)
 		},
-		
-		
 		
 		chooseFile() {
 			uni.chooseFile({
@@ -120,9 +157,9 @@ export default {
 				type: 'file',
 				success: (res) => {
 					const file = res.tempFiles[0]
-					if (file.size > 50 * 1024 * 1024) {
+					if (file.size > 100 * 1024 * 1024) {
 						uni.showToast({
-							title: '文件大小不能超过50MB',
+							title: '文件大小不能超过100MB',
 							icon: 'none'
 						})
 						return
@@ -138,7 +175,6 @@ export default {
 			})
 		},
 		
-		
 		previewResource() {
 			if (!this.validateForm()) {
 				return
@@ -152,7 +188,7 @@ export default {
 		},
 		
 		validateForm() {
-			const { title, description, category, file } = this.uploadForm
+			const { title, description, category, file, categoryId } = this.uploadForm
 			
 			if (!title.trim()) {
 				uni.showToast({
@@ -170,7 +206,7 @@ export default {
 				return false
 			}
 			
-			if (!category) {
+			if (!category || !categoryId) {
 				uni.showToast({
 					title: '请选择资源分类',
 					icon: 'none'
@@ -193,7 +229,11 @@ export default {
 			if (!this.validateForm()) {
 				return
 			}
-			
+			console.log('上传数据', {
+				resource_name: this.uploadForm.title,
+				description: this.uploadForm.description,
+				categoryId: this.uploadForm.categoryId
+			})
 			try {
 				this.uploading = true
 				this.uploadProgress = 0
@@ -376,8 +416,13 @@ export default {
 		border-radius: 20rpx;
 		padding: 30rpx;
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+		width: 100%;
+		box-sizing: border-box;
 		
 	.form-section {
+		width: 100%;
+		box-sizing: border-box;
+		
 		.section-title {
 			display: block;
 			font-size: 32rpx;
@@ -387,26 +432,37 @@ export default {
 		}
 		
 		.form-item {
-			margin-bottom: 30rpx;
+			margin-bottom: 36rpx;
+			width: 100%;
+			box-sizing: border-box;
 			
 			.form-label {
 				display: block;
-				font-size: 28rpx;
-				color: #666;
-				margin-bottom: 15rpx;
+				font-size: 30rpx;
+				color: #333;
+				margin-bottom: 16rpx;
+				font-weight: 500;
 			}
 			
 			.form-input, .form-textarea {
 				width: 100%;
-				padding: 20rpx;
+				padding: 24rpx;
 				border: 2rpx solid #e0e0e0;
-				border-radius: 10rpx;
-				font-size: 28rpx;
-				background: #fafafa;
+				border-radius: 12rpx;
+				font-size: 32rpx;
+				background: #ffffff;
+				box-sizing: border-box;
+				
+				&:focus {
+					border-color: #007aff;
+					background: #ffffff;
+					box-shadow: 0 0 0 2rpx rgba(0,122,255,0.1);
+				}
 			}
 			
 			.form-textarea {
-				height: 150rpx;
+				height: 200rpx;
+				resize: none;
 			}
 			
 			.picker-view {
@@ -416,6 +472,8 @@ export default {
 				background: #fafafa;
 				font-size: 28rpx;
 				color: #333;
+				width: 100%;
+				box-sizing: border-box;
 			}
 			
 			.tags-section {
@@ -490,6 +548,35 @@ export default {
 		.upload-tips {
 			font-size: 24rpx;
 			color: #999;
+			margin-bottom: 20rpx;
+		}
+		
+		.file-type-list {
+			text-align: left;
+			background: #f8f9fa;
+			padding: 20rpx;
+			border-radius: 10rpx;
+			margin-top: 15rpx;
+			
+			.file-type-category {
+				display: block;
+				font-size: 22rpx;
+				font-weight: bold;
+				color: #007aff;
+				margin: 10rpx 0 5rpx 0;
+			}
+			
+			.file-type-category:first-child {
+				margin-top: 0;
+			}
+			
+			.file-type-items {
+				display: block;
+				font-size: 20rpx;
+				color: #666;
+				line-height: 1.5;
+				margin-bottom: 8rpx;
+			}
 		}
 	}
 	

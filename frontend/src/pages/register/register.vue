@@ -330,76 +330,95 @@ export default {
 </script>
 
 <style lang="scss">
+.container {
+	min-height: 100vh;
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+	padding: 40rpx 0;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+	}
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+}
+
 .register-header {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	padding-top: 100rpx;
-	margin-bottom: 80rpx;
+	padding-top: 60rpx;
+	margin-bottom: 60rpx;
 
 	.title {
-		font-size: 60rpx;
+		font-size: 48rpx;
 		font-weight: bold;
 		color: #333;
-		margin-bottom: 10rpx;
+		margin-bottom: 16rpx;
 	}
 
 	.subtitle {
-		font-size: 30rpx;
+		font-size: 28rpx;
 		color: #666;
 	}
 }
 
 .register-form {
 	background-color: #FFFFFF;
-	border-radius: 30rpx;
-	box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.1);
-	margin: 0 40rpx;
-	padding: 40rpx;
+	border-radius: 24rpx;
+	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.1);
+	margin: 0 32rpx;
+	padding: 32rpx;
 }
 
 .form-item {
-	margin-bottom: 40rpx;
+	margin-bottom: 32rpx;
 	
 	&.required::before {
 		content: "*";
 		color: #ff6b6b;
-		font-size: 32rpx;
+		font-size: 28rpx;
 		font-weight: bold;
 		position: absolute;
-		margin-left: -20rpx;
-		margin-top: 35rpx;
+		margin-left: -16rpx;
+		margin-top: 32rpx;
 	}
 	
 	.form-label {
 		display: flex;
 		align-items: center;
-		background: rgba(255, 255, 255, 0.95);
-		border-radius: 50rpx;
-		padding: 0 30rpx;
-		border: none;
-		box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.08);
+		background: #ffffff;
+		border-radius: 16rpx;
+		padding: 0 24rpx;
+		border: 2rpx solid #eee;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 		transition: all 0.3s ease;
 		
 		&:focus-within {
-			box-shadow: 0 15rpx 45rpx rgba(0, 0, 0, 0.2);
-			transform: translateY(-5rpx) scale(1.01);
+			border-color: #007aff;
+			box-shadow: 0 4rpx 12rpx rgba(0, 122, 255, 0.1);
 		}
 		
 		.icon {
-			font-size: 36rpx;
-			margin-right: 25rpx;
-			color: #88A6E0;
+			font-size: 32rpx;
+			margin-right: 16rpx;
+			color: #999;
 		}
 		
 		.form-input {
 			flex: 1;
-			height: 110rpx;
-			font-size: 32rpx;
+			height: 88rpx;
+			font-size: 28rpx;
 			color: #333;
 			
 			&::placeholder {
-				color: #A0A0A0;
+				color: #999;
 			}
 		}
 	}
@@ -407,65 +426,70 @@ export default {
 	.field-tip {
 		display: block;
 		font-size: 24rpx;
-		color: rgba(255, 255, 255, 0.9);
-		margin-top: 15rpx;
-		padding-left: 35rpx;
-		line-height: 1.6;
+		color: #666;
+		margin-top: 12rpx;
+		padding-left: 24rpx;
+		line-height: 1.4;
 	}
 }
 
 .agreement {
-	margin-bottom: 40rpx;
+	margin: 40rpx 0;
 	
 	.agreement-check {
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
+		padding: 0 12rpx;
 		
 		.checkbox {
 			width: 32rpx;
 			height: 32rpx;
-			border: 2rpx solid #cccccc;
+			border: 2rpx solid #ddd;
 			border-radius: 6rpx;
-			margin-right: 15rpx;
+			margin-right: 12rpx;
 			text-align: center;
 			line-height: 28rpx;
 			font-size: 20rpx;
-			color: #333333;
-			margin-bottom: 10rpx;
+			color: #fff;
+			transition: all 0.3s ease;
 			
 			&.active {
-				background: rgba(0, 0, 0, 0.1);
+				background: #007aff;
+				border-color: #007aff;
 			}
 		}
 		
 		.agreement-text {
-			color: #666666;
+			color: #666;
 			font-size: 26rpx;
-			margin-right: 10rpx;
+			margin-right: 8rpx;
 		}
 		
 		.agreement-link {
-			color: #ffd93d;
+			color: #007aff;
 			font-size: 26rpx;
-			text-decoration: underline;
-			margin: 0 5rpx;
-			margin-right: 10rpx;
+			margin: 0 4rpx;
 		}
 	}
 }
 
 .register-btn {
 	width: 100%;
-	height: 100rpx;
-	background: linear-gradient(45deg, #4ecdc4, #44a08d);
+	height: 88rpx;
+	background: #007aff;
 	border: none;
-	border-radius: 50rpx;
+	border-radius: 16rpx;
 	color: white;
-	font-size: 36rpx;
-	font-weight: bold;
-	margin-bottom: 30rpx;
-	box-shadow: 0 10rpx 30rpx rgba(78, 205, 196, 0.3);
+	font-size: 32rpx;
+	font-weight: 500;
+	margin: 32rpx 0;
+	box-shadow: 0 4rpx 12rpx rgba(0, 122, 255, 0.2);
+	transition: all 0.3s ease;
+	
+	&:active {
+		transform: scale(0.98);
+	}
 	
 	&:disabled {
 		opacity: 0.6;
@@ -473,18 +497,25 @@ export default {
 }
 
 .login-link {
-	text-align: center;
-	margin-bottom: 40rpx;
+	text-align: right;
+	margin-top: 32rpx;
+	padding-right: 32rpx;
 	
 	.login-text {
-		color: rgba(255, 255, 255, 0.8);
+		color: #666;
 		font-size: 28rpx;
 	}
 	
 	.login-action {
-		color: #ffd93d;
+		color: #007aff;
 		font-size: 28rpx;
-		font-weight: bold;
+		font-weight: 500;
+		margin-left: 8rpx;
+		transition: opacity 0.2s ease;
+		
+		&:active {
+			opacity: 0.8;
+		}
 	}
 }
 </style>

@@ -5,13 +5,13 @@
 			<view class="resource-icon-section">
 				<image :src="getFileIcon(resource.fileType)" class="file-icon-large"></image>
 				<view class="file-info">
-					<text class="file-type">{{ resource.fileType.toUpperCase() }}</text>
-					<text class="file-size">{{ formatFileSize(resource.fileSize) }}</text>
+					<text class="file-type">{{ resource.fileType ? resource.fileType.toUpperCase() : '未知类型' }}</text>
+					<text class="file-size">{{ resource.fileSize ? formatFileSize(resource.fileSize) : '大小未知' }}</text>
 				</view>
 			</view>
 			
 			<view class="resource-title-section">
-				<text class="resource-title">{{ resource.title }}</text>
+				<text class="resource-title">{{ resource.title || '资源标题' }}</text>
 				<view class="resource-tags">
 					<text class="tag category">{{ resource.category }}</text>
 				</view>
@@ -60,6 +60,14 @@
 				<text class="btn-icon">🚨</text>
 				<text class="btn-text">举报</text>
 			</button>
+		</view>
+
+		<!-- 文件状态提示 -->
+		<view class="file-status-section" v-if="!resource.files || resource.files.length === 0">
+			<view class="file-status-warning">
+				<text class="warning-icon">⚠️</text>
+				<text class="warning-text">该资源暂无关联文件</text>
+			</view>
 		</view>
 
 		<!-- 资源描述 -->
@@ -112,11 +120,12 @@
 			<!-- 评论输入区域 -->
 			<view class="comment-input-area">
 				<textarea 
-					class="comment-textarea" 
-					v-model="commentText" 
+					class="comment-textarea"
+					v-model="commentText"
 					:placeholder="replyTarget ? `回复 ${replyTarget.userName}：` : '写下你的评论...'"
 					:maxlength="200"
-					auto-height
+					:style="{height: commentTextareaHeight + 'px'}"
+					@input="adjustCommentTextareaHeight"
 				></textarea>
 				<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
 				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
@@ -127,7 +136,7 @@
 			<!-- 评论列表 -->
 			<view class="comment-list">
 				<view class="comment-item" v-for="(comment, index) in comments" :key="comment.comment_id">
-					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'"></image>
+					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(comment.userPhone, comment)"></image>
 					<view class="comment-content">
 						<view class="comment-header">
 							<text class="comment-username">{{ comment.userName }}</text>
@@ -142,7 +151,7 @@
 						<!-- 回复列表 -->
 						<view class="replies" v-if="comment.replies && comment.replies.length > 0">
 							<view class="reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
-								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" />
+								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(reply.userPhone, reply)" />
 								<view class="reply-content-wrap">
 									<view class="reply-header">
 										<view class="reply-info">
@@ -194,6 +203,8 @@
 <script>
 import QRCode from 'qrcode'
 import ReportModal from '@/components/ReportModal.vue'
+import config from '@/utils/config'
+import { navigateToUserProfile } from '@/utils/userUtils'
 
 export default {
 	components: {
@@ -204,6 +215,7 @@ export default {
 			resourceId: '',
 			resource: {
 				id: '',
+				resource_id: '',
 				title: '加载中...',
 				description: '',
 				category: '未分类',
@@ -224,7 +236,8 @@ export default {
 			sending: false,
 			sharePopupVisible: false,
 			qrCodeVisible: false,
-			qrCodeDataUrl: ''
+			qrCodeDataUrl: '',
+			commentTextareaHeight: 40
 		}
 	},
 	
@@ -242,7 +255,7 @@ export default {
 				uni.showLoading({ title: '加载中...' })
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}`,
 					method: 'GET'
 				})
 				
@@ -252,9 +265,10 @@ export default {
 					
 					this.resource = {
 						id: data.resource_id,
+						resource_id: data.resource_id,
 						title: data.resource_name,
 						description: data.description,
-						category: data.category?.category_name || '未分类',
+						category: typeof data.category === 'string' ? data.category : (data.category?.category_name || '未分类'),
 						uploaderName: data.publisher?.nickname || data.publisher?.name || '匿名用户',
 						uploadTime: new Date(data.created_at),
 						viewCount: data.view_count || 0,
@@ -319,155 +333,131 @@ export default {
 				uni.showLoading({ title: '准备下载...' })
 				
 				const file = this.resource.files[0]
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`,
-					method: 'GET',
-					header: {
-						'Authorization': `Bearer ${token}`
-					}
-				})
+				// 直接进行平台特定的下载
+				// #ifdef H5
+				// H5环境使用带身份认证的下载
+				const h5DownloadUrl = `${config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
 				
-				if (response.statusCode === 200 && response.data.success) {
-					this.resource.downloadCount++
+				// 使用fetch下载文件
+				fetch(h5DownloadUrl, {
+					method: 'GET',
+					headers: {
+						'Authorization': `Bearer ${token}`,
+						'Accept': 'application/octet-stream'
+					}
+				}).then(response => {
+					if (!response.ok) {
+						throw new Error('下载失败')
+					}
+					return response.blob()
+				}).then(blob => {
+					// 创建下载链接
+					const url = window.URL.createObjectURL(blob)
+					const link = document.createElement('a')
+					link.href = url
+					link.download = file.file_name || 'download'
+					document.body.appendChild(link)
+					link.click()
+					document.body.removeChild(link)
+					window.URL.revokeObjectURL(url)
 					
-					if (response.data.data.content) {
-						// 文本文件直接显示内容
-						uni.hideLoading()
-						uni.showModal({
-							title: '文件内容',
-							content: response.data.data.content.substring(0, 200) + (response.data.data.content.length > 200 ? '...' : ''),
-							showCancel: true,
-							cancelText: '关闭',
-							confirmText: '复制全部',
-							success: (res) => {
-								if (res.confirm) {
-									// 复制完整内容到剪贴板
-									uni.setClipboardData({
-										data: response.data.data.content,
-										success: () => {
-											uni.showToast({
-												title: '已复制到剪贴板',
-												icon: 'success'
-											})
-										}
+					// 增加下载计数
+					this.resource.downloadCount++
+					uni.hideLoading()
+					uni.showToast({
+						title: '下载成功',
+						icon: 'success'
+					})
+				}).catch(error => {
+					console.error('下载失败:', error)
+					uni.hideLoading()
+					uni.showToast({
+						title: '下载失败',
+						icon: 'none'
+					})
+				})
+				// #endif
+				
+				// #ifdef MP-WEIXIN
+				// 微信小程序使用下载API
+				const wxDownloadUrl = `${config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
+				
+				uni.downloadFile({
+					url: wxDownloadUrl,
+					header: {
+						'Authorization': `Bearer ${token}`,
+						'Accept': 'application/octet-stream'
+					},
+					success: (downloadRes) => {
+						if (downloadRes.statusCode === 200) {
+							// 增加下载计数
+							this.resource.downloadCount++
+							uni.hideLoading()
+							
+							// 在微信小程序中，可以打开文档或保存到相册
+							uni.openDocument({
+								filePath: downloadRes.tempFilePath,
+								success: () => {
+									uni.showToast({
+										title: '文件已打开',
+										icon: 'success'
+									})
+								},
+								fail: () => {
+									uni.showToast({
+										title: '文件下载完成',
+										icon: 'success'
 									})
 								}
-							}
-						})
-					} else if (response.data.data.downloadUrl) {
-						// 其他文件进行真实下载
-						uni.hideLoading()
-						
-						// #ifdef H5
-						// H5环境使用带身份认证的下载
-						const h5DownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
-						
-						// 使用fetch下载文件
-						fetch(h5DownloadUrl, {
-							method: 'GET',
-							headers: {
-								'Authorization': `Bearer ${token}`,
-								'Accept': 'application/octet-stream'
-							}
-						}).then(response => {
-							if (!response.ok) {
-								throw new Error('下载失败')
-							}
-							return response.blob()
-						}).then(blob => {
-							// 创建下载链接
-							const url = window.URL.createObjectURL(blob)
-							const link = document.createElement('a')
-							link.href = url
-							link.download = response.data.data.fileName || 'download'
-							document.body.appendChild(link)
-							link.click()
-							document.body.removeChild(link)
-							window.URL.revokeObjectURL(url)
-						}).catch(error => {
-							console.error('下载失败:', error)
+							})
+						} else {
+							uni.hideLoading()
 							uni.showToast({
 								title: '下载失败',
 								icon: 'none'
 							})
+						}
+					},
+					fail: () => {
+						uni.hideLoading()
+						uni.showToast({
+							title: '下载失败',
+							icon: 'none'
 						})
-						// #endif
-						
-						// #ifdef MP-WEIXIN
-						// 微信小程序使用下载API
-						const wxDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
-						
-						uni.downloadFile({
-							url: wxDownloadUrl,
-							header: {
-								'Authorization': `Bearer ${token}`,
-								'Accept': 'application/octet-stream'
-							},
-							success: (downloadRes) => {
-								if (downloadRes.statusCode === 200) {
-									// 在微信小程序中，可以打开文档或保存到相册
-									uni.openDocument({
-										filePath: downloadRes.tempFilePath,
-										success: () => {
-											uni.showToast({
-												title: '文件已打开',
-												icon: 'success'
-											})
-										},
-										fail: () => {
-											uni.showToast({
-												title: '文件下载完成',
-												icon: 'success'
-											})
-										}
-									})
-								}
-							},
-							fail: () => {
-								uni.showToast({
-									title: '下载失败',
-									icon: 'none'
-								})
-							}
-						})
-						// #endif
-						
-						// #ifdef APP-PLUS
-						// App环境使用plus下载
-						const appDownloadUrl = `${this.$config.apiBaseUrl}/resources/${this.resource.id}/files/${file.file_id}/download`
-						
-						const dtask = plus.downloader.createDownload(appDownloadUrl, {
-							filename: '_downloads/' + (response.data.data.fileName || 'download'),
-							headers: {
-								'Authorization': `Bearer ${token}`,
-								'Accept': 'application/octet-stream'
-							}
-						}, (download, status) => {
-							if (status == 200) {
-								uni.showToast({
-									title: '下载完成',
-									icon: 'success'
-								})
-								// 可以选择打开文件
-								plus.runtime.openFile(download.filename)
-							} else {
-								uni.showToast({
-									title: '下载失败',
-									icon: 'none'
-								})
-							}
-						})
-						dtask.start()
-						// #endif
 					}
-					
-					uni.showToast({
-						title: '操作成功',
-						icon: 'success'
-					})
-				} else {
-					throw new Error(response.data.message || '下载失败')
-				}
+				})
+				// #endif
+				
+				// #ifdef APP-PLUS
+				// App环境使用plus下载
+				const appDownloadUrl = `${config.apiBaseUrl}/resources/${this.resource.resource_id}/files/${file.file_id}/download`
+				
+				const dtask = plus.downloader.createDownload(appDownloadUrl, {
+					filename: '_downloads/' + (file.file_name || 'download'),
+					headers: {
+						'Authorization': `Bearer ${token}`,
+						'Accept': 'application/octet-stream'
+					}
+				}, (download, status) => {
+					uni.hideLoading()
+					if (status == 200) {
+						// 增加下载计数
+						this.resource.downloadCount++
+						uni.showToast({
+							title: '下载完成',
+							icon: 'success'
+						})
+						// 可以选择打开文件
+						plus.runtime.openFile(download.filename)
+					} else {
+						uni.showToast({
+							title: '下载失败',
+							icon: 'none'
+						})
+					}
+				})
+				dtask.start()
+				// #endif
 			} catch (error) {
 				console.error('下载失败:', error)
 				uni.hideLoading()
@@ -485,7 +475,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/favorite-status?type=resource`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/favorite-status?type=resource`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -517,7 +507,7 @@ export default {
 				this.resource.favoriteCount += newFavoritedState ? 1 : -1
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/favorite`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/favorite`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -595,7 +585,7 @@ export default {
 				if (!token) return
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/my-rating`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/my-rating`,
 					method: 'GET',
 					header: {
 						'Authorization': `Bearer ${token}`
@@ -625,7 +615,7 @@ export default {
 				}
 				
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/rating`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/rating`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -665,19 +655,21 @@ export default {
 		async loadComments() {
 			try {
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'GET'
 				})
 				if (response.statusCode === 200 && response.data.success) {
 					this.comments = (response.data.data.comments || []).map(comment => ({
 						comment_id: comment.comment_id,
 						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
+						userPhone: comment.author?.phone_number,
 						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
 						content: comment.content,
 						createTime: new Date(comment.created_at),
 						replies: (comment.replies || []).map(reply => ({
 							comment_id: reply.comment_id,
 							userName: reply.author?.nickname || reply.author?.name || '匿名用户',
+							userPhone: reply.author?.phone_number,
 							userAvatar: reply.author?.avatar_url || '/static/images/default-avatar.png',
 							content: reply.content,
 							createTime: new Date(reply.created_at),
@@ -721,7 +713,7 @@ export default {
 					data.parent_comment_id = this.replyTarget.comment_id
 				}
 				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${this.resourceId}/comments`,
+					url: `${config.apiBaseUrl}/resources/${this.resourceId}/comments`,
 					method: 'POST',
 					header: {
 						'Authorization': `Bearer ${token}`,
@@ -803,6 +795,20 @@ export default {
 				icon: 'success',
 				duration: 3000
 			})
+		},
+
+		adjustCommentTextareaHeight(e) {
+			// 兼容uni-app和web
+			const textarea = e.detail && e.detail.height ? e : e.target;
+			if (textarea && textarea.scrollHeight) {
+				this.commentTextareaHeight = textarea.scrollHeight;
+			} else if (e.detail && e.detail.height) {
+				this.commentTextareaHeight = e.detail.height;
+			}
+		},
+		
+		viewUserProfile(userPhone, userInfo) {
+			navigateToUserProfile(userPhone, userInfo)
 		}
 	}
 }
@@ -953,57 +959,63 @@ export default {
 	display: flex;
 	padding: 30rpx;
 	gap: 20rpx;
+	justify-content: space-between;
+	background: white;
+	border-radius: 20rpx;
+	margin: 20rpx 0;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 	
 	.action-btn {
 		flex: 1;
+		height: 120rpx; /* 固定高度 */
+		min-width: 140rpx; /* 最小宽度 */
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding: 20rpx;
+		justify-content: center;
+		padding: 16rpx 10rpx;
 		background: white;
-		border: 2rpx solid #e0e0e0;
-		border-radius: 15rpx;
-		font-size: 26rpx;
+		border: none; /* 移除边框 */
+		border-radius: 12rpx;
 		transition: all 0.3s ease;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-		
-		&.primary {
-			border-color: #e0e0e0;
-			color: #333;
-			
-			&:active {
-				border-color: #007aff;
-				color: #007aff;
-			}
-		}
-		
-		&.favorited {
-			background: #fff2f2;
-			border-color: #ff4757;
-			color: #ff4757;
-			transition: all 0.3s ease;
-			
-			.btn-icon {
-				transform: scale(1.2);
-				transition: transform 0.3s ease;
-			}
-		}
-
-		&.report-btn {
-			&:active {
-				border-color: #ff6b6b;
-				color: #ff6b6b;
-				background: #fff5f5;
-			}
-		}
 		
 		.btn-icon {
-			font-size: 32rpx;
-			margin-bottom: 8rpx;
+			font-size: 40rpx;
+			margin-bottom: 12rpx;
+			line-height: 1;
 		}
 		
 		.btn-text {
 			font-size: 24rpx;
+			line-height: 1;
+			white-space: nowrap;
+			color: #666;
+		}
+		
+		&.primary {
+			.btn-text {
+				color: #333;
+			}
+			
+			&:active {
+				opacity: 0.8;
+			}
+		}
+		
+		&.favorited {
+			.btn-icon {
+				transform: scale(1.1);
+				transition: transform 0.3s ease;
+			}
+			
+			.btn-text {
+				color: #ff4757;
+			}
+		}
+		
+		&:active {
+			opacity: 0.8;
+			transform: scale(0.98);
 		}
 	}
 }
@@ -1151,6 +1163,9 @@ export default {
 				font-size: 26rpx;
 				color: #333;
 				line-height: 1.5;
+				word-break: break-all;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
 			}
 			.comment-footer {
 				display: flex;
@@ -1213,6 +1228,9 @@ export default {
 								font-size: 24rpx;
 								color: #333;
 								line-height: 1.5;
+								word-break: break-all;
+								white-space: pre-wrap;
+								overflow-wrap: anywhere;
 							}
 						}
 					}
@@ -1284,5 +1302,31 @@ export default {
 	font-size: 24rpx;
 	color: #888;
 	margin-bottom: 10rpx;
+}
+
+/* 文件状态提示样式 */
+.file-status-section {
+	background-color: #fff8dc;
+	border: 2rpx solid #f0ad4e;
+	border-radius: 12rpx;
+	margin: 20rpx 0;
+	padding: 20rpx;
+}
+
+.file-status-warning {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12rpx;
+}
+
+.warning-icon {
+	font-size: 32rpx;
+}
+
+.warning-text {
+	font-size: 28rpx;
+	color: #856404;
+	font-weight: 500;
 }
 </style>

@@ -1,4 +1,5 @@
 const { Collection, Resource, Post } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 
 class CollectionController {
   // 切换收藏状态（收藏/取消收藏）
@@ -70,7 +71,7 @@ class CollectionController {
         }
       } else {
         // 如果没有收藏记录，创建新的
-        const collectionId = Math.floor(100000000 + Math.random() * 900000000).toString()
+        const collectionId = idGenerator.generateCollectionId()
         await Collection.create({
           collection_id: collectionId,
           user_phone: userPhone,
@@ -247,7 +248,7 @@ class CollectionController {
 
   // 生成收藏ID
   generateCollectionId() {
-    return String(Math.floor(100000000 + Math.random() * 900000000))
+    return idGenerator.generateCollectionId()
   }
 }
 

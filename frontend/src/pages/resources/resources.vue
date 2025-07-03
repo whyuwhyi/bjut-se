@@ -1,46 +1,48 @@
 <template>
 	<view class="resources-container">
-		<!-- 顶部搜索和筛选区域 -->
-		<view class="top-section">
-			<!-- 搜索栏 -->
-			<view class="search-bar">
-				<text class="search-icon">🔍</text>
-				<input class="search-input" placeholder="搜索学习资源..." v-model="searchKeyword" @input="handleSearch"/>
-			</view>
-			
-			<!-- 分类筛选 -->
-			<view class="category-filter" v-if="categories.length > 0">
-				<scroll-view class="category-scroll" scroll-x="true">
-					<view class="category-list">
-						<view 
-							class="category-item" 
-							:class="{ active: selectedCategoryIndex === -1 }"
-							@click="selectCategory(-1)"
-						>
-							<text class="category-text">全部</text>
-						</view>
-						<view 
-							class="category-item" 
-							:class="{ active: selectedCategoryIndex === index }"
-							v-for="(category, index) in categories" 
-							:key="category.category_id"
-							@click="selectCategory(index)"
-						>
-							<text class="category-text">{{ category.category_name }}</text>
-						</view>
+		<!-- 高级搜索组件 -->
+		<AdvancedSearch 
+			type="resource"
+			placeholder="搜索学习资源..."
+			:loading="loading"
+			@search="handleAdvancedSearch"
+		/>
+
+		<!-- 分类过滤 -->
+		<view class="category-filter">
+			<scroll-view class="category-scroll" scroll-x="true">
+				<view class="category-list">
+					<view 
+						class="category-item" 
+						:class="{ active: selectedCategory === null }"
+						@click="selectCategory(null)"
+					>
+						<text class="category-text">全部</text>
 					</view>
-				</scroll-view>
-			</view>
-			
-			<!-- 排序选择 -->
-			<view class="sort-section">
-				<picker :value="selectedSortIndex" :range="sortNames" @change="sortChange">
-					<view class="sort-picker">
-						<text class="sort-text">{{ sortNames[selectedSortIndex] }}</text>
-						<text class="sort-icon">▼</text>
+					<view 
+						class="category-item" 
+						v-for="category in categories" 
+						:key="category.category_id"
+						:class="{ active: selectedCategory === category.category_id }"
+						@click="selectCategory(category.category_id)"
+					>
+						<text class="category-text">{{ category.category_name }}</text>
 					</view>
-				</picker>
-			</view>
+				</view>
+			</scroll-view>
+		</view>
+		
+		<!-- 排序选项 -->
+		<view class="sort-section">
+			<picker 
+				:value="sortIndex" 
+				:range="sortOptions" 
+				@change="handleSortChange"
+				class="sort-picker"
+			>
+				<view class="sort-text">{{ sortOptions[sortIndex] }}</view>
+				<text class="sort-icon">▼</text>
+			</picker>
 		</view>
 
 		<!-- 资源列表 -->
@@ -53,7 +55,11 @@
 			>
 				<view class="resource-header">
 					<view class="file-preview">
-						<image class="thumbnail-image" :src="item.thumbnail" mode="aspectFill"></image>
+						<image 
+							class="thumbnail-image" 
+							:src="item.thumbnail || '/static/images/default-thumbnail.png'" 
+							mode="aspectFill"
+						></image>
 						<text class="file-type-overlay">{{ getFileIcon(item.fileType) }}</text>
 					</view>
 					<view class="resource-info">
@@ -88,39 +94,33 @@
 			<image class="upload-icon" src="/static/icons/upload.png" mode="aspectFit"></image>
 		</view>
 
+		<!-- 加载更多 -->
 		<view class="load-more" v-if="hasMore && !loading">
 			<button class="load-more-btn" @click="loadResources()">加载更多</button>
 		</view>
-
 	</view>
 </template>
 
 <script>
+import AdvancedSearch from '@/components/AdvancedSearch.vue'
+
 export default {
+	components: {
+		AdvancedSearch
+	},
+	
 	data() {
 		return {
-			searchKeyword: '',
-			currentSort: 'latest',
-			categories: [],
-			sortOptions: [
-				{ label: '最新上传', value: 'latest' },
-				{ label: '下载最多', value: 'download' },
-				{ label: '评分最高', value: 'rating' },
-				{ label: '浏览最多', value: 'view' }
-			],
-			selectedCategoryIndex: -1,
-			selectedSortIndex: 0,
 			resources: [],
 			page: 1,
 			limit: 6,
 			hasMore: true,
-			loading: false
-		}
-	},
-	
-	computed: {
-		sortNames() {
-			return this.sortOptions.map(sort => sort.label)
+			loading: false,
+			categories: [],
+			selectedCategory: null,
+			searchParams: {},
+			sortOptions: ['最新发布', '最多下载', '最高评分', '最多收藏'],
+			sortIndex: 0
 		}
 	},
 	
@@ -131,11 +131,19 @@ export default {
 	
 	onShow() {
 		// 页面显示时重新加载资源列表，确保收藏状态同步
-		this.loadResources()
+		this.page = 1
+		this.loadResources(true)
 	},
 	
 	methods: {
-		// 加载分类列表
+		// 处理高级搜索
+		handleAdvancedSearch(searchParams) {
+			this.searchParams = searchParams
+			this.page = 1
+			this.hasMore = true
+			this.loadResources(true)
+		},
+		
 		async loadCategories() {
 			try {
 				const response = await uni.request({
@@ -145,10 +153,33 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.categories = response.data.data
+					console.log('加载到的分类数据:', this.categories)
+				} else {
+					console.error('加载分类失败:', response.data)
+					uni.showToast({
+						title: '加载分类失败',
+						icon: 'none'
+					})
 				}
 			} catch (error) {
 				console.error('加载分类失败:', error)
+				uni.showToast({
+					title: '加载分类失败',
+					icon: 'none'
+				})
 			}
+		},
+		
+		selectCategory(categoryId) {
+			this.selectedCategory = categoryId
+			this.page = 1
+			this.loadResources(true)
+		},
+		
+		handleSortChange(e) {
+			this.sortIndex = e.detail.value
+			this.page = 1
+			this.loadResources(true)
 		},
 		
 		// 加载资源列表
@@ -159,182 +190,125 @@ export default {
 				const params = {
 					page: refresh ? 1 : this.page,
 					limit: this.limit,
-					sortBy: this.currentSort
+					...this.searchParams
 				}
-				if (this.selectedCategoryIndex >= 0 && this.categories[this.selectedCategoryIndex]) {
-					params.categories = this.categories[this.selectedCategoryIndex].category_id
+				
+				// 添加分类过滤
+				if (this.selectedCategory) {
+					params.category = this.selectedCategory
 				}
-				if (this.searchKeyword) {
-					params.search = this.searchKeyword
+				
+				// 添加排序
+				switch (this.sortIndex) {
+					case 0: // 最新发布
+						params.sort = 'created_at'
+						params.order = 'desc'
+						break
+					case 1: // 最多下载
+						params.sort = 'download_count'
+						params.order = 'desc'
+						break
+					case 2: // 最高评分
+						params.sort = 'rating'
+						params.order = 'desc'
+						break
+					case 3: // 最多收藏
+						params.sort = 'collection_count'
+						params.order = 'desc'
+						break
 				}
+				
 				const token = uni.getStorageSync('token')
 				const headers = {}
 				if (token) {
 					headers['Authorization'] = `Bearer ${token}`
 				}
+				
 				const response = await uni.request({
 					url: `${this.$config.apiBaseUrl}/resources`,
 					method: 'GET',
-					header: headers,
-					data: params
+					data: params,
+					header: headers
 				})
+				
 				if (response.statusCode === 200 && response.data.success) {
-					const list = (response.data.data.resources || []).map(item => ({
-						...item,
-						isFavorited: typeof item.isFavorited === 'boolean' ? item.isFavorited : false
-					}))
+					const { resources, pagination } = response.data.data
+					
 					if (refresh) {
-						this.resources = list
-						this.page = 2
+						this.resources = resources
 					} else {
-						this.resources = [...this.resources, ...list]
-						this.page += 1
+						this.resources = [...this.resources, ...resources]
 					}
-					this.hasMore = list.length === this.limit
+					
+					this.hasMore = pagination.currentPage < pagination.totalPages
+					this.page = pagination.currentPage + 1
 				} else {
-					uni.showToast({ title: '加载失败', icon: 'none' })
-				}
-			} catch (error) {
-				console.error('加载资源列表错误:', error)
-				uni.showToast({ title: '网络错误', icon: 'none' })
-			} finally {
-				this.loading = false
-			}
-		},
-		handleSearch() {
-			this.page = 1
-			this.hasMore = true
-			this.loadResources(true)
-		},
-		
-
-		// 分类选择
-		selectCategory(index) {
-			this.selectedCategoryIndex = index
-			this.loadResources()
-		},
-		
-		
-		// 排序选择
-		sortChange(e) {
-			this.selectedSortIndex = e.detail.value
-			this.currentSort = this.sortOptions[e.detail.value].value
-			this.loadResources()
-		},
-		
-		
-
-		
-		
-		
-		
-		async toggleFavorite(item) {
-			try {
-				const token = uni.getStorageSync('token')
-				if (!token) {
 					uni.showToast({
-						title: '请先登录',
-						icon: 'none'
-					})
-					return
-				}
-				// 乐观更新
-				const originalState = item.isFavorited
-				item.isFavorited = !item.isFavorited
-				// 本地同步更新收藏数
-				const originalCount = item.collection_count || 0
-				item.collection_count = originalState ? originalCount - 1 : originalCount + 1
-
-				const response = await uni.request({
-					url: `${this.$config.apiBaseUrl}/resources/${item.id}/favorite`,
-					method: 'POST',
-					header: {
-						'Authorization': `Bearer ${token}`,
-						'Content-Type': 'application/json'
-					},
-					data: {
-						type: 'resource'
-					}
-				})
-
-				if (response.statusCode === 200 && response.data.success) {
-					// 用接口返回的 isCollected 字段修正
-					if (typeof response.data.data.isCollected !== 'undefined') {
-						item.isFavorited = response.data.data.isCollected
-					}
-					// 用接口返回的收藏数修正（如果有）
-					if (typeof response.data.data.collection_count !== 'undefined') {
-						item.collection_count = response.data.data.collection_count
-					}
-					uni.showToast({
-						title: response.data.message,
-						icon: 'success'
-					})
-				} else {
-					// 操作失败，恢复原来的状态和收藏数
-					item.isFavorited = originalState
-					item.collection_count = originalCount
-					uni.showToast({
-						title: '操作失败',
+						title: response.data.message || '加载失败',
 						icon: 'none'
 					})
 				}
 			} catch (error) {
-				// 网络错误，恢复原来的状态和收藏数
-				item.isFavorited = originalState
-				item.collection_count = originalCount
-				console.error('收藏操作错误:', error)
+				console.error('加载资源列表失败:', error)
 				uni.showToast({
 					title: '网络错误',
 					icon: 'none'
 				})
+			} finally {
+				this.loading = false
 			}
 		},
 		
-		viewResource(item) {
+		viewResource(resource) {
+			// 支持两种ID格式：新版本的id和旧版本的resource_id
+			const resourceId = resource.id || resource.resource_id
+			if (!resourceId) {
+				console.error('资源ID缺失:', resource)
+				uni.showToast({
+					title: '资源ID错误',
+					icon: 'none'
+				})
+				return
+			}
 			uni.navigateTo({
-				url: `./detail?id=${item.id}`
+				url: `./detail?id=${resourceId}`
 			})
 		},
 		
 		goToUpload() {
+			const token = uni.getStorageSync('token')
+			if (!token) {
+				uni.showToast({
+					title: '请先登录',
+					icon: 'none'
+				})
+				return
+			}
+			
 			uni.navigateTo({
 				url: './upload'
 			})
 		},
 		
 		getFileIcon(fileType) {
-			const iconMap = {
-				'pdf': '📄',
-				'doc': '📝',
-				'ppt': '📊',
-				'zip': '📦',
-				'video': '🎥'
-			}
-			return iconMap[fileType] || '📁'
+			if (!fileType) return '📄'
+			
+			const type = fileType.toLowerCase()
+			if (['jpg', 'jpeg', 'png', 'gif'].includes(type)) return '🖼️'
+			if (['doc', 'docx'].includes(type)) return '📝'
+			if (['xls', 'xlsx'].includes(type)) return '📊'
+			if (['ppt', 'pptx'].includes(type)) return '📊'
+			if (['pdf'].includes(type)) return '📑'
+			if (['zip', 'rar', '7z'].includes(type)) return '📦'
+			if (['mp4', 'avi', 'mov'].includes(type)) return '🎬'
+			if (['mp3', 'wav', 'ogg'].includes(type)) return '🎵'
+			return '📄'
 		},
 		
 		formatTime(time) {
-			if (!time) return '未知时间'
-			
-			// 确保 time 是 Date 对象
-			const date = new Date(time)
-			if (isNaN(date.getTime())) {
-				return '时间格式错误'
-			}
-			
-			const now = new Date()
-			const diff = now - date
-			const day = 24 * 60 * 60 * 1000
-			
-			if (diff < day) {
-				const hours = Math.floor(diff / (60 * 60 * 1000))
-				return hours > 0 ? `${hours}小时前` : '刚刚'
-			} else if (diff < 7 * day) {
-				return `${Math.floor(diff / day)}天前`
-			} else {
-				return date.toLocaleDateString()
-			}
+			if (!time) return ''
+			const { formatTime } = require('@/utils/time.js')
+			return formatTime(time)
 		}
 	}
 }
@@ -342,68 +316,47 @@ export default {
 
 <style lang="scss" scoped>
 .resources-container {
-	min-height: 100vh;
-	padding-bottom: 160rpx;
-	padding: 30rpx;
-}
-
-.top-section {
-	background: white;
 	padding: 20rpx;
-	border-bottom: 1rpx solid #f0f0f0;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-	border-radius: 20rpx;
-	margin-bottom: 30rpx;
-	
-	.search-bar {
-		display: flex;
-		align-items: center;
-		background: #f8f8f8;
-		border-radius: 50rpx;
-		padding: 0 30rpx;
-		margin-bottom: 20rpx;
-		
-		.search-icon {
-			font-size: 32rpx;
-			margin-right: 20rpx;
-			color: #999;
-		}
-		
-		.search-input {
-			flex: 1;
-			height: 80rpx;
-			font-size: 28rpx;
-		}
-	}
+	background-color: #f5f5f5;
+	min-height: 100vh;
 	
 	.category-filter {
-		margin-top: 20rpx;
+		margin: 20rpx 0;
+		background-color: #fff;
+		border-radius: 16rpx;
+		padding: 20rpx;
+		box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
 		
 		.category-scroll {
+			white-space: nowrap;
+			
 			.category-list {
-				display: flex;
-				gap: 12rpx;
-				padding: 0 20rpx;
+				display: inline-flex;
+				padding: 10rpx 0;
 				
 				.category-item {
-					padding: 12rpx 24rpx;
-					background: rgba(0, 122, 255, 0.1);
+					display: inline-block;
+					padding: 10rpx 30rpx;
+					margin-right: 20rpx;
+					background-color: #f5f5f5;
 					border-radius: 30rpx;
-					white-space: nowrap;
-					flex-shrink: 0;
-					transition: all 0.3s ease;
+					transition: all 0.3s;
 					
 					&.active {
-						background: #007aff;
+						background-color: #007aff;
 						
 						.category-text {
-							color: white;
+							color: #fff;
 						}
 					}
 					
 					.category-text {
 						font-size: 26rpx;
-						color: #007aff;
+						color: #333;
+					}
+					
+					&:last-child {
+						margin-right: 0;
 					}
 				}
 			}
@@ -411,320 +364,178 @@ export default {
 	}
 	
 	.sort-section {
-		margin-top: 20rpx;
+		margin-bottom: 20rpx;
+		background-color: #fff;
+		border-radius: 16rpx;
+		padding: 20rpx;
+		box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
 		
 		.sort-picker {
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			background: rgba(0, 122, 255, 0.1);
-			border-radius: 8rpx;
-			padding: 15rpx 20rpx;
+			padding: 10rpx 20rpx;
+			background-color: #f5f5f5;
+			border-radius: 30rpx;
 			
 			.sort-text {
 				font-size: 26rpx;
-				color: #007aff;
+				color: #333;
 			}
 			
 			.sort-icon {
-				font-size: 20rpx;
-				color: #007aff;
+				font-size: 24rpx;
+				color: #666;
+				margin-left: 10rpx;
 			}
 		}
 	}
 	
-	.filter-section {
-		margin-top: 20rpx;
-		
-		.filter-row {
-			display: flex;
-			gap: 15rpx;
-			margin-bottom: 15rpx;
+	.resources-list {
+		.resource-item {
+			background: #fff;
+			border-radius: 16rpx;
+			padding: 20rpx;
+			margin-bottom: 20rpx;
+			box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
 			
-			&:last-child {
-				margin-bottom: 0;
-			}
-			
-			.filter-item {
-				flex: 1;
+			.resource-header {
 				display: flex;
-				flex-direction: column;
-				gap: 8rpx;
+				margin-bottom: 20rpx;
 				
-				&.sort-item {
-					flex: 2;
-				}
-				
-				.filter-label {
-					font-size: 24rpx;
-					color: #666;
-					font-weight: 500;
-				}
-				
-				.picker-view {
-					background: #f8f8f8;
-					border: 1rpx solid #e0e0e0;
-					border-radius: 8rpx;
-					padding: 15rpx 20rpx;
-					font-size: 26rpx;
-					color: #333;
-					text-align: center;
+				.file-preview {
+					position: relative;
+					width: 120rpx;
+					height: 120rpx;
+					margin-right: 20rpx;
+					border-radius: 12rpx;
+					overflow: hidden;
 					
-					&:active {
-						background: #eeeeee;
+					.thumbnail-image {
+						width: 100%;
+						height: 100%;
+						object-fit: cover;
+					}
+					
+					.file-type-overlay {
+						position: absolute;
+						bottom: 0;
+						left: 0;
+						right: 0;
+						padding: 4rpx;
+						background: rgba(0, 0, 0, 0.5);
+						color: #fff;
+						font-size: 24rpx;
+						text-align: center;
 					}
 				}
-			}
-		}
-	}
-	
-	.quick-filters {
-		display: flex;
-		align-items: center;
-		gap: 20rpx;
-		
-		.category-scroll {
-			flex: 1;
-			white-space: nowrap;
-			
-			.category-list {
-				display: flex;
-				gap: 12rpx;
 				
-				.category-item {
-					padding: 12rpx 24rpx;
-					background: #f8f8f8;
-					border-radius: 30rpx;
-					white-space: nowrap;
+				.resource-info {
+					flex: 1;
 					
-					&.active {
-						background: #007aff;
+					.resource-title {
+						font-size: 32rpx;
+						font-weight: bold;
+						color: #333;
+						margin-bottom: 10rpx;
+					}
+					
+					.resource-tags {
+						display: flex;
+						flex-wrap: wrap;
+						gap: 10rpx;
 						
-						.category-text {
-							color: white;
+						.tag {
+							font-size: 24rpx;
+							color: #007aff;
+							background: rgba(0, 122, 255, 0.1);
+							padding: 4rpx 12rpx;
+							border-radius: 20rpx;
 						}
 					}
+				}
+			}
+			
+			.resource-meta {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 20rpx;
+				
+				.meta-info {
+					display: flex;
+					align-items: center;
+					gap: 20rpx;
 					
-					.category-text {
-						font-size: 26rpx;
+					.author, .upload-time {
+						font-size: 24rpx;
+						color: #666;
+					}
+				}
+				
+				.resource-stats {
+					display: flex;
+					gap: 20rpx;
+					
+					.stat-item {
+						font-size: 24rpx;
 						color: #666;
 					}
 				}
 			}
-		}
-		
-		.filter-controls {
-			display: flex;
-			gap: 12rpx;
 			
-			.filter-btn, .sort-btn {
-				display: flex;
-				align-items: center;
-				padding: 12rpx 16rpx;
-				background: #f8f8f8;
-				border-radius: 30rpx;
-				min-width: 80rpx;
-				
-				.filter-text, .sort-text {
-					font-size: 24rpx;
+			.resource-description {
+				.description-text {
+					font-size: 28rpx;
 					color: #666;
-					margin-right: 8rpx;
-				}
-				
-				.filter-icon, .sort-icon {
-					font-size: 20rpx;
-					color: #999;
-				}
-			}
-			
-			.sort-btn {
-				background: #e3f2fd;
-				
-				.sort-text {
-					color: #1976d2;
-				}
-				
-				.sort-icon {
-					color: #1976d2;
+					line-height: 1.5;
 				}
 			}
 		}
 	}
 	
-	.active-filters {
+	.upload-btn {
+		position: fixed;
+		right: 40rpx;
+		bottom: 160rpx;
+		width: 120rpx;
+		height: 120rpx;
+		border-radius: 50%;
+		background: rgba(0, 122, 255, 0.1);
 		display: flex;
 		align-items: center;
-		gap: 12rpx;
-		margin-top: 20rpx;
-		flex-wrap: wrap;
-		
-		.filter-tag {
-			display: flex;
-			align-items: center;
-			background: #007aff;
-			color: white;
-			padding: 8rpx 16rpx;
-			border-radius: 20rpx;
-			
-			.tag-text {
-				font-size: 22rpx;
-				margin-right: 8rpx;
-			}
-			
-			.tag-close {
-				font-size: 20rpx;
-				font-weight: bold;
-			}
-		}
-		
-		.clear-all {
-			padding: 8rpx 16rpx;
-			background: #ff4757;
-			color: white;
-			border-radius: 20rpx;
-			font-size: 22rpx;
-		}
-	}
-}
-
-.resources-list {
-	padding: 20rpx;
-	
-	.resource-item {
-		background: white;
-		border-radius: 20rpx;
-		padding: 30rpx;
-		margin-bottom: 20rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+		justify-content: center;
+		box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.15);
+		z-index: 100;
 		transition: all 0.3s ease;
 		
+		.upload-icon {
+			width: 60rpx;
+			height: 60rpx;
+		}
+		
 		&:active {
-			transform: scale(0.98);
-			background: #f8f8f8;
+			transform: scale(0.95);
+			background: rgba(0, 122, 255, 0.2);
 		}
+	}
+	
+	.load-more {
+		padding: 20rpx;
+		text-align: center;
 		
-		.resource-header {
-			display: flex;
-			align-items: flex-start;
-			margin-bottom: 20rpx;
+		.load-more-btn {
+			display: inline-block;
+			padding: 10rpx 30rpx;
+			font-size: 28rpx;
+			color: #666;
+			background: #f5f5f5;
+			border-radius: 30rpx;
 			
-			.file-preview {
-				position: relative;
-				width: 80rpx;
-				height: 80rpx;
-				margin-right: 20rpx;
-				border-radius: 12rpx;
-				overflow: hidden;
-				background: rgba(0, 122, 255, 0.1);
-				
-				.thumbnail-image {
-					width: 100%;
-					height: 100%;
-					background: #f0f0f0;
-				}
-				
-				.file-type-overlay {
-					position: absolute;
-					bottom: 2rpx;
-					right: 2rpx;
-					font-size: 20rpx;
-					background: rgba(0, 0, 0, 0.6);
-					color: white;
-					padding: 4rpx 6rpx;
-					border-radius: 6rpx;
-				}
-			}
-			
-			.resource-info {
-				flex: 1;
-				
-				.resource-title {
-					display: block;
-					font-size: 32rpx;
-					font-weight: bold;
-					color: #333;
-					margin-bottom: 15rpx;
-					line-height: 1.4;
-				}
-				
-				.resource-tags {
-					display: flex;
-					flex-wrap: wrap;
-					gap: 10rpx;
-					
-					.tag {
-						padding: 8rpx 16rpx;
-						background: rgba(0, 122, 255, 0.1);
-						color: #007aff;
-						border-radius: 20rpx;
-						font-size: 22rpx;
-					}
-				}
-			}
-		}
-		
-		.resource-meta {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			margin-bottom: 20rpx;
-			
-			.meta-info {
-				display: flex;
-				flex-direction: column;
-				gap: 8rpx;
-				
-				.author, .upload-time {
-					font-size: 24rpx;
-					color: #666;
-				}
-			}
-			
-			.resource-stats {
-				display: flex;
-				gap: 20rpx;
-				
-				.stat-item {
-					font-size: 24rpx;
-					color: #999;
-				}
-			}
-		}
-		
-		.resource-description {
-			.description-text {
-				font-size: 26rpx;
-				color: #666;
-				line-height: 1.5;
+			&:active {
+				opacity: 0.8;
 			}
 		}
 	}
 }
-
-.upload-btn {
-	position: fixed;
-	right: 40rpx;
-	bottom: 160rpx;
-	width: 120rpx;
-	height: 120rpx;
-	background: rgba(0, 122, 255, 0.1);
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.15);
-	z-index: 100;
-	transition: all 0.3s ease;
-	
-	&:active {
-		transform: scale(0.95);
-		background: rgba(0, 122, 255, 0.2);
-	}
-	
-	.upload-icon {
-		width: 60rpx;
-		height: 60rpx;
-	}
-}
-
 </style>

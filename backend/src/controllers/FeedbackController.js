@@ -27,16 +27,34 @@ class FeedbackController {
   static async getMyFeedback(req, res) {
     try {
       const user_phone = req.user.phone_number
+      const { User } = require('../models')
+      
       const feedbacks = await Feedback.findAll({
         where: { user_phone },
+        include: [
+          {
+            model: User,
+            as: 'replier',
+            attributes: ['name', 'nickname', 'phone_number'],
+            required: false
+          }
+        ],
         order: [['created_at', 'DESC']]
       })
-      // images字段转数组
+      
+      // images字段转数组，并格式化回复者信息
       const result = feedbacks.map(fb => {
         const obj = fb.toJSON()
         obj.images = obj.images ? JSON.parse(obj.images) : []
+        
+        // 格式化回复者信息
+        if (obj.replier) {
+          obj.replierName = obj.replier.nickname || obj.replier.name || '管理员'
+        }
+        
         return obj
       })
+      
       res.json({ success: true, data: result })
     } catch (error) {
       res.status(500).json({ success: false, message: '获取反馈失败', error: error.message })

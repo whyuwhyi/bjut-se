@@ -25,7 +25,7 @@
     </div>
 
     <div class="filters">
-      <el-select v-model="filters.status" placeholder="选择状态" clearable style="width: 120px">
+      <el-select v-model="filters.status" placeholder="选择状态" clearable style="width: 120px" @change="handleFilterChange">
         <el-option label="草稿" value="draft" />
         <el-option label="待审核" value="pending" />
         <el-option label="已发布" value="published" />
@@ -80,22 +80,21 @@
             <template #default="{ row }">
               <el-button-group>
                 <el-button size="small" @click="viewDetails(row)">详情</el-button>
-                <el-button
+                <el-dropdown
                   v-if="row.status === 'pending'"
-                  type="success"
+                  @command="(command) => handleReview(row, command)"
                   size="small"
-                  @click="handleReview(row, 'approve')"
                 >
-                  通过
-                </el-button>
-                <el-button
-                  v-if="row.status === 'pending'"
-                  type="warning"
-                  size="small"
-                  @click="handleReview(row, 'reject')"
-                >
-                  拒绝
-                </el-button>
+                  <el-button size="small" type="primary">
+                    审核<el-icon class="el-icon--right"><arrow-down /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="approve">通过</el-dropdown-item>
+                      <el-dropdown-item command="reject">拒绝</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
                 <el-button
                   v-if="['published', 'pending'].includes(row.status)"
                   type="danger"
@@ -160,7 +159,7 @@
               <div v-if="row.files && row.files.length > 0" class="file-info">
                 <div v-for="file in row.files.slice(0, 2)" :key="file.file_id" class="file-item">
                   <el-icon><Document /></el-icon>
-                  <span>{{ file.original_name }}</span>
+                  <span>{{ file.file_name }}</span>
                 </div>
                 <div v-if="row.files.length > 2" class="text-gray">
                   +{{ row.files.length - 2 }} 个文件
@@ -173,21 +172,30 @@
             <template #default="{ row }">
               <el-button-group>
                 <el-button size="small" @click="viewResourceDetail(row)">详情</el-button>
-                <el-button
-                  type="success"
-                  size="small"
-                  @click="handleQuickReview(row, 'approve')"
-                >
-                  <el-icon><Check /></el-icon>
-                  通过
-                </el-button>
+                <el-dropdown @command="(command) => handleReviewAction(row, command)">
+                  <el-button type="success" size="small">
+                    审核
+                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="approve">
+                        <el-icon><Check /></el-icon>
+                        通过
+                      </el-dropdown-item>
+                      <el-dropdown-item command="reject">
+                        <el-icon><Close /></el-icon>
+                        拒绝
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
                 <el-button
                   type="danger"
                   size="small"
-                  @click="handleQuickReview(row, 'reject')"
+                  @click="handleDelete(row)"
                 >
-                  <el-icon><Close /></el-icon>
-                  拒绝
+                  删除
                 </el-button>
               </el-button-group>
             </template>
@@ -446,9 +454,17 @@
             <div class="file-list">
               <div v-for="file in detailDialog.resource.files" :key="file.file_id" class="file-item-detail">
                 <el-icon><Document /></el-icon>
-                <span class="file-name">{{ file.original_name }}</span>
+                <span class="file-name">{{ file.file_name }}</span>
                 <span class="file-size">{{ formatFileSize(file.file_size) }}</span>
                 <span class="file-type">{{ file.file_type }}</span>
+                <el-button 
+                  type="primary" 
+                  size="small" 
+                  :icon="Download"
+                  @click="downloadFile(file)"
+                >
+                  下载
+                </el-button>
               </div>
             </div>
           </div>
@@ -503,7 +519,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { Refresh, Document, Check, Close, Search } from '@element-plus/icons-vue'
+import { Refresh, Document, Check, Close, Search, Download, ArrowDown } from '@element-plus/icons-vue'
 import { getAllResources, deleteResource, reviewResource, getResourceReports, handleResourceReport, getPendingResources } from '@/api/admin'
 import type { Resource } from '@/types'
 
@@ -709,6 +725,11 @@ const resetFilters = () => {
   loadResources()
 }
 
+const handleFilterChange = () => {
+  pagination.page = 1
+  loadResources()
+}
+
 const handleReview = (resource: any, action: 'approve' | 'reject') => {
   reviewDialog.resource = resource
   reviewDialog.action = action
@@ -855,6 +876,60 @@ const handleQuickReview = (resource: any, action: 'approve' | 'reject') => {
   reviewDialog.action = action
   reviewDialog.visible = true
   reviewForm.comment = ''
+}
+
+const handleReviewAction = (resource: any, action: 'approve' | 'reject') => {
+  reviewDialog.resource = resource
+  reviewDialog.action = action
+  reviewDialog.visible = true
+  reviewForm.comment = ''
+}
+
+const downloadFile = async (file: any) => {
+  try {
+    // 获取管理员token
+    const token = localStorage.getItem('admin_token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    // 使用原有的下载API路由：/api/v1/resources/:resourceId/files/:fileId/download
+    const downloadUrl = `/api/v1/resources/${detailDialog.resource.resource_id}/files/${file.file_id}/download`
+    
+    ElMessage.info('开始下载文件...')
+    
+    // 使用fetch下载文件，包含授权头
+    const response = await fetch(downloadUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/octet-stream'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`下载失败: ${response.status} ${response.statusText}`)
+    }
+    
+    // 获取文件blob
+    const blob = await response.blob()
+    
+    // 创建下载链接
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = file.file_name || 'download'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('文件下载成功')
+  } catch (error: any) {
+    console.error('下载文件失败:', error)
+    ElMessage.error(error.message || '下载文件失败')
+  }
 }
 
 onMounted(() => {
@@ -1068,6 +1143,11 @@ onMounted(() => {
 .file-size, .file-type {
   color: #909399;
   font-size: 12px;
+  min-width: 60px;
+}
+
+.file-item-detail .el-button {
+  margin-left: 10px;
 }
 
 .resource-stats {

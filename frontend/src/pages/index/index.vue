@@ -54,6 +54,7 @@
 						<text class="resource-title">{{ item.title }}</text>
 						<view class="resource-meta">
 							<text class="resource-author">{{ item.author }}</text>
+							<view style="flex:1"></view>
 							<text class="resource-downloads">{{ item.downloads || 0 }}次下载</text>
 						</view>
 					</view>
@@ -73,6 +74,7 @@
 						<text class="forum-title">{{ item.title }}</text>
 						<view class="forum-meta">
 							<text class="forum-author">{{ item.author }}</text>
+							<view style="flex:1"></view>
 							<text class="forum-views">{{ item.views || 0 }}次浏览</text>
 							<view class="forum-tag" v-if="item.isHot">热门</view>
 						</view>
@@ -100,14 +102,14 @@
 				],
 				quickAccess: [
 					{
-						icon: require('@/static/icons/post.png'),
-						text: '发布帖子',
-						url: '/pages/forum/create'
-					},
-					{
 						icon: require('@/static/icons/upload.png'),
 						text: '上传资源',
 						url: '/pages/resources/upload'
+					},
+					{
+						icon: require('@/static/icons/post.png'),
+						text: '发布帖子',
+						url: '/pages/forum/create'
 					},
 					{
 						icon: require('@/static/icons/create-plan.png'),
@@ -310,8 +312,9 @@
 							id: item.post_id,
 							title: item.title,
 							isHot: item.comment_count > 10,
-							authorName: item.author?.nickname || item.author?.name || '匿名用户',
+							author: item.author?.nickname || item.author?.name || '匿名用户',
 							commentCount: item.comment_count || 0,
+							views: item.view_count || 0,
 							createTime: new Date(item.created_at)
 						}))
 					}
@@ -418,88 +421,103 @@
 	}
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
+.container {
+	min-height: 100vh;
+	padding: 20rpx;
+	background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	animation: gradientBG 15s ease infinite;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 1024rpx;
+	margin: 0 auto;
+}
+
+@keyframes gradientBG {
+	0% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+	50% {
+		background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
+	}
+	100% {
+		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
+	}
+}
+
 .banner-section {
-	margin-bottom: 30rpx;
+	width: 100%;
+	margin-bottom: 32rpx;
+	border-radius: 24rpx;
+	overflow: hidden;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 
 	.banner-swiper {
+		width: 100%;
 		height: 300rpx;
-		padding: 0 20rpx;
 
 		.banner-image {
 			width: 100%;
 			height: 100%;
-			border-radius: 20rpx;
-			object-fit: cover;
 		}
 	}
 }
 
 .quick-access-section {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	gap: 20rpx;
-	margin: 30rpx 0;
-	padding: 0 10rpx;
+	width: 100%;
+	display: flex;
+	justify-content: space-between;
+	padding: 32rpx;
+	margin-bottom: 32rpx;
+	background: white;
+	border-radius: 24rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
 
 	.quick-access-item {
-		width: 160rpx;
-		height: 160rpx;
-		background-color: rgba(255, 255, 255, 0.7);
-		border-radius: 30rpx;
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
 		align-items: center;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-		transition: transform 0.2s ease;
-
-		&:active {
-			transform: scale(0.95);
-		}
+		gap: 12rpx;
 
 		.icon-img {
-			width: 60rpx;
-			height: 60rpx;
-			margin-bottom: 16rpx;
-			object-fit: contain;
+			width: 80rpx;
+			height: 80rpx;
 		}
 
 		.text {
-			font-size: 26rpx;
+			font-size: 24rpx;
 			color: #333;
-			text-align: center;
-			width: 120rpx;
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
 		}
 	}
 }
 
 .card {
-	background-color: #FFFFFF;
-	border-radius: 20rpx;
-	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-	margin-bottom: 40rpx;
-	padding: 30rpx;
+	width: 100%;
+	background: white;
+	border-radius: 24rpx;
+	padding: 32rpx;
+	margin-bottom: 32rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
 }
 
 .section-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: 20rpx;
+	margin-bottom: 24rpx;
 
 	.section-title {
-		font-size: 36rpx;
+		font-size: 32rpx;
 		font-weight: bold;
 		color: #333;
 	}
 
 	.section-more {
-		font-size: 28rpx;
-		color: #666;
+		font-size: 24rpx;
+		color: #007aff;
 	}
 }
 
@@ -523,6 +541,48 @@
 	&:active {
 		transform: scale(0.98);
 	}
+	
+	.notice-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 12rpx;
+		
+		.notice-tag {
+			font-size: 20rpx;
+			color: white;
+			padding: 4rpx 12rpx;
+			border-radius: 8rpx;
+			
+			&.tag-high {
+				background-color: #ff3b30;
+			}
+			
+			&.tag-medium {
+				background-color: #ff9500;
+			}
+			
+			&.tag-low {
+				background-color: #34c759;
+			}
+		}
+		
+		.notice-time {
+			font-size: 22rpx;
+			color: #999;
+			flex-shrink: 0;
+		}
+	}
+	
+	.notice-title {
+		font-size: 26rpx;
+		color: #333;
+		line-height: 1.4;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		overflow: hidden;
+	}
 }
 
 .resource-item,
@@ -535,7 +595,7 @@
 	align-items: center;
 	gap: 20rpx;
 	transition: all 0.3s ease;
-
+	min-width: 0;
 	&:active {
 		transform: scale(0.98);
 		background-color: #f8f8f8;
@@ -553,7 +613,7 @@
 		justify-content: center;
 		flex-shrink: 0;
 	}
-	
+
 	.resource-icon-emoji {
 		font-size: 40rpx;
 	}
@@ -564,19 +624,17 @@
 	}
 
 	.resource-title {
-		font-size: 28rpx;
-		color: #333;
-		font-weight: 500;
-		margin-bottom: 8rpx;
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 1;
+		display: block;
+		max-width: 100%;
 		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.resource-meta {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 16rpx;
 		font-size: 24rpx;
 		color: #999;
@@ -590,19 +648,17 @@
 	}
 
 	.forum-title {
-		font-size: 28rpx;
-		color: #333;
-		font-weight: 500;
-		margin-bottom: 8rpx;
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 1;
+		display: block;
+		max-width: 100%;
 		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.forum-meta {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 16rpx;
 		font-size: 24rpx;
 		color: #999;

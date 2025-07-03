@@ -3,52 +3,91 @@ const PostTag = require('../models/PostTag')
 const PostTagRelation = require('../models/PostTagRelation')
 const Comment = require('../models/Comment')
 const User = require('../models/User')
+const Collection = require('../models/Collection')
 const { Op } = require('sequelize')
+const idGenerator = require('../utils/IdGenerator')
+const searchHelper = require('../utils/SearchHelper')
+const searchCache = require('../utils/RedisSearchCache')
+const NotificationService = require('../services/NotificationService')
 
 class PostController {
-  static generatePostId() {
-    return 'POST' + Date.now().toString().slice(-5)
-  }
-
-  static generateTagId() {
-    return 'TAG' + Date.now().toString().slice(-6)
-  }
 
   static async getAllPosts(req, res) {
     try {
-      const { page = 1, limit = 20, search, tag, sortBy = 'latest' } = req.query
-      const offset = (page - 1) * limit
-
-      let whereClause = { status: 'active' }
-      let tagFilter = null
+      const { 
+        page = 1, 
+        limit = 20, 
+        search, 
+        tag, 
+        tags,
+        sortBy = 'relevance',
+        sortOrder = 'DESC',
+        // 新增高级筛选参数
+        dateFrom,
+        dateTo,
+        minViews,
+        maxViews,
+        tagLogic = 'OR'
+      } = req.query
       
+      // 构建缓存键参数
+      const cacheParams = {
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 20,
+        search,
+        tag,
+        tags,
+        sortBy,
+        sortOrder,
+        dateFrom,
+        dateTo,
+        minViews: minViews ? parseInt(minViews) : undefined,
+        maxViews: maxViews ? parseInt(maxViews) : undefined,
+        tagLogic
+      }
+      
+      // 尝试从缓存获取结果
+      const cachedResult = await searchCache.get('search', cacheParams)
+      if (cachedResult) {
+        return res.json({
+          success: true,
+          data: cachedResult
+        })
+      }
+      
+      const offset = (page - 1) * limit
+      let whereClause = { status: 'active' }
+      
+      // 智能搜索条件 - 使用JOIN查询支持关联表搜索
       if (search) {
-        whereClause[Op.or] = [
-          { title: { [Op.like]: `%${search}%` } },
-          { content: { [Op.like]: `%${search}%` } }
-        ]
+        const searchCondition = searchHelper.buildPostSearchCondition(search, {
+          includeRelated: true // 启用关联表搜索，配合subQuery: false使用
+        })
+        if (searchCondition && (Object.keys(searchCondition).length > 0 || Object.getOwnPropertySymbols(searchCondition).length > 0)) {
+          Object.assign(whereClause, searchCondition)
+        }
       }
 
+      // 高级筛选条件
+      const advancedFilters = searchHelper.buildAdvancedFilters({
+        dateFrom,
+        dateTo,
+        minViews,
+        maxViews
+      })
+      Object.assign(whereClause, advancedFilters)
+
+      // 标签筛选逻辑
+      let tagFilter = null
       if (tag) {
         tagFilter = { tag_name: tag }
+      } else if (tags) {
+        tagFilter = searchHelper.buildTagFilters(tags, tagLogic)
       }
+      // 注意：搜索条件中的标签搜索已经通过主查询的where条件处理了
 
-      let orderClause = []
-      switch (sortBy) {
-        case 'view':
-          orderClause = [['view_count', 'DESC']]
-          break
-        case 'collection':
-          orderClause = [['collection_count', 'DESC']]
-          break
-        case 'comment':
-          orderClause = [['comment_count', 'DESC']]
-          break
-        case 'latest':
-        default:
-          orderClause = [['created_at', 'DESC']]
-          break
-      }
+      // 智能排序条件
+      const orderClause = searchHelper.buildSortCondition(sortBy, sortOrder, search)
 
       const posts = await Post.findAndCountAll({
         where: whereClause,
@@ -69,23 +108,64 @@ class PostController {
         order: orderClause,
         limit: parseInt(limit),
         offset: offset,
-        distinct: true
+        distinct: true,
+        subQuery: false // 禁用子查询，使用JOIN查询支持关联表搜索
       })
 
       const totalPages = Math.ceil(posts.count / limit)
 
+      // 格式化返回数据并计算相关性评分
+      let formattedPosts = posts.rows.map(post => {
+        const data = post.toJSON()
+        const formatted = {
+          ...data,
+          // 新增字段
+          authorAvatar: data.author?.avatar_url,
+          tagCount: data.tags?.length || 0
+        }
+
+        // 计算相关性评分（如果有搜索词）
+        if (search) {
+          formatted.relevanceScore = searchHelper.calculateRelevanceScore({
+            title: data.title,
+            content: data.content,
+            tags: data.tags,
+            author_name: data.author?.nickname || data.author?.name,
+            view_count: data.view_count,
+            collection_count: data.collection_count,
+            comment_count: data.comment_count
+          }, search, 'post')
+
+          // 高亮搜索关键词
+          formatted.titleHighlighted = searchHelper.highlightKeywords(formatted.title, search)
+          formatted.contentHighlighted = searchHelper.highlightKeywords(formatted.content, search)
+        }
+
+        return formatted
+      })
+
+      // 如果有搜索词且按相关性排序，重新排序结果
+      if (search && sortBy === 'relevance') {
+        formattedPosts.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
+      }
+
+      const responseData = {
+        posts: formattedPosts,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalItems: posts.count,
+          itemsPerPage: parseInt(limit)
+        }
+      }
+      
+      // 将结果存储到缓存
+      await searchCache.set('search', cacheParams, responseData)
+
       res.status(200).json({
         success: true,
         message: '获取帖子列表成功',
-        data: {
-          posts: posts.rows,
-          pagination: {
-            currentPage: parseInt(page),
-            totalPages,
-            totalItems: posts.count,
-            itemsPerPage: parseInt(limit)
-          }
-        }
+        data: responseData
       })
     } catch (error) {
       console.error('获取帖子列表失败:', error)
@@ -154,7 +234,7 @@ class PostController {
         })
       }
 
-      const postId = PostController.generatePostId()
+      const postId = idGenerator.generatePostId()
 
       const post = await Post.create({
         post_id: postId,
@@ -167,18 +247,27 @@ class PostController {
       await User.increment('post_count', { where: { phone_number: authorPhone } })
 
       if (tags && tags.length > 0) {
-        for (const tagName of tags) {
-          let tag = await PostTag.findOne({ where: { tag_name: tagName } })
-          
-          if (!tag) {
-            const tagId = PostController.generateTagId()
-            tag = await PostTag.create({
-              tag_id: tagId,
-              tag_name: tagName,
-              status: 'active'
-            })
+        // 验证所有标签都存在且为活跃状态
+        const validTags = await PostTag.findAll({
+          where: { 
+            tag_name: { [Op.in]: tags },
+            status: 'active'
           }
+        })
 
+        // 检查是否有无效标签
+        const validTagNames = validTags.map(tag => tag.tag_name)
+        const invalidTags = tags.filter(tagName => !validTagNames.includes(tagName))
+        
+        if (invalidTags.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `标签不存在或已禁用: ${invalidTags.join(', ')}`
+          })
+        }
+
+        // 为帖子添加标签关联
+        for (const tag of validTags) {
           await PostTagRelation.create({
             post_id: postId,
             tag_id: tag.tag_id
@@ -204,6 +293,22 @@ class PostController {
           }
         ]
       })
+
+      // 清除相关缓存
+      await searchCache.invalidate('post', 'create')
+
+      // 异步推送通知给关注者
+      try {
+        await NotificationService.notifyFollowersAboutNewContent(
+          authorPhone,
+          'post',
+          postId,
+          title
+        )
+      } catch (notificationError) {
+        // 通知推送失败不影响帖子发布成功
+        console.error('推送关注者通知失败:', notificationError)
+      }
 
       res.status(201).json({
         success: true,
@@ -395,7 +500,7 @@ class PostController {
       if (!post) {
         return res.status(404).json({
           success: false,
-          message: '帖子不存在'
+          message: '帖子不存在或已被删除'
         })
       }
 
@@ -410,7 +515,11 @@ class PostController {
       // 软删除：将状态改为deleted
       await post.update({ status: 'deleted' })
 
+      // 递减帖子计数（由于查询条件已确保帖子状态为active/hidden，所以安全递减）
       await User.decrement('post_count', { where: { phone_number: userPhone }, min: 0 })
+
+      // 清除相关缓存
+      await searchCache.invalidate('post', 'delete')
 
       res.status(200).json({
         success: true,
@@ -422,6 +531,200 @@ class PostController {
         success: false,
         message: '删除帖子失败',
         errors: [error.message]
+      })
+    }
+  }
+
+  // 切换收藏状态
+  static async toggleFavorite(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { postId } = req.params
+      const { type = 'post' } = req.body
+
+      // 检查帖子是否存在
+      const post = await Post.findOne({ where: { post_id: postId } })
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: '帖子不存在'
+        })
+      }
+
+      // 查找现有收藏记录
+      const existingCollection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: postId,
+          collection_type: 'post'
+        }
+      })
+
+      let isCollected = false
+
+      if (existingCollection) {
+        // 如果已收藏，切换状态
+        if (existingCollection.status === 'active') {
+          await existingCollection.update({ status: 'cancelled' })
+          isCollected = false
+          // 更新收藏计数
+          await Post.decrement('collection_count', { where: { post_id: postId } })
+        } else {
+          await existingCollection.update({ status: 'active' })
+          isCollected = true
+          // 更新收藏计数
+          await Post.increment('collection_count', { where: { post_id: postId } })
+        }
+      } else {
+        // 如果没有收藏记录，创建新的
+        const collectionId = idGenerator.generateCollectionId()
+        await Collection.create({
+          collection_id: collectionId,
+          user_phone: userPhone,
+          content_id: postId,
+          collection_type: 'post',
+          status: 'active'
+        })
+        isCollected = true
+        // 更新收藏计数
+        await Post.increment('collection_count', { where: { post_id: postId } })
+      }
+
+      res.json({
+        success: true,
+        message: isCollected ? '收藏成功' : '取消收藏成功',
+        data: {
+          isCollected
+        }
+      })
+    } catch (error) {
+      console.error('切换收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '操作失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 检查收藏状态
+  static async checkFavoriteStatus(req, res) {
+    try {
+      const userPhone = req.user.phone_number
+      const { postId } = req.params
+
+      const collection = await Collection.findOne({
+        where: {
+          user_phone: userPhone,
+          content_id: postId,
+          collection_type: 'post',
+          status: 'active'
+        }
+      })
+
+      res.json({
+        success: true,
+        data: {
+          isCollected: !!collection
+        }
+      })
+    } catch (error) {
+      console.error('检查收藏状态错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '检查收藏状态失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 获取搜索建议
+  static async getSearchSuggestions(req, res) {
+    try {
+      const { q: searchTerm } = req.query
+      
+      // 获取热门搜索关键词（可以从数据库统计）
+      const hotKeywords = [
+        '学习方法', '考试技巧', '编程', '算法', '数据结构',
+        '就业指导', '实习经验', '项目分享', '技术讨论', '生活分享'
+      ]
+      
+      const searchHistory = [] // 可以从用户session或数据库获取
+      
+      const suggestions = searchHelper.generateSearchSuggestions(
+        searchTerm, 
+        searchHistory, 
+        hotKeywords
+      )
+      
+      res.json({
+        success: true,
+        data: {
+          suggestions,
+          hotKeywords: hotKeywords.slice(0, 5)
+        }
+      })
+    } catch (error) {
+      console.error('获取搜索建议错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '获取搜索建议失败',
+        error: error.message
+      })
+    }
+  }
+
+  // 获取高级筛选选项
+  static async getFilterOptions(req, res) {
+    try {
+      // 获取所有标签
+      const tags = await PostTag.findAll({
+        where: { status: 'active' },
+        attributes: ['tag_id', 'tag_name', 'tag_color', 'usage_count'],
+        order: [['usage_count', 'DESC'], ['tag_name', 'ASC']]
+      })
+
+      // 获取作者统计（可选）
+      const topAuthors = await User.findAll({
+        attributes: ['phone_number', 'name', 'nickname', 'post_count'],
+        where: { post_count: { [Op.gt]: 0 } },
+        order: [['post_count', 'DESC']],
+        limit: 10
+      })
+
+      res.json({
+        success: true,
+        data: {
+          tags: tags.map(tag => ({
+            id: tag.tag_id,
+            name: tag.tag_name,
+            color: tag.tag_color,
+            count: tag.usage_count
+          })),
+          topAuthors: topAuthors.map(author => ({
+            phone: author.phone_number,
+            name: author.nickname || author.name,
+            postCount: author.post_count
+          })),
+          tagLogicOptions: [
+            { value: 'OR', label: '包含任一标签' },
+            { value: 'AND', label: '包含所有标签' }
+          ],
+          sortOptions: [
+            { value: 'relevance', label: '相关性' },
+            { value: 'latest', label: '最新发布' },
+            { value: 'view', label: '浏览最多' },
+            { value: 'collection', label: '收藏最多' },
+            { value: 'comment', label: '评论最多' }
+          ]
+        }
+      })
+    } catch (error) {
+      console.error('获取筛选选项错误:', error)
+      res.status(500).json({
+        success: false,
+        message: '获取筛选选项失败',
+        error: error.message
       })
     }
   }

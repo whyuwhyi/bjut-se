@@ -25,8 +25,10 @@
 		</view>
 
 		<!-- 筛选和排序 -->
+		<view class="filter-container">
 		<view class="filter-section">
-			<view class="filter-tabs">
+				<scroll-view class="filter-tabs" scroll-x="true" show-scrollbar="false">
+					<view class="tabs-content">
 				<text 
 					class="filter-tab" 
 					:class="{ active: selectedStatus === index }"
@@ -37,6 +39,9 @@
 					{{ status.name }}
 				</text>
 			</view>
+				</scroll-view>
+			</view>
+			
 			<view class="sort-controls">
 				<picker @change="onSortChange" :value="selectedSort" :range="sortOptions" range-key="name">
 					<view class="sort-trigger">
@@ -114,7 +119,7 @@
 						<text class="btn-icon">📤</text>
 						<text class="btn-text">分享</text>
 					</button>
-					<button class="action-btn danger" @click.stop="deleteResource(resource)">
+					<button class="action-btn danger" @click.stop="handleDeleteClick(resource, $event)">
 						<text class="btn-icon">🗑️</text>
 						<text class="btn-text">删除</text>
 					</button>
@@ -135,17 +140,6 @@
 			<text class="upload-icon">+</text>
 		</view>
 
-		<!-- 删除确认弹窗 -->
-		<uni-popup ref="deletePopup" type="dialog">
-			<uni-popup-dialog 
-				type="warn" 
-				title="确认删除" 
-				content="删除后无法恢复，确定要删除这个资源吗？"
-				:before-close="true"
-				@confirm="confirmDelete"
-				@close="closeDeleteDialog"
-			></uni-popup-dialog>
-		</uni-popup>
 	</view>
 </template>
 
@@ -159,7 +153,8 @@
 					{ name: '全部', value: 'all' },
 					{ name: '已通过', value: 'approved' },
 					{ name: '审核中', value: 'pending' },
-					{ name: '已拒绝', value: 'rejected' }
+					{ name: '已拒绝', value: 'rejected' },
+					{ name: '草稿', value: 'draft' }
 				],
 				sortOptions: [
 					{ name: '最新上传', value: 'upload_time_desc' },
@@ -174,16 +169,19 @@
 		
 		computed: {
 			filteredResources() {
-				let resources = this.myResources;
+				let resources = [...this.myResources]; // 创建副本避免修改原数组
 				
 				// 状态筛选
 				const statusFilter = this.statusFilters[this.selectedStatus];
-				if (statusFilter.value !== 'all') {
-					resources = resources.filter(r => r.status === statusFilter.value);
+				if (statusFilter && statusFilter.value !== 'all') {
+					resources = resources.filter(r => {
+						return r.status === statusFilter.value;
+					});
 				}
 				
 				// 排序
 				const sort = this.sortOptions[this.selectedSort];
+				if (sort) {
 				resources.sort((a, b) => {
 					switch (sort.value) {
 						case 'upload_time_desc':
@@ -198,6 +196,7 @@
 							return 0;
 					}
 				});
+				}
 				
 				return resources;
 			},
@@ -218,10 +217,15 @@
 				const ratedResources = this.myResources.filter(r => r.rating > 0);
 				if (ratedResources.length === 0) return 0;
 				return ratedResources.reduce((sum, r) => sum + r.rating, 0) / ratedResources.length;
-			}
+			},
+			
 		},
 		
 		onLoad() {
+			this.loadResources()
+		},
+		
+		onShow() {
 			this.loadResources()
 		},
 
@@ -236,22 +240,7 @@
 						return
 					}
 					
-					// 映射前端状态到后端状态
-					const statusMap = {
-						'all': '',
-						'approved': 'published',
-						'pending': 'pending',
-						'rejected': 'rejected'
-					}
-					
-					const status = this.statusFilters[this.selectedStatus].value
-					const params = {
-						page: 1,
-						limit: 50
-					}
-					if (status !== 'all') {
-						params.status = statusMap[status]
-					}
+					uni.showLoading({ title: '加载中...' })
 					
 					const response = await uni.request({
 						url: `${this.$config.apiBaseUrl}/users/my-resources`,
@@ -259,12 +248,18 @@
 						header: {
 							'Authorization': `Bearer ${token}`
 						},
-						data: params
+						data: {
+							page: 1,
+							limit: 50
+						}
 					})
 					
-					if (response.data.success) {
-						// 转换后端数据格式为前端格式
-						this.myResources = response.data.data.resources.map(resource => ({
+					if (response.statusCode === 200 && response.data && response.data.success) {
+						const backendResources = response.data.data?.resources || [];
+						
+						// 直接转换数据
+						this.myResources = backendResources.map(resource => {
+							return {
 							id: resource.resource_id,
 							title: resource.resource_name,
 							description: resource.description,
@@ -272,21 +267,29 @@
 							uploadTime: resource.created_at,
 							downloadCount: resource.download_count || 0,
 							viewCount: resource.view_count || 0,
-							rating: resource.rating || 0,
+								rating: parseFloat(resource.rating) || 0,
 							files: resource.files || [],
 							fileName: resource.files && resource.files.length > 0 ? resource.files[0].file_name : '',
 							fileType: resource.files && resource.files.length > 0 ? this.getFileTypeFromName(resource.files[0].file_name) : '',
 							fileSize: resource.files && resource.files.length > 0 ? resource.files[0].file_size : 0,
 							tags: []
-						}))
+							}
+						});
+						
+						// 强制更新视图
+						this.$forceUpdate();
 					} else {
+						this.myResources = []
 						uni.showToast({
-							title: response.data.message || '加载失败',
+							title: response.data?.message || '加载失败',
 							icon: 'none'
 						})
 					}
+					
+					uni.hideLoading()
 				} catch (error) {
-					console.error('加载资源失败:', error)
+					this.myResources = []
+					uni.hideLoading()
 					uni.showToast({
 						title: '网络错误',
 						icon: 'none'
@@ -299,9 +302,9 @@
 					'published': 'approved',
 					'pending': 'pending',
 					'rejected': 'rejected',
-					'draft': 'pending'
+					'draft': 'draft'
 				}
-				return statusMap[status] || 'pending'
+				return statusMap[status] || 'draft'
 			},
 			
 			getFileTypeFromName(fileName) {
@@ -313,7 +316,6 @@
 			
 			selectStatus(index) {
 				this.selectedStatus = index;
-				this.loadResources(); // 重新加载数据
 			},
 			
 			onSortChange(e) {
@@ -347,27 +349,77 @@
 				});
 			},
 			
-			deleteResource(resource) {
-				this.resourceToDelete = resource;
-				this.$refs.deletePopup.open();
+			handleDeleteClick(resource, event) {
+				// 阻止事件冒泡和默认行为
+				if (event) {
+					event.stopPropagation();
+					event.preventDefault();
+				}
+				
+				// 调用删除方法
+				this.deleteResource(resource);
 			},
 			
-			confirmDelete() {
-				if (this.resourceToDelete) {
+			deleteResource(resource) {
+				this.resourceToDelete = resource;
+				
+				// 使用系统原生确认对话框
+				uni.showModal({
+					title: '确认删除',
+					content: '删除后无法恢复，确定要删除这个资源吗？',
+					success: (res) => {
+						if (res.confirm) {
+							this.confirmDelete();
+						}
+					}
+				});
+			},
+			
+			async confirmDelete() {
+				if (!this.resourceToDelete) return;
+
+				try {
+					const token = uni.getStorageSync('token');
+					if (!token) {
+						uni.showToast({
+							title: '请先登录',
+							icon: 'none'
+						});
+						return;
+					}
+
+					const response = await uni.request({
+						url: `${this.$config.apiBaseUrl}/resources/${this.resourceToDelete.id}`,
+						method: 'DELETE',
+						header: {
+							'Authorization': `Bearer ${token}`
+						}
+					});
+
+					if (response.statusCode === 200 && response.data && response.data.success) {
+						// 从本地列表中移除
 					const index = this.myResources.findIndex(r => r.id === this.resourceToDelete.id);
 					if (index > -1) {
 						this.myResources.splice(index, 1);
+						}
+						
 						uni.showToast({
 							title: '删除成功',
 							icon: 'success'
 						});
+					} else {
+						uni.showToast({
+							title: response.data?.message || '删除失败',
+							icon: 'none'
+						});
 					}
+				} catch (error) {
+					uni.showToast({
+						title: '网络错误',
+						icon: 'none'
+					});
 				}
-				this.closeDeleteDialog();
-			},
 			
-			closeDeleteDialog() {
-				this.$refs.deletePopup.close();
 				this.resourceToDelete = null;
 			},
 			
@@ -439,7 +491,7 @@
 <style scoped>
 	.my-resources-container {
 		min-height: 100vh;
-		padding: 20rpx;
+		padding: 32rpx;
 		background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 		animation: gradientBG 15s ease infinite;
 	}
@@ -450,289 +502,168 @@
 		}
 		50% {
 			background: linear-gradient(135deg, #FAEED1 0%, #FFF8DB 100%);
-		}
+	}
 		100% {
 			background: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
 		}
 	}
 
-	/* 顶部统计 */
 	.stats-header {
-		padding: 32rpx;
-	}
+		margin-bottom: 32rpx;
+		padding: 0;
 
 	.stats-card {
 		background-color: #ffffff;
 		border-radius: 16rpx;
 		padding: 32rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-	}
+			box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 
 	.stats-grid {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 32rpx;
-	}
+				grid-template-columns: repeat(4, 1fr);
+				gap: 24rpx;
 
 	.stat-item {
 		text-align: center;
-	}
 
 	.stat-value {
 		display: block;
-		font-size: 48rpx;
-		font-weight: 700;
-		color: #007aff;
+						font-size: 36rpx;
+						font-weight: bold;
+						color: #333333;
 		margin-bottom: 8rpx;
 	}
 
 	.stat-label {
 		font-size: 24rpx;
 		color: #666666;
+					}
+				}
+			}
+		}
 	}
 
-	/* 筛选区域 */
-	.filter-section {
+	.filter-container {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		padding: 32rpx;
-		background-color: #ffffff;
-		border-bottom: 1rpx solid #e0e0e0;
+		gap: 24rpx;
+		margin-bottom: 32rpx;
 	}
+
+	.filter-section {
+		flex: 1;
+		background-color: #ffffff;
+		border-radius: 16rpx;
+		padding: 20rpx 0;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+		overflow: hidden;
 
 	.filter-tabs {
-		display: flex;
-		gap: 16rpx;
-	}
+			width: 100%;
+			white-space: nowrap;
+			
+			.tabs-content {
+				display: inline-flex;
+				padding: 0 20rpx;
 
 	.filter-tab {
-		padding: 12rpx 20rpx;
-		font-size: 26rpx;
+					font-size: 28rpx;
 		color: #666666;
-		border-radius: 20rpx;
-		background-color: #f0f0f0;
+					padding: 12rpx 24rpx;
+					border-radius: 24rpx;
 		transition: all 0.3s ease;
-	}
-
-	.filter-tab.active {
-		color: #007aff;
-		background-color: #e8f4fd;
+					margin-right: 16rpx;
+					
+					&:last-child {
+						margin-right: 0;
+					}
+					
+					&.active {
+						background-color: #007aff;
+						color: #ffffff;
+					}
+				}
+			}
+		}
 	}
 
 	.sort-controls {
-		display: flex;
-		align-items: center;
-	}
+		flex-shrink: 0;
 
 	.sort-trigger {
 		display: flex;
 		align-items: center;
 		gap: 8rpx;
-		padding: 12rpx 16rpx;
+			padding: 12rpx 24rpx;
 		background-color: #f0f0f0;
-		border-radius: 20rpx;
+			border-radius: 24rpx;
+			transition: all 0.3s ease;
+			
+			&:active {
+				opacity: 0.8;
 	}
 
 	.sort-text {
 		font-size: 26rpx;
-		color: #666666;
+				color: #333333;
 	}
 
 	.sort-icon {
-		font-size: 20rpx;
-		color: #999999;
+				font-size: 24rpx;
+				color: #666666;
+	}
+		}
 	}
 
-	/* 资源列表 */
 	.resources-list {
-		background-color: #ffffff;
-		border-radius: 20rpx;
-		padding: 30rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-	}
+		margin: 0;
+		padding: 0;
 
 	.resource-item {
 		background-color: #ffffff;
 		border-radius: 16rpx;
 		padding: 32rpx;
-		margin-bottom: 16rpx;
+			margin-bottom: 24rpx;
 		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 		transition: all 0.3s ease;
 		border-left: 6rpx solid transparent;
 	}
 
-	.resource-item.status-approved {
-		border-left-color: #34c759;
-	}
-
-	.resource-item.status-pending {
-		border-left-color: #ff9500;
-	}
-
-	.resource-item.status-rejected {
-		border-left-color: #ff3b30;
-	}
-
-	.resource-item:active {
-		transform: scale(0.98);
-	}
-
-	.resource-header {
-		display: flex;
-		align-items: flex-start;
-		margin-bottom: 16rpx;
-	}
-
-	.resource-icon {
-		width: 80rpx;
-		height: 80rpx;
-		border-radius: 16rpx;
-		background-color: #f0f0f0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-right: 24rpx;
-		flex-shrink: 0;
-	}
-
-	.file-icon {
-		font-size: 36rpx;
-	}
-
-	.resource-info {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.resource-title {
-		font-size: 32rpx;
-		font-weight: 600;
-		color: #333333;
-		display: block;
-		margin-bottom: 8rpx;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.resource-filename {
-		font-size: 24rpx;
-		color: #999999;
-		display: block;
-		margin-bottom: 8rpx;
-	}
-
-	.resource-meta {
-		display: flex;
-		gap: 16rpx;
-		font-size: 22rpx;
-		color: #999999;
-	}
-
-	.resource-status {
-		padding: 6rpx 16rpx;
-		border-radius: 12rpx;
-		font-size: 22rpx;
-		color: #ffffff;
-		margin-left: 16rpx;
-	}
-
-	.resource-status.status-approved {
-		background-color: #34c759;
-	}
-
-	.resource-status.status-pending {
-		background-color: #ff9500;
-	}
-
-	.resource-status.status-rejected {
-		background-color: #ff3b30;
-	}
-
-	.resource-desc {
-		font-size: 28rpx;
-		color: #666666;
-		line-height: 1.5;
-		margin-bottom: 16rpx;
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		overflow: hidden;
-	}
-
-	.resource-tags {
-		display: flex;
-		gap: 12rpx;
-		margin-bottom: 20rpx;
-		flex-wrap: wrap;
-	}
-
-	.resource-tag {
-		padding: 6rpx 12rpx;
-		background-color: #f0f0f0;
-		border-radius: 12rpx;
-		font-size: 22rpx;
-		color: #666666;
-	}
-
-	.resource-stats {
-		display: flex;
-		gap: 32rpx;
-		margin-bottom: 24rpx;
-		padding: 16rpx 0;
-		border-top: 1rpx solid #f0f0f0;
-		border-bottom: 1rpx solid #f0f0f0;
-	}
-
-	.stat-group {
-		display: flex;
-		align-items: center;
-		gap: 8rpx;
-	}
-
-	.stat-icon {
-		font-size: 20rpx;
-	}
-
-	.stat-text {
-		font-size: 24rpx;
-		color: #666666;
-	}
-
 	.resource-actions {
 		display: flex;
-		gap: 16rpx;
-	}
+			gap: 24rpx;
+			margin-top: 24rpx;
 
 	.action-btn {
 		flex: 1;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 8rpx;
-		padding: 16rpx;
+				gap: 12rpx;
+				padding: 16rpx 24rpx;
 		border-radius: 12rpx;
 		font-size: 24rpx;
 		border: none;
-	}
 
-	.action-btn.secondary {
+				&.secondary {
 		background-color: #f0f0f0;
 		color: #666666;
 	}
 
-	.action-btn.danger {
+				&.danger {
 		background-color: #ff3b30;
 		color: #ffffff;
 	}
 
 	.btn-icon {
-		font-size: 20rpx;
+					font-size: 24rpx;
 	}
 
 	.btn-text {
 		font-size: 24rpx;
+				}
+			}
+		}
 	}
 
 	/* 空状态 */
@@ -793,5 +724,31 @@
 		font-size: 48rpx;
 		color: #ffffff;
 		font-weight: 300;
+	}
+
+	.resource-title {
+		display: block;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #333;
+		margin-bottom: 15rpx;
+		line-height: 1.4;
+	}
+
+	.resource-desc {
+		display: -webkit-box;
+		max-width: 100%;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: normal;
+		font-size: 26rpx;
+		color: #666;
+		line-height: 1.5;
 	}
 </style>

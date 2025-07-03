@@ -32,9 +32,13 @@
           <el-icon><Bell /></el-icon>
           <span>通知管理</span>
         </el-menu-item>
-        <el-menu-item index="/statistics">
-          <el-icon><PieChart /></el-icon>
-          <span>数据统计</span>
+        <el-menu-item index="/feedbacks">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>反馈管理</span>
+        </el-menu-item>
+        <el-menu-item index="/containers">
+          <el-icon><Monitor /></el-icon>
+          <span>容器管理</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -81,9 +85,10 @@ import {
   User,
   Document,
   Bell,
-  PieChart,
   ArrowDown,
-  ChatLineRound
+  ChatLineRound,
+  ChatDotRound,
+  Monitor
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

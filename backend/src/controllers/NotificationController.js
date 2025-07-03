@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator')
-const { Notification, User } = require('../models')
+const { Notification, User, NotificationRead, Post, Resource } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 const { Op } = require('sequelize')
 
 class NotificationController {
@@ -16,31 +17,53 @@ class NotificationController {
       } = req.query
 
       const offset = (page - 1) * limit
-      const whereClause = { receiver_phone: phone_number }
+      
+      // 构建查询条件：包含个人通知和广播通知
+      const whereClause = {
+        [Op.or]: [
+          { receiver_phone: phone_number }, // 个人通知
+          { receiver_phone: null }          // 广播通知
+        ]
+      }
 
       // 添加筛选条件
       if (type) {
-        whereClause.type = type
-      }
-      if (is_read !== undefined) {
-        whereClause.is_read = is_read === 'true'
+        if (type === 'interaction') {
+          // 互动类型包含新的 interaction 类型和旧的具体类型
+          whereClause.type = {
+            [Op.in]: ['interaction', 'follow_post', 'follow_resource', 'comment_reply', 'content_liked', 'content_commented', 'new_follower']
+          }
+        } else {
+          whereClause.type = type
+        }
       }
       if (priority) {
         whereClause.priority = priority
       }
 
       // 只显示未过期的通知
-      whereClause[Op.or] = [
-        { expires_at: null },
-        { expires_at: { [Op.gt]: new Date() } }
+      whereClause[Op.and] = [
+        {
+          [Op.or]: [
+            { expires_at: null },
+            { expires_at: { [Op.gt]: new Date() } }
+          ]
+        }
       ]
 
+      // 查询通知并左连接已读状态、相关用户信息
       const { count, rows: notifications } = await Notification.findAndCountAll({
         where: whereClause,
         include: [
           {
+            model: NotificationRead,
+            as: 'readByUsers',
+            where: { user_phone: phone_number },
+            required: false // LEFT JOIN
+          },
+          {
             model: User,
-            as: 'sender',
+            as: 'relatedUser',
             attributes: ['phone_number', 'name', 'nickname', 'avatar_url'],
             required: false
           }
@@ -53,8 +76,8 @@ class NotificationController {
         offset: parseInt(offset)
       })
 
-      // 获取未读消息数量
-      const unreadCount = await Notification.count({
+      // 获取未读消息数量（包含个人通知和未读的广播通知）
+      const personalUnreadCount = await Notification.count({
         where: {
           receiver_phone: phone_number,
           is_read: false,
@@ -63,30 +86,79 @@ class NotificationController {
             { expires_at: { [Op.gt]: new Date() } }
           ]
         }
-      })
+      });
+      
+      // 获取未读的广播通知数量
+      const broadcastNotifications = await Notification.findAll({
+        where: {
+          receiver_phone: null,
+          [Op.or]: [
+            { expires_at: null },
+            { expires_at: { [Op.gt]: new Date() } }
+          ]
+        },
+        include: [
+          {
+            model: NotificationRead,
+            as: 'readByUsers',
+            where: { user_phone: phone_number },
+            required: false
+          }
+        ]
+      });
+      
+      const unreadBroadcastCount = broadcastNotifications.filter(n => 
+        !n.readByUsers || n.readByUsers.length === 0
+      ).length;
+      
+      const unreadCount = personalUnreadCount + unreadBroadcastCount;
 
       res.json({
         success: true,
         message: '获取通知列表成功',
         data: {
-          notifications: notifications.map(notification => ({
-            notification_id: notification.notification_id,
-            type: notification.type,
-            priority: notification.priority,
-            title: notification.title,
-            content: notification.content,
-            action_type: notification.action_type,
-            action_url: notification.action_url,
-            action_params: notification.action_params,
-            is_read: notification.is_read,
-            read_at: notification.read_at,
-            created_at: notification.created_at,
-            sender: notification.sender ? {
-              name: notification.sender.name,
-              nickname: notification.sender.nickname,
-              avatar_url: notification.sender.avatar_url
-            } : null
-          })),
+          notifications: notifications.map(notification => {
+            const isBroadcast = notification.receiver_phone === null;
+            const isRead = isBroadcast 
+              ? notification.readByUsers && notification.readByUsers.length > 0
+              : notification.is_read;
+            const readAt = isBroadcast
+              ? (notification.readByUsers && notification.readByUsers.length > 0 
+                 ? notification.readByUsers[0].read_at : null)
+              : notification.read_at;
+
+            // 如果有is_read筛选条件，过滤结果
+            if (is_read !== undefined) {
+              const shouldBeRead = is_read === 'true';
+              if (isRead !== shouldBeRead) {
+                return null; // 稍后过滤掉
+              }
+            }
+            
+            return {
+              notification_id: notification.notification_id,
+              type: notification.type,
+              priority: notification.priority,
+              title: notification.title,
+              content: notification.content,
+              action_type: notification.action_type,
+              action_url: notification.action_url,
+              action_params: notification.action_params,
+              is_read: isRead,
+              read_at: readAt,
+              created_at: notification.created_at,
+              is_broadcast: isBroadcast,
+              // 新增关联信息
+              related_user_phone: notification.related_user_phone,
+              related_content_id: notification.related_content_id,
+              related_content_type: notification.related_content_type,
+              related_user: notification.relatedUser ? {
+                phone_number: notification.relatedUser.phone_number,
+                name: notification.relatedUser.nickname || notification.relatedUser.name,
+                avatar_url: notification.relatedUser.avatar_url
+              } : null
+            };
+          }).filter(n => n !== null), // 过滤掉不符合is_read条件的通知
           pagination: {
             current_page: parseInt(page),
             per_page: parseInt(limit),
@@ -114,12 +186,21 @@ class NotificationController {
       const notification = await Notification.findOne({
         where: {
           notification_id: id,
-          receiver_phone: phone_number
+          [Op.or]: [
+            { receiver_phone: phone_number }, // 个人通知
+            { receiver_phone: null }          // 广播通知
+          ]
         },
         include: [
           {
+            model: NotificationRead,
+            as: 'readByUsers',
+            where: { user_phone: phone_number },
+            required: false
+          },
+          {
             model: User,
-            as: 'sender',
+            as: 'relatedUser',
             attributes: ['phone_number', 'name', 'nickname', 'avatar_url'],
             required: false
           }
@@ -132,6 +213,15 @@ class NotificationController {
           message: '通知不存在'
         })
       }
+
+      const isBroadcast = notification.receiver_phone === null;
+      const isRead = isBroadcast 
+        ? notification.readByUsers && notification.readByUsers.length > 0
+        : notification.is_read;
+      const readAt = isBroadcast
+        ? (notification.readByUsers && notification.readByUsers.length > 0 
+           ? notification.readByUsers[0].read_at : null)
+        : notification.read_at;
 
       res.json({
         success: true,
@@ -146,13 +236,18 @@ class NotificationController {
             action_type: notification.action_type,
             action_url: notification.action_url,
             action_params: notification.action_params,
-            is_read: notification.is_read,
-            read_at: notification.read_at,
+            is_read: isRead,
+            read_at: readAt,
             created_at: notification.created_at,
-            sender: notification.sender ? {
-              name: notification.sender.name,
-              nickname: notification.sender.nickname,
-              avatar_url: notification.sender.avatar_url
+            is_broadcast: isBroadcast,
+            // 新增关联信息
+            related_user_phone: notification.related_user_phone,
+            related_content_id: notification.related_content_id,
+            related_content_type: notification.related_content_type,
+            related_user: notification.relatedUser ? {
+              phone_number: notification.relatedUser.phone_number,
+              name: notification.relatedUser.nickname || notification.relatedUser.name,
+              avatar_url: notification.relatedUser.avatar_url
             } : null
           }
         }
@@ -175,7 +270,10 @@ class NotificationController {
       const notification = await Notification.findOne({
         where: {
           notification_id: id,
-          receiver_phone: phone_number
+          [Op.or]: [
+            { receiver_phone: phone_number }, // 个人通知
+            { receiver_phone: null }          // 广播通知
+          ]
         }
       })
 
@@ -186,10 +284,31 @@ class NotificationController {
         })
       }
 
-      await notification.update({
-        is_read: true,
-        read_at: new Date()
-      })
+      const isBroadcast = notification.receiver_phone === null;
+      
+      if (isBroadcast) {
+        // 广播通知：在notification_reads表中记录已读状态
+        const [readRecord, created] = await NotificationRead.findOrCreate({
+          where: {
+            user_phone: phone_number,
+            notification_id: id
+          },
+          defaults: {
+            read_at: new Date()
+          }
+        });
+        
+        if (!created) {
+          // 如果已存在记录，更新读取时间
+          await readRecord.update({ read_at: new Date() });
+        }
+      } else {
+        // 个人通知：直接更新通知记录
+        await notification.update({
+          is_read: true,
+          read_at: new Date()
+        })
+      }
 
       res.json({
         success: true,
@@ -209,6 +328,7 @@ class NotificationController {
     try {
       const phone_number = req.user.phone_number
 
+      // 标记所有个人通知为已读
       await Notification.update(
         {
           is_read: true,
@@ -221,6 +341,42 @@ class NotificationController {
           }
         }
       )
+
+      // 获取所有未读的广播通知
+      const broadcastNotifications = await Notification.findAll({
+        where: {
+          receiver_phone: null,
+          [Op.or]: [
+            { expires_at: null },
+            { expires_at: { [Op.gt]: new Date() } }
+          ]
+        },
+        include: [
+          {
+            model: NotificationRead,
+            as: 'readByUsers',
+            where: { user_phone: phone_number },
+            required: false
+          }
+        ]
+      });
+
+      // 为未读的广播通知创建已读记录
+      const unreadBroadcastIds = broadcastNotifications
+        .filter(n => !n.readByUsers || n.readByUsers.length === 0)
+        .map(n => n.notification_id);
+
+      if (unreadBroadcastIds.length > 0) {
+        const readRecords = unreadBroadcastIds.map(notificationId => ({
+          user_phone: phone_number,
+          notification_id: notificationId,
+          read_at: new Date()
+        }));
+        
+        await NotificationRead.bulkCreate(readRecords, {
+          ignoreDuplicates: true
+        });
+      }
 
       res.json({
         success: true,
@@ -275,7 +431,8 @@ class NotificationController {
     try {
       const phone_number = req.user.phone_number
 
-      const unreadCount = await Notification.count({
+      // 获取个人通知未读数量
+      const personalUnreadCount = await Notification.count({
         where: {
           receiver_phone: phone_number,
           is_read: false,
@@ -284,7 +441,32 @@ class NotificationController {
             { expires_at: { [Op.gt]: new Date() } }
           ]
         }
-      })
+      });
+      
+      // 获取未读的广播通知数量
+      const broadcastNotifications = await Notification.findAll({
+        where: {
+          receiver_phone: null,
+          [Op.or]: [
+            { expires_at: null },
+            { expires_at: { [Op.gt]: new Date() } }
+          ]
+        },
+        include: [
+          {
+            model: NotificationRead,
+            as: 'readByUsers',
+            where: { user_phone: phone_number },
+            required: false
+          }
+        ]
+      });
+      
+      const unreadBroadcastCount = broadcastNotifications.filter(n => 
+        !n.readByUsers || n.readByUsers.length === 0
+      ).length;
+      
+      const unreadCount = personalUnreadCount + unreadBroadcastCount;
 
       res.json({
         success: true,
@@ -358,43 +540,61 @@ class NotificationController {
 
       // 生成通知ID
       const generateNotificationId = () => {
-        return Math.floor(100000000 + Math.random() * 900000000).toString()
+        return idGenerator.generateNotificationId()
       }
 
       let targetUsers = target_users
       if (!targetUsers || targetUsers.length === 0) {
-        // 如果没有指定目标用户，则发送给所有激活用户
-        const allUsers = await User.findAll({
-          where: { status: 'active' },
-          attributes: ['phone_number']
-        })
-        targetUsers = allUsers.map(user => user.phone_number)
+        // 如果没有指定目标用户，则创建广播通知（receiver_phone为null）
+        const notificationData = {
+          notification_id: generateNotificationId(),
+          receiver_phone: null, // 广播通知
+          type,
+          priority,
+          title,
+          content,
+          action_type,
+          action_url,
+          action_params,
+          expires_at
+        };
+        
+        await Notification.create(notificationData);
+        
+        res.json({
+          success: true,
+          message: '广播通知发布成功',
+          data: {
+            sent_count: 1,
+            is_broadcast: true
+          }
+        });
+      } else {
+        // 批量创建个人通知
+        const notifications = targetUsers.map(phone => ({
+          notification_id: generateNotificationId(),
+          receiver_phone: phone,
+          type,
+          priority,
+          title,
+          content,
+          action_type,
+          action_url,
+          action_params,
+          expires_at
+        }));
+
+        await Notification.bulkCreate(notifications);
+
+        res.json({
+          success: true,
+          message: '系统通知发布成功',
+          data: {
+            sent_count: notifications.length,
+            is_broadcast: false
+          }
+        });
       }
-
-      // 批量创建通知
-      const notifications = targetUsers.map(phone => ({
-        notification_id: generateNotificationId(),
-        receiver_phone: phone,
-        sender_phone: null, // 系统通知没有发送者
-        type,
-        priority,
-        title,
-        content,
-        action_type,
-        action_url,
-        action_params,
-        expires_at
-      }))
-
-      await Notification.bulkCreate(notifications)
-
-      res.json({
-        success: true,
-        message: '系统通知发布成功',
-        data: {
-          sent_count: notifications.length
-        }
-      })
     } catch (error) {
       console.error('发布系统通知失败:', error)
       res.status(500).json({

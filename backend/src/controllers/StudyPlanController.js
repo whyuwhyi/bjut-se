@@ -1,4 +1,5 @@
 const { StudyPlan, StudyTask, SubTask, User } = require('../models')
+const idGenerator = require('../utils/IdGenerator')
 const { Op } = require('sequelize')
 
 // 获取用户的学习计划列表
@@ -72,7 +73,7 @@ const createStudyPlan = async (req, res) => {
     const { title, description, start_date, end_date, plan_type, priority } = req.body
 
     // 生成9位数字ID
-    const plan_id = Date.now().toString().slice(-9)
+    const plan_id = idGenerator.generatePlanId()
 
     const plan = await StudyPlan.create({
       plan_id,
