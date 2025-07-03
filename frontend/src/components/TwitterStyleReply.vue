@@ -1,8 +1,8 @@
 <template>
 	<view class="twitter-reply-container">
-		<view class="reply-item" :class="{ 'deep-reply': depth > 2 }">
+		<view class="reply-item" :class="{ 'deep-reply': depth >= 2 }">
 			<!-- 连线指示器 -->
-			<view class="reply-line" v-if="depth > 0"></view>
+			<view class="reply-line" v-if="depth > 0" :style="{ left: getLinePosition(depth) + 'rpx' }"></view>
 			
 			<!-- 头像 -->
 			<image 
@@ -86,23 +86,34 @@ export default {
 			this.$emit('viewProfile', userPhone, userInfo)
 		},
 		
-		// 根据深度获取头像尺寸
+		// 根据深度获取头像尺寸（平面化回复使用统一大小）
 		getAvatarSize(depth) {
+			if (depth >= 2) {
+				return 35 // 平面化回复统一使用35rpx头像
+			}
 			const baseSize = 50
-			const minSize = 30
-			const decrease = Math.min(depth * 4, 20)
+			const minSize = 35
+			const decrease = Math.min(depth * 8, 15)
 			return Math.max(baseSize - decrease, minSize)
 		},
 		
-		// 根据深度获取缩进尺寸
+		// 根据深度获取缩进尺寸（平面化回复统一缩进）
 		getIndentSize(depth) {
 			if (depth === 0) return 0
-			return Math.min(depth * 20, 60) // 最大缩进60rpx
+			if (depth === 1) return 20
+			// 所有平面化回复（depth >= 2）使用相同的缩进
+			return 40 // 平面化回复统一缩进40rpx，比1级回复更靠右
 		},
 		
-		// 根据深度获取内容边距
+		// 根据深度获取内容边距（极小间距）
 		getContentMargin(depth) {
-			return this.getIndentSize(depth) + this.getAvatarSize(depth) + 12
+			return this.getIndentSize(depth) + this.getAvatarSize(depth) + 2
+		},
+		
+		// 根据深度获取线条位置
+		getLinePosition(depth) {
+			if (depth === 1) return 10 // 1级回复的线条位置
+			return 30 // 所有平面化回复（depth >= 2）使用相同的线条位置
 		},
 		
 		// 根据深度获取用户名字体大小
@@ -137,12 +148,9 @@ export default {
 			return Math.max(baseSize - decrease, minSize)
 		},
 		
-		// 根据深度获取回复按钮字体大小
+		// 统一回复按钮字体大小
 		getReplyBtnSize(depth) {
-			const baseSize = 22
-			const minSize = 18
-			const decrease = Math.min(depth * 2, 6)
-			return Math.max(baseSize - decrease, minSize)
+			return 20 // 所有回复按钮使用相同大小
 		},
 		
 		// 根据深度获取引用内容字体大小
@@ -217,7 +225,7 @@ export default {
 	
 	.reply-avatar {
 		border-radius: 50%;
-		margin-right: 12rpx;
+		margin-right: 2rpx;
 		flex-shrink: 0;
 		border: 1rpx solid #f0f0f0;
 		transition: transform 0.2s ease;
@@ -230,6 +238,7 @@ export default {
 	.reply-content {
 		flex: 1;
 		min-width: 0;
+		margin-right: 20rpx;
 		
 		.reply-header {
 			display: flex;
@@ -259,7 +268,7 @@ export default {
 			background: #f8f9fa;
 			border-left: 3rpx solid #007AFF;
 			padding: 8rpx 12rpx;
-			margin: 6rpx 0;
+			margin: 6rpx 20rpx 6rpx 0; // 增加右边距，防止太靠右
 			border-radius: 0 6rpx 6rpx 0;
 			color: #666;
 			line-height: 1.4;

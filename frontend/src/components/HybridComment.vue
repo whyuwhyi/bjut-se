@@ -21,13 +21,21 @@
 						<view class="reply-btn" @click="replyToComment(comment)">
 							<text class="reply-text">回复</text>
 						</view>
+						
+						<!-- 展开/隐藏回复按钮 -->
+						<view class="toggle-replies-btn" v-if="shouldShowToggle" @click="toggleReplies">
+							<text class="toggle-text">
+								{{ repliesExpanded ? '隐藏回复' : `查看${totalRepliesCount}条回复` }}
+							</text>
+							<text class="toggle-icon">{{ repliesExpanded ? '▲' : '▼' }}</text>
+						</view>
 					</view>
 				</view>
 			</view>
 		</view>
 		
 		<!-- 递归嵌套回复显示 - Twitter风格 -->
-		<view class="replies-container" v-if="comment.replies && comment.replies.length > 0">
+		<view class="replies-container" v-if="comment.replies && comment.replies.length > 0 && (repliesExpanded || !shouldShowToggle)">
 			<TwitterStyleReply
 				v-for="reply in comment.replies"
 				:key="reply.comment_id"
@@ -55,6 +63,30 @@ export default {
 			required: true
 		}
 	},
+	data() {
+		return {
+			repliesExpanded: false // 回复是否展开，默认隐藏
+		}
+	},
+	computed: {
+		// 计算总回复数（递归计算所有层级）
+		totalRepliesCount() {
+			const countReplies = (replies) => {
+				if (!replies || !Array.isArray(replies)) return 0
+				let count = replies.length
+				replies.forEach(reply => {
+					count += countReplies(reply.replies)
+				})
+				return count
+			}
+			return countReplies(this.comment.replies)
+		},
+		
+		// 是否应该显示展开/隐藏按钮
+		shouldShowToggle() {
+			return this.totalRepliesCount >= 3
+		}
+	},
 	methods: {
 		replyToComment(comment) {
 			this.$emit('reply', comment)
@@ -62,6 +94,11 @@ export default {
 		
 		viewUserProfile(userPhone, userInfo) {
 			this.$emit('viewProfile', userPhone, userInfo)
+		},
+		
+		// 切换回复展开状态
+		toggleReplies() {
+			this.repliesExpanded = !this.repliesExpanded
 		},
 		
 		formatTime(time) {
@@ -143,6 +180,8 @@ export default {
 			.comment-footer {
 				display: flex;
 				justify-content: flex-end;
+				align-items: center;
+				gap: 12rpx;
 				
 				.reply-btn {
 					padding: 4rpx 12rpx;
@@ -153,6 +192,32 @@ export default {
 					
 					&:active {
 						background: #e0e0e0;
+					}
+				}
+				
+				.toggle-replies-btn {
+					display: flex;
+					align-items: center;
+					padding: 4rpx 12rpx;
+					background: #007AFF;
+					border-radius: 12rpx;
+					font-size: 22rpx;
+					color: #fff;
+					gap: 4rpx;
+					
+					&:active {
+						background: #0056CC;
+						transform: scale(0.95);
+					}
+					
+					.toggle-text {
+						color: #fff;
+					}
+					
+					.toggle-icon {
+						color: #fff;
+						font-size: 18rpx;
+						font-weight: bold;
 					}
 				}
 			}
