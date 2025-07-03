@@ -1,10 +1,11 @@
 <template>
+	<view>
 	<view class="forum-container">
 		<!-- 顶部搜索和筛选区域 -->
 		<view class="top-section">
 			<!-- 搜索栏 -->
 			<view class="search-bar">
-				<text class="search-icon">🔍</text>
+					<text class="search-icon">��</text>
 				<input class="search-input" placeholder="搜索帖子..." v-model="searchKeyword" @input="handleSearch"/>
 			</view>
 			
@@ -58,7 +59,7 @@
 					<view class="author-info">
 						<image 
 							class="avatar" 
-							:src="post.author.avatar_url || '/static/default-avatar.png'" 
+							:src="post.author.avatar_url || '/static/images/default-avatar.png'" 
 							mode="aspectFill"
 							@click.stop="viewUserProfile(post.author.phone_number, post.author)"
 						></image>
@@ -94,11 +95,6 @@
 			</view>
 		</view>
 
-		<!-- 发布按钮 -->
-		<view class="create-btn" @click="goToCreate">
-			<image class="create-icon" src="/static/icons/post.png" mode="aspectFit"></image>
-		</view>
-
 		<!-- 加载更多 -->
 		<view class="load-more" v-if="hasMore && !loading">
 			<button class="load-more-btn" @click="loadMore">加载更多</button>
@@ -107,6 +103,12 @@
 		<!-- 加载中提示 -->
 		<view class="loading" v-if="loading">
 			<text class="loading-text">加载中...</text>
+			</view>
+		</view>
+		
+		<!-- 发布按钮 -->
+		<view class="create-post-btn" @click="goToCreate">
+			<image class="create-icon" src="/static/icons/post.png" mode="aspectFit"></image>
 		</view>
 	</view>
 </template>
@@ -287,137 +289,161 @@ export default {
 <style lang="scss" scoped>
 .forum-container {
 	min-height: 100vh;
-	padding: 32rpx;
-	background: linear-gradient(to bottom, #FFF8DB, #FAEED1);
+	padding: 20rpx;
+	background: #f5f5f5;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	box-sizing: border-box;
 }
-	
+
 .top-section {
-	margin-bottom: 32rpx;
-	
+	width: 100%;
+	background: white;
+	padding: 20rpx;
+	border-radius: 12rpx;
+	margin-bottom: 20rpx;
+	box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+	box-sizing: border-box;
+
 	.search-bar {
 		display: flex;
 		align-items: center;
-		background: white;
-		border-radius: 24rpx;
-		padding: 20rpx;
-		margin-bottom: 24rpx;
+		background: #f8f8f8;
+		border-radius: 8rpx;
+		padding: 0 20rpx;
+		margin-bottom: 16rpx;
+		width: 100%;
+		box-sizing: border-box;
 		
 		.search-icon {
-			margin-right: 15rpx;
 			font-size: 28rpx;
+			margin-right: 16rpx;
 			color: #999;
+			flex-shrink: 0;
 		}
 		
 		.search-input {
 			flex: 1;
+			height: 70rpx;
 			font-size: 28rpx;
-			color: #333;
-			
-			&::placeholder {
-				color: #999;
-			}
+			min-width: 0;
 		}
 	}
 	
 	.tag-filter {
-		margin-bottom: 24rpx;
+		margin-bottom: 16rpx;
+		width: 100%;
+		box-sizing: border-box;
 		
 		.tag-scroll {
 			width: 100%;
 			white-space: nowrap;
-		}
-		
-		.tag-list {
-			display: inline-flex;
-			gap: 12rpx;
+			box-sizing: border-box;
 			
-			.tag-item {
-				padding: 12rpx 24rpx;
-				background: #f8f8f8;
-				border-radius: 30rpx;
-				white-space: nowrap;
+			.tag-list {
+				display: inline-flex;
+				gap: 12rpx;
+				padding: 4rpx;
+				box-sizing: border-box;
 				
-				&.active {
-					background: #007aff;
+				.tag-item {
+					padding: 8rpx 20rpx;
+					background: #f8f8f8;
+					border-radius: 24rpx;
+					
+					&.active {
+						background: #007aff;
+						
+						.tag-text {
+							color: white;
+						}
+					}
 					
 					.tag-text {
-						color: white;
+						font-size: 24rpx;
+						color: #666;
 					}
-				}
-				
-				.tag-text {
-					font-size: 26rpx;
-					color: #666;
 				}
 			}
 		}
 	}
 	
 	.sort-section {
+		width: 100%;
+		box-sizing: border-box;
+		
 		.sort-picker {
 			display: flex;
 			align-items: center;
-			justify-content: center;
-			background: white;
-			border-radius: 24rpx;
-			padding: 15rpx 20rpx;
+			justify-content: flex-end;
+			gap: 8rpx;
+			width: 100%;
+			box-sizing: border-box;
 			
 			.sort-text {
-				font-size: 26rpx;
-				color: #333;
-				margin-right: 8rpx;
+				font-size: 24rpx;
+				color: #666;
 			}
 			
 			.sort-icon {
 				font-size: 20rpx;
-				color: #999;
+				color: #666;
 			}
 		}
 	}
 }
 
 .posts-list {
-	padding: 0;
 	width: 100%;
-	box-sizing: border-box;
 	
 	.post-item {
 		background: white;
-		border-radius: 24rpx;
-		padding: 32rpx;
-		margin-bottom: 32rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+		border-radius: 12rpx;
+		padding: 20rpx;
+		margin-bottom: 20rpx;
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+		width: 100%;
+		box-sizing: border-box;
 		
 		.post-header {
 			display: flex;
 			justify-content: space-between;
 			align-items: flex-start;
-			margin-bottom: 20rpx;
+			margin-bottom: 16rpx;
+			width: 100%;
 			
 			.author-info {
 				display: flex;
 				align-items: center;
+				flex: 1;
+				min-width: 0;
 				
 				.avatar {
-					width: 60rpx;
-					height: 60rpx;
-					border-radius: 50%;
-					margin-right: 15rpx;
+					width: 64rpx;
+					height: 64rpx;
+					border-radius: 32rpx;
+					margin-right: 12rpx;
+					flex-shrink: 0;
 				}
 				
 				.author-details {
-					display: flex;
-					flex-direction: column;
+					flex: 1;
+					min-width: 0;
 					
 					.author-name {
 						font-size: 28rpx;
-						font-weight: bold;
 						color: #333;
-						margin-bottom: 5rpx;
+						font-weight: 500;
+						margin-bottom: 4rpx;
+						white-space: nowrap;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						max-width: 100%;
 					}
 					
 					.post-time {
-						font-size: 22rpx;
+						font-size: 24rpx;
 						color: #999;
 					}
 				}
@@ -425,49 +451,52 @@ export default {
 			
 			.post-stats {
 				display: flex;
-				gap: 15rpx;
+				gap: 12rpx;
+				flex-shrink: 0;
 				
 				.stat-item {
-					font-size: 22rpx;
+					font-size: 24rpx;
 					color: #999;
 				}
 			}
 		}
 		
 		.post-content {
-			margin-bottom: 20rpx;
+			margin-bottom: 16rpx;
+			width: 100%;
 			
 			.post-title {
-				display: block;
-				font-size: 32rpx;
-				font-weight: bold;
+				font-size: 30rpx;
 				color: #333;
-				margin-bottom: 15rpx;
-				line-height: 1.4;
+				font-weight: bold;
+				margin-bottom: 8rpx;
+				width: 100%;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				display: block;
 			}
 			
 			.post-excerpt {
-				display: block;
 				font-size: 26rpx;
 				color: #666;
 				line-height: 1.5;
+				display: -webkit-box;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: 2;
+				overflow: hidden;
 			}
 		}
 		
 		.post-footer {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			
 			.post-tags {
 				display: flex;
-				gap: 10rpx;
 				flex-wrap: wrap;
-				flex: 1;
+				gap: 8rpx;
 				
 				.post-tag {
-					padding: 8rpx 16rpx;
-					border-radius: 20rpx;
+					padding: 4rpx 12rpx;
+					border-radius: 16rpx;
 					
 					.tag-name {
 						font-size: 22rpx;
@@ -478,10 +507,10 @@ export default {
 	}
 }
 
-.create-btn {
+.create-post-btn {
 	position: fixed;
 	right: 40rpx;
-	bottom: 160rpx;
+	bottom: 120rpx;
 	width: 120rpx;
 	height: 120rpx;
 	background: rgba(0, 122, 255, 0.1);
@@ -505,25 +534,33 @@ export default {
 }
 
 .load-more {
-	padding: 20rpx;
+	width: 100%;
+	padding: 16rpx 0;
 	text-align: center;
 	
 	.load-more-btn {
-		background: #f8f8f8;
-		color: #666;
+		display: inline-block;
+		padding: 12rpx 24rpx;
+		background: #007aff;
+		color: white;
+		border-radius: 24rpx;
+		font-size: 24rpx;
 		border: none;
-		border-radius: 50rpx;
-		padding: 20rpx 40rpx;
-		font-size: 26rpx;
+		
+		&:active {
+			transform: scale(0.98);
+			background: darken(#007aff, 5%);
+		}
 	}
 }
 
 .loading {
-	padding: 40rpx;
+	width: 100%;
+	padding: 16rpx 0;
 	text-align: center;
 	
 	.loading-text {
-		font-size: 26rpx;
+		font-size: 24rpx;
 		color: #999;
 	}
 }

@@ -183,7 +183,7 @@ export default {
 <style lang="scss" scoped>
 .privacy-container {
 	min-height: 100vh;
-	background: #f8f9fa;
+	background: #f5f5f5;
 	padding: 30rpx;
 }
 

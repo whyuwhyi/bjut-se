@@ -7,8 +7,11 @@
 				<input 
 					class="title-input" 
 					placeholder="请输入帖子标题..."
-					v-model="form.title"
+					:value="form.title"
+					@input="onTitleInput"
 					maxlength="200"
+					type="text"
+					confirm-type="done"
 				/>
 				<text class="char-count">{{ form.title.length }}/200</text>
 			</view>
@@ -32,9 +35,12 @@
 						<input 
 							class="tag-input" 
 							placeholder="输入标签名称..." 
-							v-model="newTag"
+							:value="newTag"
+							@input="onTagInput"
 							@confirm="addTag"
 							maxlength="20"
+							type="text"
+							confirm-type="done"
 						/>
 						<button class="add-tag-btn" @click="addTag" :disabled="!newTag.trim()">添加</button>
 					</view>
@@ -155,6 +161,20 @@ export default {
 	},
 	
 	methods: {
+		onTitleInput(e) {
+			// 确保在下一个事件循环中更新值
+			setTimeout(() => {
+				this.form.title = e.detail.value
+			}, 0)
+		},
+		
+		onTagInput(e) {
+			// 确保在下一个事件循环中更新值
+			setTimeout(() => {
+				this.newTag = e.detail.value
+			}, 0)
+		},
+		
 		async loadPopularTags() {
 			try {
 				const response = await uni.request({
@@ -342,73 +362,54 @@ export default {
 <style lang="scss" scoped>
 .create-container {
 	min-height: 100vh;
-	padding: 30rpx;
+	padding: 20rpx;
 	padding-bottom: 160rpx;
-	background: transparent !important;
-	
-	&::before {
-		content: '';
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: -1;
-		background-color: #FAEED1;
-		background-image: linear-gradient(135deg, #FFF8DB 0%, #FAEED1 100%);
-		background-size: 400% 400%;
-		animation: backgroundPan 15s ease infinite;
-	}
-}
-
-@keyframes backgroundPan {
-	0% {
-		background-position: 0% 50%;
-	}
-	50% {
-		background-position: 100% 50%;
-	}
-	100% {
-		background-position: 0% 50%;
-	}
+	background-color: #f5f5f5;
 }
 
 .form-section {
-	padding: 20rpx;
+	background: white;
+	border-radius: 20rpx;
+	padding: 30rpx;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+	margin: 0 auto;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.form-item {
+	margin-bottom: 30rpx;
 	
-	.form-item {
-		background: white;
-		border-radius: 20rpx;
-		padding: 30rpx;
-		margin-bottom: 20rpx;
-		
-		.form-label {
-			display: block;
-			font-size: 28rpx;
-			font-weight: bold;
-			color: #333;
-			margin-bottom: 20rpx;
-		}
-		
-		.title-input {
-			width: 100%;
-			font-size: 30rpx;
-			border: 1rpx solid #e0e0e0;
-			border-radius: 8rpx;
-			padding: 20rpx;
-			margin-bottom: 10rpx;
-		}
-		
-		.char-count {
-			font-size: 22rpx;
-			color: #999;
-			text-align: right;
-			display: block;
-		}
+	.form-label {
+		display: block;
+		font-size: 28rpx;
+		color: #666;
+		margin-bottom: 15rpx;
+	}
+	
+	.title-input {
+		width: 100%;
+		height: 80rpx;
+		padding: 20rpx;
+		border: 1rpx solid #e0e0e0;
+		border-radius: 8rpx;
+		font-size: 28rpx;
+		background: #fafafa;
+		box-sizing: border-box;
+	}
+	
+	.char-count {
+		font-size: 22rpx;
+		color: #999;
+		text-align: right;
+		display: block;
+		margin-top: 8rpx;
 	}
 }
 
 .tag-section {
+	width: 100%;
+	
 	.selected-tags {
 		display: flex;
 		flex-wrap: wrap;
@@ -442,19 +443,24 @@ export default {
 		
 		.tag-input {
 			flex: 1;
+			height: 70rpx;
 			border: 1rpx solid #e0e0e0;
 			border-radius: 8rpx;
 			padding: 15rpx;
 			font-size: 26rpx;
+			background: #fafafa;
+			box-sizing: border-box;
 		}
 		
 		.add-tag-btn {
+			height: 70rpx;
+			line-height: 70rpx;
 			background: #007aff;
 			color: white;
 			border: none;
 			border-radius: 8rpx;
-			padding: 0 20rpx;
-			font-size: 24rpx;
+			padding: 0 30rpx;
+			font-size: 26rpx;
 			
 			&[disabled] {
 				background: #ccc;
@@ -488,6 +494,9 @@ export default {
 }
 
 .editor-section {
+	width: 100%;
+	box-sizing: border-box;
+	
 	.editor-toolbar {
 		display: flex;
 		align-items: center;
@@ -495,6 +504,9 @@ export default {
 		padding-bottom: 15rpx;
 		margin-bottom: 15rpx;
 		gap: 15rpx;
+		width: 100%;
+		box-sizing: border-box;
+		overflow-x: auto;
 		
 		.toolbar-item {
 			padding: 8rpx 12rpx;
@@ -530,18 +542,26 @@ export default {
 		font-size: 26rpx;
 		line-height: 1.5;
 		resize: none;
+		box-sizing: border-box;
+		background: #fafafa;
 	}
 	
 	.content-preview {
+		width: 100%;
 		min-height: 400rpx;
 		border: 1rpx solid #e0e0e0;
 		border-radius: 8rpx;
 		padding: 20rpx;
+		box-sizing: border-box;
+		background: #fafafa;
 		
 		.preview-content {
 			font-size: 26rpx;
 			line-height: 1.5;
 			color: #333;
+			width: 100%;
+			box-sizing: border-box;
+			word-wrap: break-word;
 		}
 	}
 }

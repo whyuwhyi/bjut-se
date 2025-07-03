@@ -369,19 +369,19 @@ export default {
 }
 
 .top-section {
+	width: 100%;
 	background: white;
 	padding: 32rpx;
 	border-radius: 24rpx;
 	margin-bottom: 32rpx;
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-	width: 100%;
 	box-sizing: border-box;
-	
+
 	.search-bar {
 		display: flex;
 		align-items: center;
 		background: #f8f8f8;
-		border-radius: 24rpx;
+		border-radius: 16rpx;
 		padding: 0 30rpx;
 		margin-bottom: 20rpx;
 		
@@ -399,125 +399,22 @@ export default {
 	}
 	
 	.category-filter {
-		margin-top: 20rpx;
+		margin-bottom: 20rpx;
+		padding: 0 10rpx;
 		
 		.category-scroll {
-			.category-list {
-				display: flex;
-				gap: 12rpx;
-				padding: 0 20rpx;
-				
-				.category-item {
-					padding: 12rpx 24rpx;
-					background: rgba(0, 122, 255, 0.1);
-					border-radius: 30rpx;
-					white-space: nowrap;
-					flex-shrink: 0;
-					transition: all 0.3s ease;
-					
-					&.active {
-						background: #007aff;
-						
-						.category-text {
-							color: white;
-						}
-					}
-					
-					.category-text {
-						font-size: 26rpx;
-						color: #007aff;
-					}
-				}
-			}
-		}
-	}
-	
-	.sort-section {
-		margin-top: 20rpx;
-		
-		.sort-picker {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			background: rgba(0, 122, 255, 0.1);
-			border-radius: 8rpx;
-			padding: 15rpx 20rpx;
-			
-			.sort-text {
-				font-size: 26rpx;
-				color: #007aff;
-			}
-			
-			.sort-icon {
-				font-size: 20rpx;
-				color: #007aff;
-			}
-		}
-	}
-	
-	.filter-section {
-		margin-top: 20rpx;
-		
-		.filter-row {
-			display: flex;
-			gap: 15rpx;
-			margin-bottom: 15rpx;
-			
-			&:last-child {
-				margin-bottom: 0;
-			}
-			
-			.filter-item {
-				flex: 1;
-				display: flex;
-				flex-direction: column;
-				gap: 8rpx;
-				
-				&.sort-item {
-					flex: 2;
-				}
-				
-				.filter-label {
-					font-size: 24rpx;
-					color: #666;
-					font-weight: 500;
-				}
-				
-				.picker-view {
-					background: #f8f8f8;
-					border: 1rpx solid #e0e0e0;
-					border-radius: 8rpx;
-					padding: 15rpx 20rpx;
-					font-size: 26rpx;
-					color: #333;
-					text-align: center;
-					
-					&:active {
-						background: #eeeeee;
-					}
-				}
-			}
-		}
-	}
-	
-	.quick-filters {
-		display: flex;
-		align-items: center;
-		gap: 20rpx;
-		
-		.category-scroll {
-			flex: 1;
+			width: 100%;
 			white-space: nowrap;
 			
 			.category-list {
-				display: flex;
-				gap: 12rpx;
+				display: inline-flex;
+				gap: 16rpx;
+				padding: 4rpx;
 				
 				.category-item {
 					padding: 12rpx 24rpx;
 					background: #f8f8f8;
 					border-radius: 30rpx;
-					white-space: nowrap;
 					
 					&.active {
 						background: #007aff;
@@ -534,104 +431,52 @@ export default {
 				}
 			}
 		}
-		
-		.filter-controls {
-			display: flex;
-			gap: 12rpx;
-			
-			.filter-btn, .sort-btn {
-				display: flex;
-				align-items: center;
-				padding: 12rpx 16rpx;
-				background: #f8f8f8;
-				border-radius: 30rpx;
-				min-width: 80rpx;
-				
-				.filter-text, .sort-text {
-					font-size: 24rpx;
-					color: #666;
-					margin-right: 8rpx;
-				}
-				
-				.filter-icon, .sort-icon {
-					font-size: 20rpx;
-					color: #999;
-				}
-			}
-			
-			.sort-btn {
-				background: #e3f2fd;
-				
-				.sort-text {
-					color: #1976d2;
-				}
-				
-				.sort-icon {
-					color: #1976d2;
-				}
-			}
-		}
 	}
 	
-	.active-filters {
-		display: flex;
-		align-items: center;
-		gap: 12rpx;
-		margin-top: 20rpx;
-		flex-wrap: wrap;
+	.sort-section {
+		padding: 0 10rpx;
 		
-		.filter-tag {
+		.sort-picker {
 			display: flex;
 			align-items: center;
-			background: #007aff;
-			color: white;
-			padding: 8rpx 16rpx;
-			border-radius: 20rpx;
+			justify-content: flex-end;
+			gap: 8rpx;
 			
-			.tag-text {
-				font-size: 22rpx;
-				margin-right: 8rpx;
+			.sort-text {
+				font-size: 26rpx;
+				color: #666;
 			}
 			
-			.tag-close {
+			.sort-icon {
 				font-size: 20rpx;
-				font-weight: bold;
+				color: #666;
 			}
-		}
-		
-		.clear-all {
-			padding: 8rpx 16rpx;
-			background: #ff4757;
-			color: white;
-			border-radius: 20rpx;
-			font-size: 22rpx;
 		}
 	}
 }
 
 .resources-list {
-	padding: 0;
 	width: 100%;
-	box-sizing: border-box;
 	
 	.resource-item {
+		width: 100%;
 		background: white;
 		border-radius: 24rpx;
 		padding: 32rpx;
 		margin-bottom: 32rpx;
 		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+		box-sizing: border-box;
 		transition: all 0.3s ease;
 		
 		&:active {
 			transform: scale(0.98);
-			background: #f8f8f8;
+			background-color: #f8f8f8;
 		}
 		
 		.resource-header {
 			display: flex;
 			align-items: flex-start;
 			margin-bottom: 20rpx;
-			min-width: 0;
 			
 			.file-preview {
 				position: relative;
@@ -666,27 +511,26 @@ export default {
 				
 				.resource-title {
 					display: block;
-					max-width: 100%;
-					overflow: hidden;
-					text-overflow: ellipsis;
-					white-space: nowrap;
 					font-size: 32rpx;
 					font-weight: bold;
 					color: #333;
-					margin-bottom: 15rpx;
+					margin-bottom: 12rpx;
 					line-height: 1.4;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
 				}
 				
 				.resource-tags {
 					display: flex;
 					flex-wrap: wrap;
-					gap: 10rpx;
+					gap: 8rpx;
 					
 					.tag {
-						padding: 8rpx 16rpx;
+						padding: 6rpx 12rpx;
 						background: rgba(0, 122, 255, 0.1);
 						color: #007aff;
-						border-radius: 20rpx;
+						border-radius: 16rpx;
 						font-size: 22rpx;
 					}
 				}
@@ -697,12 +541,12 @@ export default {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
-			margin-bottom: 20rpx;
+			margin-bottom: 16rpx;
 			
 			.meta-info {
 				display: flex;
 				flex-direction: column;
-				gap: 8rpx;
+				gap: 6rpx;
 				
 				.author, .upload-time {
 					font-size: 24rpx;
@@ -712,7 +556,7 @@ export default {
 			
 			.resource-stats {
 				display: flex;
-				gap: 20rpx;
+				gap: 16rpx;
 				
 				.stat-item {
 					font-size: 24rpx;
@@ -723,16 +567,14 @@ export default {
 		
 		.resource-description {
 			.description-text {
+				font-size: 26rpx;
+				color: #666;
+				line-height: 1.5;
 				display: -webkit-box;
-				max-width: 100%;
 				-webkit-line-clamp: 2;
 				-webkit-box-orient: vertical;
 				overflow: hidden;
 				text-overflow: ellipsis;
-				white-space: normal;
-				font-size: 26rpx;
-				color: #666;
-				line-height: 1.5;
 			}
 		}
 	}
@@ -761,6 +603,27 @@ export default {
 	.upload-icon {
 		width: 60rpx;
 		height: 60rpx;
+	}
+}
+
+.load-more {
+	width: 100%;
+	padding: 20rpx 0;
+	text-align: center;
+	
+	.load-more-btn {
+		display: inline-block;
+		padding: 16rpx 32rpx;
+		background: #007aff;
+		color: white;
+		border-radius: 30rpx;
+		font-size: 26rpx;
+		border: none;
+		
+		&:active {
+			transform: scale(0.98);
+			background: #0056b3;
+		}
 	}
 }
 

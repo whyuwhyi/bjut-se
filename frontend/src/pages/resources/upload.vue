@@ -407,8 +407,13 @@ export default {
 		border-radius: 20rpx;
 		padding: 30rpx;
 	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+		width: 100%;
+		box-sizing: border-box;
 		
 	.form-section {
+		width: 100%;
+		box-sizing: border-box;
+		
 		.section-title {
 			display: block;
 			font-size: 32rpx;
@@ -419,6 +424,8 @@ export default {
 		
 		.form-item {
 			margin-bottom: 30rpx;
+			width: 100%;
+			box-sizing: border-box;
 			
 			.form-label {
 				display: block;
@@ -434,10 +441,12 @@ export default {
 				border-radius: 10rpx;
 				font-size: 28rpx;
 				background: #fafafa;
+				box-sizing: border-box;
 			}
 			
 			.form-textarea {
 				height: 150rpx;
+				resize: none;
 			}
 			
 			.picker-view {
@@ -447,6 +456,8 @@ export default {
 				background: #fafafa;
 				font-size: 28rpx;
 				color: #333;
+				width: 100%;
+				box-sizing: border-box;
 			}
 			
 			.tags-section {

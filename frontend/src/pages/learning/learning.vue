@@ -576,21 +576,33 @@ export default {
 	box-sizing: border-box;
 }
 
-.plan-selector .selector-trigger {
-	display: flex;
-	align-items: center;
-	gap: 12rpx;
+.plan-selector {
+	flex: 1;
+	min-width: 0;
+	
+	.selector-trigger {
+		display: flex;
+		align-items: center;
+		gap: 12rpx;
+		max-width: 100%;
+	}
 }
 
 .current-plan {
 	font-size: 32rpx;
 	font-weight: 600;
 	color: #333333;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex: 1;
+	min-width: 0;
 }
 
 .dropdown-icon {
 	font-size: 24rpx;
 	color: #666666;
+	flex-shrink: 0;
 }
 
 .plan-actions {
@@ -629,6 +641,9 @@ export default {
 	justify-content: space-between;
 	align-items: center;
 	margin-bottom: 16rpx;
+	width: 100%;
+	box-sizing: border-box;
+	gap: 16rpx;
 }
 
 .plan-title {
@@ -637,6 +652,11 @@ export default {
 	color: #007aff;
 	text-decoration: underline;
 	text-decoration-color: rgba(0, 122, 255, 0.3);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex: 1;
+	min-width: 0;
 }
 
 .plan-status {
@@ -644,6 +664,8 @@ export default {
 	border-radius: 12rpx;
 	font-size: 22rpx;
 	color: #ffffff;
+	flex-shrink: 0;
+	white-space: nowrap;
 }
 
 .plan-status.status-active {
@@ -813,6 +835,11 @@ export default {
 	font-weight: 500;
 	display: block;
 	margin-bottom: 8rpx;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .task-item.completed .task-title {
@@ -824,6 +851,11 @@ export default {
 	color: #666666;
 	display: block;
 	margin-bottom: 12rpx;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .task-meta {
