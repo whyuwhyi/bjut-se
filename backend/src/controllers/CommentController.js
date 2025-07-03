@@ -1,4 +1,5 @@
 const { Comment, User, Resource } = require('../models')
+const CommentTreeBuilder = require('../utils/commentTreeBuilder')
 
 class CommentController {
   // 创建评论
@@ -58,63 +59,14 @@ class CommentController {
     try {
       const { resourceId } = req.params
       const { page = 1, limit = 10 } = req.query
-
       const offset = (page - 1) * limit
 
-      const { count, rows } = await Comment.findAndCountAll({
-        where: {
-          resource_id: resourceId,
-          status: 'active',
-          parent_comment_id: null // 只获取顶级评论
-        },
-        include: [
-          {
-            model: User,
-            as: 'author',
-            attributes: ['name', 'nickname', 'avatar_url']
-          },
-          {
-            model: Comment,
-            as: 'replies',
-            include: [{
-              model: User,
-              as: 'author',
-              attributes: ['name', 'nickname', 'avatar_url']
-            }]
-          }
-        ],
-        order: [['created_at', 'DESC']],
-        limit: parseInt(limit),
-        offset: parseInt(offset)
-      })
-
-      // 为每条回复补充 reply_to_name 字段
-      for (const comment of rows) {
-        if (comment.replies && comment.replies.length > 0) {
-          for (const reply of comment.replies) {
-            if (reply.parent_comment_id) {
-              const parent = await Comment.findByPk(reply.parent_comment_id, {
-                include: [{ model: User, as: 'author', attributes: ['nickname', 'name'] }]
-              })
-              reply.dataValues.reply_to_name = parent && parent.author ? (parent.author.nickname || parent.author.name || '') : ''
-            } else {
-              reply.dataValues.reply_to_name = ''
-            }
-          }
-        }
-      }
+      // 使用CommentTreeBuilder构建无限级嵌套回复
+      const result = await CommentTreeBuilder.buildCommentTree(null, resourceId, limit, offset)
 
       res.json({
         success: true,
-        data: {
-          comments: rows,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total: count,
-            totalPages: Math.ceil(count / limit)
-          }
-        }
+        data: result
       })
     } catch (error) {
       console.error('获取评论列表错误:', error)

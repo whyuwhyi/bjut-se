@@ -8,6 +8,7 @@ const { Op } = require('sequelize')
 const idGenerator = require('../utils/IdGenerator')
 const searchHelper = require('../utils/SearchHelper')
 const searchCache = require('../utils/RedisSearchCache')
+const CommentTreeBuilder = require('../utils/commentTreeBuilder')
 const NotificationService = require('../services/NotificationService')
 
 class PostController {
@@ -354,68 +355,13 @@ class PostController {
       const { page = 1, limit = 20 } = req.query
       const offset = (page - 1) * limit
 
-      const comments = await Comment.findAndCountAll({
-        where: { 
-          post_id: id, 
-          status: 'active',
-          parent_comment_id: null
-        },
-        attributes: ['comment_id', 'author_phone', 'post_id', 'resource_id', 'parent_comment_id', 'content', 'status', 'created_at', 'updated_at'],
-        include: [
-          {
-            model: User,
-            as: 'author',
-            attributes: ['phone_number', 'name', 'nickname', 'avatar_url']
-          },
-          {
-            model: Comment,
-            as: 'replies',
-            include: [
-              {
-                model: User,
-                as: 'author',
-                attributes: ['phone_number', 'name', 'nickname', 'avatar_url']
-              }
-            ],
-            where: { status: 'active' },
-            required: false
-          }
-        ],
-        order: [['created_at', 'DESC']],
-        limit: parseInt(limit),
-        offset: offset
-      })
-
-      // 为每条回复补充 reply_to_name 字段
-      for (const comment of comments.rows) {
-        if (comment.replies && comment.replies.length > 0) {
-          for (const reply of comment.replies) {
-            if (reply.parent_comment_id) {
-              const parent = await Comment.findByPk(reply.parent_comment_id, {
-                include: [{ model: User, as: 'author', attributes: ['nickname', 'name'] }]
-              })
-              reply.dataValues.reply_to_name = parent && parent.author ? (parent.author.nickname || parent.author.name || '') : ''
-            } else {
-              reply.dataValues.reply_to_name = ''
-            }
-          }
-        }
-      }
-
-      const totalPages = Math.ceil(comments.count / limit)
+      // 使用CommentTreeBuilder构建无限级嵌套回复
+      const result = await CommentTreeBuilder.buildCommentTree(id, null, limit, offset)
 
       res.status(200).json({
         success: true,
         message: '获取评论列表成功',
-        data: {
-          comments: comments.rows,
-          pagination: {
-            currentPage: parseInt(page),
-            totalPages,
-            totalItems: comments.count,
-            itemsPerPage: parseInt(limit)
-          }
-        }
+        data: result
       })
     } catch (error) {
       console.error('获取评论列表失败:', error)

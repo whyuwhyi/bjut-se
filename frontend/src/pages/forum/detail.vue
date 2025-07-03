@@ -65,47 +65,22 @@
 					:style="{height: commentTextareaHeight + 'px'}"
 					@input="adjustCommentTextareaHeight"
 				></textarea>
-				<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
-				<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
-					<text class="cancel-text">取消回复</text>
+				<view class="comment-actions">
+					<button class="submit-btn" @click="handleSubmitComment" :disabled="sending">{{ sending ? '发送中...' : '发表' }}</button>
+					<view class="cancel-reply" v-if="replyTarget" @click="cancelReply">
+						<text class="cancel-text">取消回复</text>
+					</view>
 				</view>
 			</view>
 			<!-- 评论列表 -->
 			<view class="comment-list">
-				<view class="comment-item" v-for="(comment, index) in comments" :key="comment.comment_id">
-					<image class="comment-avatar" :src="comment.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(comment.userPhone, comment)"></image>
-					<view class="comment-content">
-						<view class="comment-header">
-							<text class="comment-username">{{ comment.userName }}</text>
-							<text class="comment-time">{{ formatTime(comment.createTime) }}</text>
-						</view>
-						<text class="comment-text">{{ comment.content }}</text>
-						<view class="comment-footer">
-							<view class="reply-btn" @click="replyToComment(comment)">
-								<text class="reply-text">回复</text>
-							</view>
-						</view>
-						<!-- 回复列表 -->
-						<view class="replies" v-if="comment.replies && comment.replies.length > 0">
-							<view class="reply-item" v-for="reply in comment.replies" :key="reply.comment_id">
-								<image class="reply-avatar" :src="reply.userAvatar || '/static/images/default-avatar.png'" @click.stop="viewUserProfile(reply.userPhone, reply)"></image>
-								<view class="reply-content-wrap">
-									<view class="reply-header">
-										<view class="reply-info">
-											<text class="reply-author">
-												{{ reply.userName }}<template v-if="reply.replyToName"> 回复 {{ reply.replyToName }}</template>：
-											</text>
-											<text class="reply-time">{{ formatTime(reply.createTime) }}</text>
-										</view>
-									</view>
-									<view class="reply-content">
-										<text class="reply-text">{{ reply.content }}</text>
-									</view>
-								</view>
-							</view>
-						</view>
-					</view>
-				</view>
+				<HybridComment
+					v-for="comment in comments"
+					:key="comment.comment_id"
+					:comment="comment"
+					@reply="replyToComment"
+					@viewProfile="viewUserProfile"
+				/>
 			</view>
 		</view>
 		
@@ -240,23 +215,25 @@ export default {
 					method: 'GET'
 				})
 				if (response.statusCode === 200 && response.data.success) {
-					this.comments = (response.data.data.comments || []).map(comment => ({
-						comment_id: comment.comment_id,
-						userName: comment.author?.nickname || comment.author?.name || '匿名用户',
-						userPhone: comment.author?.phone_number,
-						userAvatar: comment.author?.avatar_url || '/static/images/default-avatar.png',
-						content: comment.content,
-						createTime: new Date(comment.created_at),
-						replies: (comment.replies || []).map(reply => ({
-							comment_id: reply.comment_id,
-							userName: reply.author?.nickname || reply.author?.name || '匿名用户',
-							userPhone: reply.author?.phone_number,
-							userAvatar: reply.author?.avatar_url || '/static/images/default-avatar.png',
-							content: reply.content,
-							createTime: new Date(reply.created_at),
-							replyToName: reply.reply_to_name || ''
+					// 递归处理评论数据，确保所有层级都有正确的格式
+					const processComments = (comments) => {
+						return comments.map(comment => ({
+							...comment,
+							// 确保时间是Date对象
+							createTime: comment.createTime ? new Date(comment.createTime) : new Date(comment.created_at),
+							// 确保有默认头像
+							userAvatar: comment.userAvatar || '/static/images/default-avatar.png',
+							// 确保有用户名
+							userName: comment.userName || '匿名用户',
+							// 确保回复相关字段
+							replyToName: comment.replyToName || '',
+							replyToContent: comment.replyToContent || '',
+							// 递归处理子回复
+							replies: comment.replies ? processComments(comment.replies) : []
 						}))
-					}))
+					}
+					
+					this.comments = processComments(response.data.data.comments || [])
 				}
 			} catch (error) {
 				uni.showToast({ title: '加载评论失败', icon: 'none' })
@@ -512,6 +489,9 @@ export default {
 				})
 			}
 		}
+	},
+	components: {
+		HybridComment: () => import('@/components/HybridComment.vue')
 	}
 }
 </script>
@@ -710,33 +690,42 @@ export default {
 		font-size: 28rpx;
 		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
 	}
-	.submit-btn {
-		width: 120rpx;
-		height: 72rpx;
-		line-height: 72rpx;
-		text-align: center;
-		background: #6CB4EE;
-		color: white;
-		border-radius: 12rpx;
-		font-size: 28rpx;
-		padding: 0;
-		margin: 0;
-		box-shadow: 0 2rpx 8rpx rgba(108, 180, 238, 0.3);
-		transition: all 0.3s ease;
-		&:active {
-			transform: scale(0.95);
-			background: #5AA1DB;
+	.comment-actions {
+		display: flex;
+		align-items: center;
+		gap: 10rpx;
+		
+		.submit-btn {
+			width: 120rpx;
+			height: 72rpx;
+			line-height: 72rpx;
+			text-align: center;
+			background: #6CB4EE;
+			color: white;
+			border-radius: 12rpx;
+			font-size: 28rpx;
+			padding: 0;
+			margin: 0;
+			box-shadow: 0 2rpx 8rpx rgba(108, 180, 238, 0.3);
+			transition: all 0.3s ease;
+			&:active {
+				transform: scale(0.95);
+				background: #5AA1DB;
+			}
 		}
-	}
-	.cancel-reply {
-		padding: 4rpx 12rpx;
-		background: #f5f5f5;
-		border-radius: 12rpx;
-		font-size: 24rpx;
-		color: #666;
-		margin-left: 10rpx;
-		&:active {
-			background: #e0e0e0;
+		
+		.cancel-reply {
+			height: 72rpx;
+			line-height: 72rpx;
+			padding: 0 16rpx;
+			background: #f5f5f5;
+			border-radius: 12rpx;
+			font-size: 26rpx;
+			color: #666;
+			text-align: center;
+			&:active {
+				background: #e0e0e0;
+			}
 		}
 	}
 }
@@ -844,6 +833,101 @@ export default {
 								word-break: break-all;
 								white-space: pre-wrap;
 								overflow-wrap: anywhere;
+							}
+						}
+						
+						.reply-footer {
+							display: flex;
+							justify-content: flex-end;
+							margin-top: 6rpx;
+							.reply-btn {
+								padding: 3rpx 10rpx;
+								background: #f5f5f5;
+								border-radius: 10rpx;
+								font-size: 22rpx;
+								color: #666;
+								&:active {
+									background: #e0e0e0;
+								}
+							}
+						}
+						
+						.nested-replies {
+							margin-top: 8rpx;
+							margin-left: 20rpx;
+							border-left: 2rpx solid #f0f0f0;
+							padding-left: 10rpx;
+							
+							.nested-reply-item {
+								display: flex;
+								flex-direction: row;
+								align-items: flex-start;
+								padding: 8rpx 0;
+								border-bottom: 1rpx solid #f8f8f8;
+								&:last-child {
+									border-bottom: none;
+									padding-bottom: 0;
+								}
+								
+								.nested-reply-avatar {
+									width: 32rpx;
+									height: 32rpx;
+									border-radius: 50%;
+									margin-right: 8rpx;
+								}
+								
+								.nested-reply-content-wrap {
+									flex: 1;
+									display: flex;
+									flex-direction: column;
+									
+									.nested-reply-header {
+										display: flex;
+										align-items: center;
+										margin-bottom: 4rpx;
+										
+										.nested-reply-info {
+											flex: 1;
+											.nested-reply-author {
+												font-size: 22rpx;
+												font-weight: bold;
+												color: #333;
+												margin-right: 6rpx;
+											}
+											.nested-reply-time {
+												font-size: 18rpx;
+												color: #999;
+											}
+										}
+									}
+									
+									.nested-reply-content {
+										.nested-reply-text {
+											font-size: 22rpx;
+											color: #333;
+											line-height: 1.5;
+											word-break: break-all;
+											white-space: pre-wrap;
+											overflow-wrap: anywhere;
+										}
+									}
+									
+									.nested-reply-footer {
+										display: flex;
+										justify-content: flex-end;
+										margin-top: 4rpx;
+										.reply-btn {
+											padding: 2rpx 8rpx;
+											background: #f5f5f5;
+											border-radius: 8rpx;
+											font-size: 20rpx;
+											color: #666;
+											&:active {
+												background: #e0e0e0;
+											}
+										}
+									}
+								}
 							}
 						}
 					}
