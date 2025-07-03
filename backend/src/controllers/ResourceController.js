@@ -2,6 +2,7 @@ const { Resource, User, File, Collection, Comment, Rating, Category, Notificatio
 const idGenerator = require('../utils/IdGenerator')
 const searchHelper = require('../utils/SearchHelper')
 const searchCache = require('../utils/RedisSearchCache')
+const NotificationService = require('../services/NotificationService')
 const { Op } = require('sequelize')
 
 class ResourceController {
@@ -545,6 +546,21 @@ class ResourceController {
 
       // 清除相关缓存
       await searchCache.invalidate('resource', 'update')
+
+      // 如果资源审核通过，异步推送通知给关注者
+      if (action === 'approve') {
+        try {
+          await NotificationService.notifyFollowersAboutNewContent(
+            resource.publisher_phone,
+            'resource',
+            resource.resource_id,
+            resource.resource_name
+          )
+        } catch (notificationError) {
+          // 通知推送失败不影响审核结果
+          console.error('推送关注者通知失败:', notificationError)
+        }
+      }
       
       res.json({
         success: true,

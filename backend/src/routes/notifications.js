@@ -25,7 +25,7 @@ const validateCreateNotification = [
     .withMessage('内容长度必须在1-5000个字符之间'),
   body('type')
     .optional()
-    .isIn(['system', 'study', 'interaction', 'resource', 'announcement'])
+    .isIn(['system', 'study', 'interaction', 'resource', 'announcement', 'follow_post', 'follow_resource', 'comment_reply', 'content_liked', 'content_commented', 'new_follower'])
     .withMessage('通知类型无效'),
   body('priority')
     .optional()

@@ -256,19 +256,27 @@ CREATE TABLE sub_tasks (
 CREATE TABLE notifications (
     notification_id VARCHAR(9) PRIMARY KEY COMMENT '通知ID',
     receiver_phone VARCHAR(11) NULL COMMENT '接收者手机号（为空表示广播通知，面向全体用户）',
-    type ENUM('system', 'study', 'interaction', 'resource', 'announcement') NOT NULL COMMENT '通知类型',
+    type ENUM('system', 'study', 'interaction', 'resource', 'announcement', 'follow_post', 'follow_resource', 'comment_reply', 'content_liked', 'content_commented', 'new_follower') NOT NULL COMMENT '通知类型',
     priority ENUM('high', 'medium', 'low') DEFAULT 'medium' COMMENT '优先级',
     title VARCHAR(200) NOT NULL COMMENT '通知标题',
     content TEXT NOT NULL COMMENT '通知内容',
     action_type ENUM('none', 'navigate', 'external_link') DEFAULT 'none' COMMENT '动作类型',
     action_url VARCHAR(500) COMMENT '动作URL',
     action_params JSON COMMENT '动作参数',
+    related_user_phone VARCHAR(11) NULL COMMENT '相关用户手机号（如：内容发布者、评论者）',
+    related_content_id VARCHAR(9) NULL COMMENT '相关内容ID（如：帖子ID、资源ID）',
+    related_content_type ENUM('post', 'resource', 'comment') NULL COMMENT '相关内容类型',
     is_read BOOLEAN DEFAULT FALSE COMMENT '是否已读（只对个人通知有效）',
     read_at TIMESTAMP NULL COMMENT '阅读时间（只对个人通知有效）',
     expires_at TIMESTAMP NULL COMMENT '过期时间',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE
+    FOREIGN KEY (receiver_phone) REFERENCES users(phone_number) ON DELETE CASCADE,
+    FOREIGN KEY (related_user_phone) REFERENCES users(phone_number) ON DELETE SET NULL,
+    INDEX idx_receiver_type (receiver_phone, type),
+    INDEX idx_related_user (related_user_phone),
+    INDEX idx_related_content (related_content_id, related_content_type),
+    INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='通知表';
 
 -- 16. 广播通知已读状态表
@@ -531,13 +539,16 @@ INSERT INTO sub_tasks (task_id, title, description, completed, sort_order, deadl
 
 
 -- 插入通知
-INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
-('600000001', '13800138002', 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', false, NOW(), NOW()),
-('600000002', '13800138003', 'system', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', false, NOW(), NOW());
+INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, related_user_phone, related_content_id, related_content_type, is_read, created_at, updated_at) VALUES
+('600000001', '13800138002', 'system', 'medium', '欢迎使用平台', '欢迎加入学习社区！', 'none', NULL, NULL, NULL, false, NOW(), NOW()),
+('600000002', '13800138003', 'new_follower', 'low', '新的关注者', '李同学开始关注您了！', 'navigate', '13800138002', NULL, NULL, false, NOW(), NOW()),
+('600000004', '13800138002', 'follow_post', 'medium', '关注用户发布了新帖子', '张教授发布了新帖子：《算法学习心得》', 'navigate', '13800138001', '100000001', 'post', false, NOW(), NOW()),
+('600000005', '13800138003', 'follow_resource', 'medium', '关注用户发布了新资源', '张教授上传了新资源：《数据结构与算法教程》', 'navigate', '13800138001', '123456789', 'resource', false, NOW(), NOW()),
+('600000006', '13800138001', 'content_commented', 'low', '您的帖子收到新评论', '李同学评论了您的帖子：《算法学习心得》', 'navigate', '13800138002', '100000001', 'post', false, NOW(), NOW());
 
 -- 插入一个广播通知示例（receiver_phone为NULL）
-INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, is_read, created_at, updated_at) VALUES
-('600000003', NULL, 'announcement', 'high', '系统维护通知', '系统将于今晚23:00-24:00进行维护，请合理安排学习时间。', 'none', false, NOW(), NOW());
+INSERT INTO notifications (notification_id, receiver_phone, type, priority, title, content, action_type, related_user_phone, related_content_id, related_content_type, is_read, created_at, updated_at) VALUES
+('600000003', NULL, 'announcement', 'high', '系统维护通知', '系统将于今晚23:00-24:00进行维护，请合理安排学习时间。', 'none', NULL, NULL, NULL, false, NOW(), NOW());
 
 -- 插入广播通知已读状态示例（只有用户13800138002标记了这个广播通知为已读）
 INSERT INTO notification_reads (user_phone, notification_id, read_at, created_at, updated_at) VALUES
@@ -662,3 +673,282 @@ SELECT
     report_count as declared_count,
     (SELECT COUNT(*) FROM post_reports WHERE post_id = posts.post_id) as actual_count
 FROM posts;
+
+-- ================================================================
+-- 第六部分：用户计数器一致性检测与修复
+-- ================================================================
+
+-- 用户计数器一致性检测函数
+DELIMITER $$
+
+CREATE PROCEDURE CheckAndFixUserCounters()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE user_phone VARCHAR(11);
+    DECLARE actual_post_count, actual_resource_count, actual_follower_count, actual_following_count INT;
+    DECLARE current_post_count, current_resource_count, current_follower_count, current_following_count INT;
+    
+    -- 游标声明
+    DECLARE user_cursor CURSOR FOR SELECT phone_number FROM users;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    -- 创建临时表来记录不一致的用户
+    DROP TEMPORARY TABLE IF EXISTS temp_inconsistent_users;
+    CREATE TEMPORARY TABLE temp_inconsistent_users (
+        phone_number VARCHAR(11),
+        field_name VARCHAR(20),
+        current_value INT,
+        actual_value INT,
+        difference INT
+    );
+    
+    -- 开始检测每个用户的计数器
+    OPEN user_cursor;
+    
+    read_loop: LOOP
+        FETCH user_cursor INTO user_phone;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        -- 获取当前用户表中的计数值
+        SELECT post_count, resource_count, follower_count, following_count
+        INTO current_post_count, current_resource_count, current_follower_count, current_following_count
+        FROM users WHERE phone_number = user_phone;
+        
+        -- 计算实际的帖子数量（状态为active的帖子）
+        SELECT COUNT(*) INTO actual_post_count
+        FROM posts 
+        WHERE author_phone = user_phone AND status = 'active';
+        
+        -- 计算实际的资源数量（状态为published的资源）
+        SELECT COUNT(*) INTO actual_resource_count
+        FROM resources 
+        WHERE publisher_phone = user_phone AND status = 'published';
+        
+        -- 计算实际的粉丝数量（被关注数）
+        SELECT COUNT(*) INTO actual_follower_count
+        FROM user_follows 
+        WHERE following_phone = user_phone AND status = 'active';
+        
+        -- 计算实际的关注数量（关注别人的数量）
+        SELECT COUNT(*) INTO actual_following_count
+        FROM user_follows 
+        WHERE follower_phone = user_phone AND status = 'active';
+        
+        -- 检测帖子数不一致
+        IF current_post_count != actual_post_count THEN
+            INSERT INTO temp_inconsistent_users VALUES 
+            (user_phone, 'post_count', current_post_count, actual_post_count, actual_post_count - current_post_count);
+        END IF;
+        
+        -- 检测资源数不一致
+        IF current_resource_count != actual_resource_count THEN
+            INSERT INTO temp_inconsistent_users VALUES 
+            (user_phone, 'resource_count', current_resource_count, actual_resource_count, actual_resource_count - current_resource_count);
+        END IF;
+        
+        -- 检测粉丝数不一致
+        IF current_follower_count != actual_follower_count THEN
+            INSERT INTO temp_inconsistent_users VALUES 
+            (user_phone, 'follower_count', current_follower_count, actual_follower_count, actual_follower_count - current_follower_count);
+        END IF;
+        
+        -- 检测关注数不一致
+        IF current_following_count != actual_following_count THEN
+            INSERT INTO temp_inconsistent_users VALUES 
+            (user_phone, 'following_count', current_following_count, actual_following_count, actual_following_count - current_following_count);
+        END IF;
+        
+    END LOOP;
+    
+    CLOSE user_cursor;
+    
+    -- 显示检测结果
+    SELECT 
+        '=== 用户计数器一致性检测结果 ===' as message,
+        COUNT(*) as inconsistent_records
+    FROM temp_inconsistent_users;
+    
+    -- 如果有不一致的记录，显示详情
+    IF (SELECT COUNT(*) FROM temp_inconsistent_users) > 0 THEN
+        SELECT 
+            phone_number as '用户手机号',
+            field_name as '字段名',
+            current_value as '当前值',
+            actual_value as '实际值',
+            difference as '差异',
+            CASE 
+                WHEN difference > 0 THEN '需要增加'
+                WHEN difference < 0 THEN '需要减少'
+                ELSE '一致'
+            END as '修复状态'
+        FROM temp_inconsistent_users
+        ORDER BY phone_number, field_name;
+    ELSE
+        SELECT '所有用户计数器都是一致的！' as message;
+    END IF;
+    
+END$$
+
+DELIMITER ;
+
+-- ================================================================
+-- 用户计数器修复函数
+-- ================================================================
+
+DELIMITER $$
+
+CREATE PROCEDURE FixUserCounters()
+BEGIN
+    DECLARE user_phone VARCHAR(11);
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE users_updated INT DEFAULT 0;
+    DECLARE user_cursor CURSOR FOR SELECT phone_number FROM users;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    -- 记录修复前的状态
+    SELECT 
+        '修复前状态：' as message,
+        COUNT(*) as total_users,
+        SUM(CASE WHEN status = 'INCONSISTENT' THEN 1 ELSE 0 END) as inconsistent_users
+    FROM user_counter_consistency_check;
+    
+    -- 开始修复每个用户的计数器
+    OPEN user_cursor;
+    
+    fix_loop: LOOP
+        FETCH user_cursor INTO user_phone;
+        IF done THEN
+            LEAVE fix_loop;
+        END IF;
+        
+        -- 修复用户计数器
+        UPDATE users SET
+            post_count = (
+                SELECT COUNT(*) FROM posts 
+                WHERE author_phone = user_phone AND status = 'active'
+            ),
+            resource_count = (
+                SELECT COUNT(*) FROM resources 
+                WHERE publisher_phone = user_phone AND status = 'published'
+            ),
+            follower_count = (
+                SELECT COUNT(*) FROM user_follows 
+                WHERE following_phone = user_phone AND status = 'active'
+            ),
+            following_count = (
+                SELECT COUNT(*) FROM user_follows 
+                WHERE follower_phone = user_phone AND status = 'active'
+            )
+        WHERE phone_number = user_phone;
+        
+        SET users_updated = users_updated + 1;
+        
+    END LOOP;
+    
+    CLOSE user_cursor;
+    
+    -- 显示修复结果
+    SELECT 
+        '用户计数器批量修复完成！' as message,
+        users_updated as users_processed;
+    
+    -- 显示修复后的状态
+    SELECT 
+        '修复后状态：' as message,
+        COUNT(*) as total_users,
+        SUM(CASE WHEN status = 'INCONSISTENT' THEN 1 ELSE 0 END) as remaining_inconsistent_users,
+        CASE 
+            WHEN SUM(CASE WHEN status = 'INCONSISTENT' THEN 1 ELSE 0 END) = 0 
+            THEN '✅ 所有用户计数器已修复！'
+            ELSE CONCAT('⚠️ 仍有 ', SUM(CASE WHEN status = 'INCONSISTENT' THEN 1 ELSE 0 END), ' 个用户计数器不一致')
+        END as result_status
+    FROM user_counter_consistency_check;
+    
+END$$
+
+DELIMITER ;
+
+-- ================================================================
+-- 创建定期一致性检测视图
+-- ================================================================
+
+CREATE VIEW user_counter_consistency_check AS
+SELECT 
+    u.phone_number,
+    u.nickname,
+    u.post_count as stored_post_count,
+    (SELECT COUNT(*) FROM posts WHERE author_phone = u.phone_number AND status = 'active') as actual_post_count,
+    u.resource_count as stored_resource_count,
+    (SELECT COUNT(*) FROM resources WHERE publisher_phone = u.phone_number AND status = 'published') as actual_resource_count,
+    u.follower_count as stored_follower_count,
+    (SELECT COUNT(*) FROM user_follows WHERE following_phone = u.phone_number AND status = 'active') as actual_follower_count,
+    u.following_count as stored_following_count,
+    (SELECT COUNT(*) FROM user_follows WHERE follower_phone = u.phone_number AND status = 'active') as actual_following_count,
+    CASE 
+        WHEN u.post_count != (SELECT COUNT(*) FROM posts WHERE author_phone = u.phone_number AND status = 'active') 
+             OR u.resource_count != (SELECT COUNT(*) FROM resources WHERE publisher_phone = u.phone_number AND status = 'published')
+             OR u.follower_count != (SELECT COUNT(*) FROM user_follows WHERE following_phone = u.phone_number AND status = 'active')
+             OR u.following_count != (SELECT COUNT(*) FROM user_follows WHERE follower_phone = u.phone_number AND status = 'active')
+        THEN 'INCONSISTENT'
+        ELSE 'CONSISTENT'
+    END as status
+FROM users u
+ORDER BY u.phone_number;
+
+-- ================================================================
+-- 执行一致性检测和自动修复
+-- ================================================================
+
+-- 执行一致性检测
+CALL CheckAndFixUserCounters();
+
+-- 自动修复发现的不一致问题
+SELECT '=== 开始自动修复用户计数器不一致问题 ===' as message;
+CALL FixUserCounters();
+
+-- 修复后重新检测验证
+SELECT '=== 修复完成，重新验证一致性 ===' as message;
+CALL CheckAndFixUserCounters();
+
+-- 最终一致性检测报告
+SELECT 
+    '=== 最终数据一致性检测报告 ===' as report_title,
+    NOW() as check_time;
+
+-- 显示不一致的用户
+SELECT * FROM user_counter_consistency_check WHERE status = 'INCONSISTENT';
+
+-- 显示最终状态
+SELECT 
+    '=== 🎉 数据库初始化完成报告 ===' as title,
+    NOW() as completion_time;
+
+SELECT 
+    '总体统计' as category,
+    (SELECT COUNT(*) FROM users) as total_users,
+    (SELECT COUNT(*) FROM resources) as total_resources,
+    (SELECT COUNT(*) FROM posts) as total_posts,
+    (SELECT COUNT(*) FROM user_follows) as total_follows;
+
+-- 最终一致性状态
+SELECT 
+    '用户计数器一致性状态' as category,
+    COUNT(*) as total_users,
+    SUM(CASE WHEN status = 'CONSISTENT' THEN 1 ELSE 0 END) as consistent_users,
+    SUM(CASE WHEN status = 'INCONSISTENT' THEN 1 ELSE 0 END) as inconsistent_users,
+    CONCAT(
+        ROUND(SUM(CASE WHEN status = 'CONSISTENT' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2), 
+        '%'
+    ) as consistency_rate
+FROM user_counter_consistency_check;
+
+-- 最终成功消息
+SELECT 
+    CASE 
+        WHEN (SELECT COUNT(*) FROM user_counter_consistency_check WHERE status = 'INCONSISTENT') = 0
+        THEN '✅ 数据库初始化成功！所有用户计数器已自动修复并保持一致。'
+        ELSE CONCAT('⚠️ 注意：仍有 ', (SELECT COUNT(*) FROM user_counter_consistency_check WHERE status = 'INCONSISTENT'), ' 个用户的计数器不一致，可能需要手动检查。')
+    END as final_status,
+    '数据库已准备就绪，可以开始使用系统。' as ready_status;
