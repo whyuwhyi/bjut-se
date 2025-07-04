@@ -3,6 +3,7 @@ const idGenerator = require('../utils/IdGenerator')
 const searchHelper = require('../utils/SearchHelper')
 const searchCache = require('../utils/RedisSearchCache')
 const NotificationService = require('../services/NotificationService')
+const cacheCleanupService = require('../services/CacheCleanupService')
 const { Op } = require('sequelize')
 
 class ResourceController {
@@ -850,6 +851,14 @@ class ResourceController {
 
       // 清除相关缓存
       await searchCache.invalidate('resource', 'delete')
+
+      // 触发缓存清理
+      try {
+        await cacheCleanupService.manualCleanup()
+        console.log('用户删除资源后触发缓存清理完成')
+      } catch (cleanupError) {
+        console.error('触发缓存清理失败:', cleanupError)
+      }
 
       res.status(200).json({
         success: true,

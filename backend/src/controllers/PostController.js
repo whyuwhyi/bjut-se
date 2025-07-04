@@ -10,6 +10,7 @@ const searchHelper = require('../utils/SearchHelper')
 const searchCache = require('../utils/RedisSearchCache')
 const CommentTreeBuilder = require('../utils/commentTreeBuilder')
 const NotificationService = require('../services/NotificationService')
+const cacheCleanupService = require('../services/CacheCleanupService')
 
 class PostController {
 
@@ -499,6 +500,14 @@ class PostController {
 
       // 清除相关缓存
       await searchCache.invalidate('post', 'delete')
+
+      // 触发缓存清理
+      try {
+        await cacheCleanupService.manualCleanup()
+        console.log('用户删除帖子后触发缓存清理完成')
+      } catch (cleanupError) {
+        console.error('触发缓存清理失败:', cleanupError)
+      }
 
       res.status(200).json({
         success: true,

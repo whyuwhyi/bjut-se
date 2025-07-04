@@ -2,6 +2,7 @@ const { User, Resource, Post, Notification, NotificationRead, Comment, Collectio
 const idGenerator = require('../utils/IdGenerator');
 const { Op } = require('sequelize');
 const Docker = require('dockerode');
+const cacheCleanupService = require('../services/CacheCleanupService');
 
 class AdminController {
   // 初始化Docker客户端
@@ -1579,6 +1580,14 @@ class AdminController {
         is_read: false
       });
 
+      // 触发缓存清理
+      try {
+        await cacheCleanupService.manualCleanup();
+        console.log('管理员删除资源后触发缓存清理完成');
+      } catch (cleanupError) {
+        console.error('触发缓存清理失败:', cleanupError);
+      }
+
       res.json({
         success: true,
         message: '资源删除成功'
@@ -1803,6 +1812,14 @@ class AdminController {
           action_type: 'none',
           is_read: false
         });
+
+        // 触发缓存清理
+        try {
+          await cacheCleanupService.manualCleanup();
+          console.log('管理员更新帖子状态后触发缓存清理完成');
+        } catch (cleanupError) {
+          console.error('触发缓存清理失败:', cleanupError);
+        }
       }
 
       res.json({

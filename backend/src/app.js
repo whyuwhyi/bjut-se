@@ -9,6 +9,7 @@ const config = require('./config/app')
 const { sequelize } = require('./models')
 const routes = require('./routes')
 const { errorHandler, notFound } = require('./middleware/errorHandler')
+const cacheCleanupService = require('./services/CacheCleanupService')
 
 const app = express()
 
@@ -102,6 +103,9 @@ const startServer = async () => {
       console.log('数据库模型同步已禁用，请使用SQL脚本初始化数据库')
     }
 
+    // 启动缓存清理服务
+    cacheCleanupService.start()
+
     // 启动服务器
     const server = app.listen(config.server.port, config.server.host, () => {
       console.log(`服务器运行在 http://${config.server.host}:${config.server.port}`)
@@ -111,6 +115,7 @@ const startServer = async () => {
     // 优雅关闭
     process.on('SIGTERM', () => {
       console.log('收到SIGTERM信号，正在关闭服务器...')
+      cacheCleanupService.stop()
       server.close(() => {
         console.log('服务器已关闭')
         sequelize.close()
