@@ -87,7 +87,9 @@ class ResourceController {
         })
       }
       const offset = (page - 1) * limit
-      const where = { status }
+      const where = { 
+        status: { [Op.notIn]: ['archived', 'deleted'] } 
+      }
       const include = [
         {
           model: User,
@@ -252,7 +254,10 @@ class ResourceController {
       const { id } = req.params
 
       const resource = await Resource.findOne({
-        where: { resource_id: id },
+        where: { 
+          resource_id: id,
+          status: { [Op.notIn]: ['archived', 'deleted'] }
+        },
         include: [
           {
             model: User,

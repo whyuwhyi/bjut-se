@@ -13,6 +13,9 @@ router.post('/resources/:resourceId', ReportController.reportResource);
 // 举报帖子
 router.post('/posts/:postId', ReportController.reportPost);
 
+// 举报评论
+router.post('/comments/:commentId', ReportController.reportComment);
+
 // 获取我的举报记录
 router.get('/my-reports', ReportController.getMyReports);
 

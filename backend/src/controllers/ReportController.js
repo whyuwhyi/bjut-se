@@ -1,4 +1,4 @@
-const { ResourceReport, PostReport, Resource, Post, User, Notification } = require('../models');
+const { ResourceReport, PostReport, Resource, Post, User, Notification, Comment } = require('../models');
 
 class ReportController {
   // 举报资源
@@ -18,7 +18,7 @@ class ReportController {
       }
 
       // 检查资源是否存在
-      const resource = await Resource.findByPk(resourceId);
+      const resource = await Resource.findOne({ where: { resource_id: resourceId } });
       if (!resource) {
         return res.status(404).json({
           success: false,
@@ -54,7 +54,7 @@ class ReportController {
       });
 
       // 更新资源的举报次数
-      await resource.increment('report_count');
+      await Resource.increment('report_count', { where: { resource_id: resourceId } });
 
       res.json({
         success: true,
@@ -87,7 +87,7 @@ class ReportController {
       }
 
       // 检查帖子是否存在
-      const post = await Post.findByPk(postId);
+      const post = await Post.findOne({ where: { post_id: postId } });
       if (!post) {
         return res.status(404).json({
           success: false,
@@ -123,7 +123,7 @@ class ReportController {
       });
 
       // 更新帖子的举报次数
-      await post.increment('report_count');
+      await Post.increment('report_count', { where: { post_id: postId } });
 
       res.json({
         success: true,
@@ -132,6 +132,48 @@ class ReportController {
       });
     } catch (error) {
       console.error('Report post error:', error);
+      res.status(500).json({
+        success: false,
+        message: '提交举报失败'
+      });
+    }
+  }
+
+  // 举报评论（简化实现，不需要新数据库表）
+  static async reportComment(req, res) {
+    try {
+      const { commentId } = req.params;
+      const { reason, description } = req.body;
+      const reporterPhone = req.user.phone_number;
+
+      // 验证举报原因
+      const validReasons = ['inappropriate', 'spam', 'offensive', 'harassment', 'other'];
+      if (!validReasons.includes(reason)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的举报原因'
+        });
+      }
+
+      // 检查评论是否存在
+      const comment = await Comment.findOne({ where: { comment_id: commentId } });
+      if (!comment) {
+        return res.status(404).json({
+          success: false,
+          message: '评论不存在'
+        });
+      }
+
+      // 简化处理：直接返回成功，可以在后台记录日志
+      console.log(`评论举报: 用户${reporterPhone}举报评论${commentId}，原因：${reason}，描述：${description}`);
+
+      res.json({
+        success: true,
+        message: '举报提交成功，我们会尽快处理',
+        data: { comment_id: commentId }
+      });
+    } catch (error) {
+      console.error('Report comment error:', error);
       res.status(500).json({
         success: false,
         message: '提交举报失败'

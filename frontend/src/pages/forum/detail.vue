@@ -19,7 +19,7 @@
 						<text class="action-icon">📤</text>
 						<text class="action-text">分享</text>
 					</view>
-					<view class="action-btn report-btn" @click="showReportModal" @tap="showReportModal" style="pointer-events: auto;">
+					<view class="action-btn report-btn" @click="showReportModal">
 						<text class="action-icon">🚨</text>
 						<text class="action-text">举报</text>
 					</view>
@@ -118,10 +118,12 @@ import QRCode from 'qrcode'
 import ReportModal from '@/components/ReportModal.vue'
 import config from '@/utils/config'
 import { navigateToUserProfile } from '@/utils/userUtils'
+import eventBus, { EVENTS } from '@/utils/eventBus'
 
 export default {
 	components: {
-		ReportModal
+		ReportModal,
+		HybridComment: () => import('@/components/HybridComment.vue')
 	},
 	data() {
 		return {
@@ -167,6 +169,13 @@ export default {
 				
 				if (response.statusCode === 200 && response.data.success) {
 					this.post = response.data.data
+					
+					// 发送浏览数更新事件
+					eventBus.emit(EVENTS.POST_VIEW_CHANGED, {
+						postId: this.postId,
+						viewCount: this.post.view_count
+					})
+					
 					// 检查是否已收藏
 					this.checkCollectionStatus()
 				} else {
@@ -275,6 +284,18 @@ export default {
 					this.commentText = ''
 					this.replyTarget = null
 					this.loadComments()
+					
+					// 更新本地帖子评论数
+					if (this.post) {
+						this.post.comment_count = (this.post.comment_count || 0) + 1
+					}
+					
+					// 发送评论数更新事件
+					eventBus.emit(EVENTS.POST_COMMENT_CHANGED, {
+						postId: this.postId,
+						commentCount: this.post.comment_count
+					})
+					
 					uni.showToast({ title: '评论成功', icon: 'success' })
 				}
 			} catch (error) {
@@ -445,74 +466,66 @@ export default {
 		},
 		
 		// 举报评论
-		reportComment(comment) {
-			uni.showActionSheet({
-				itemList: ['垃圾信息', '违法违规', '恶意辱骂', '色情内容', '其他'],
-				success: (res) => {
-					const reasons = ['垃圾信息', '违法违规', '恶意辱骂', '色情内容', '其他']
-					const reason = reasons[res.tapIndex]
-					
-					// 这里可以调用举报API
-					uni.showToast({
-						title: `已举报：${reason}`,
-						icon: 'success'
-					})
-					
-					// TODO: 实际调用举报API
-					// this.submitReport(comment, reason)
-				}
-			})
-		},
-		
-		async toggleCollection() {
-			try {
-				const token = uni.getStorageSync('token')
-				if (!token) {
-					uni.showToast({
-						title: '请先登录',
-						icon: 'none'
-					})
-					return
-				}
-				
-				// 立即更新UI状态，提供即时反馈
-				const newCollectedState = !this.isCollected
-				this.isCollected = newCollectedState
-				
-				const response = await uni.request({
-					url: `${config.apiBaseUrl}/posts/${this.postId}/favorite`,
-					method: 'POST',
-					header: {
-						'Authorization': `Bearer ${token}`,
-						'Content-Type': 'application/json'
-					},
-					data: {
-						type: 'post'
-					}
-				})
-				
-				if (response.statusCode === 200 && response.data.success) {
-					this.isCollected = response.data.data.isCollected
-					uni.showToast({
-						title: this.isCollected ? '收藏成功' : '已取消收藏',
-						icon: 'success'
-					})
-				} else {
-					// 如果请求失败，恢复原始状态
-					this.isCollected = !newCollectedState
-					throw new Error(response.data.message || '操作失败')
-				}
-			} catch (error) {
-				console.error('收藏操作失败:', error)
+		async reportComment(comment) {
+			console.log('reportComment called with:', comment)
+			const token = uni.getStorageSync('token')
+			if (!token) {
 				uni.showToast({
-					title: error.message || '收藏操作失败',
+					title: '请先登录',
 					icon: 'none'
 				})
+				return
 			}
+			
+			uni.showActionSheet({
+				itemList: ['内容不当', '垃圾信息', '冒犯性内容', '骚扰他人', '其他'],
+				success: async (res) => {
+					const reasonMap = {
+						0: 'inappropriate',
+						1: 'spam', 
+						2: 'offensive',
+						3: 'harassment',
+						4: 'other'
+					}
+					const reasonLabels = ['内容不当', '垃圾信息', '冒犯性内容', '骚扰他人', '其他']
+					const reason = reasonMap[res.tapIndex]
+					const reasonLabel = reasonLabels[res.tapIndex]
+					
+					try {
+						// 调用举报API
+						const response = await uni.request({
+							url: `${config.default.apiBaseUrl}/reports/comments/${comment.comment_id}`,
+							method: 'POST',
+							header: {
+								'Authorization': `Bearer ${token}`,
+								'Content-Type': 'application/json'
+							},
+							data: {
+								reason: reason,
+								description: `举报原因：${reasonLabel}`
+							}
+						})
+						
+						console.log('评论举报API响应:', response)
+						if (response.statusCode === 200 && response.data.success) {
+							uni.showToast({
+								title: response.data.message || '举报提交成功',
+								icon: 'success'
+							})
+						} else {
+							console.error('评论举报失败响应:', response)
+							throw new Error(response.data?.message || `API错误: ${response.statusCode}`)
+						}
+					} catch (error) {
+						console.error('举报评论失败:', error)
+						uni.showToast({
+							title: error.message || '举报失败',
+							icon: 'none'
+						})
+					}
+				}
+			})
 		}
-	},
-	components: {
-		HybridComment: () => import('@/components/HybridComment.vue')
 	}
 }
 </script>
@@ -1028,4 +1041,5 @@ export default {
 	color: #888;
 	margin-bottom: 10rpx;
 }
+
 </style>

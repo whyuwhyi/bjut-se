@@ -57,7 +57,9 @@ class PostController {
       }
       
       const offset = (page - 1) * limit
-      let whereClause = { status: 'active' }
+      let whereClause = { 
+        status: { [Op.notIn]: ['deleted', 'archived'] } 
+      }
       
       // 智能搜索条件 - 使用JOIN查询支持关联表搜索
       if (search) {
@@ -183,7 +185,10 @@ class PostController {
       const { id } = req.params
 
       const post = await Post.findOne({
-        where: { post_id: id, status: 'active' },
+        where: { 
+          post_id: id, 
+          status: { [Op.notIn]: ['deleted', 'archived'] } 
+        },
         include: [
           {
             model: User,
@@ -396,7 +401,12 @@ class PostController {
         })
       }
 
-      const post = await Post.findOne({ where: { post_id: id, status: 'active' } })
+      const post = await Post.findOne({ 
+        where: { 
+          post_id: id, 
+          status: { [Op.notIn]: ['deleted', 'archived'] } 
+        } 
+      })
       if (!post) {
         return res.status(404).json({
           success: false,
@@ -413,6 +423,19 @@ class PostController {
       })
 
       await post.increment('comment_count')
+      
+      // 重新获取帖子最新数据
+      await post.reload()
+      
+      // 更新缓存中的评论统计数据
+      try {
+        await updatePostStatsInCache(id, { 
+          comment_count: post.comment_count,
+          commentCount: post.comment_count
+        })
+      } catch (cacheError) {
+        console.error('更新帖子评论缓存失败:', cacheError)
+      }
 
       const newComment = await Comment.findOne({
         where: { comment_id: comment.comment_id },

@@ -1,7 +1,20 @@
 <template>
 	<view class="resource-detail-container">
-		<!-- 资源头部信息 -->
-		<view class="resource-header">
+		<!-- 加载状态 -->
+		<view v-if="!resource.id && resource.title === '加载中...' && !loadError" class="loading-container">
+			<text class="loading-text">加载中...</text>
+		</view>
+		
+		<!-- 错误状态 -->
+		<view v-else-if="loadError" class="error-container">
+			<text class="error-text">{{ loadError }}</text>
+			<button class="retry-btn" @click="loadResourceDetail">重试</button>
+		</view>
+		
+		<!-- 资源详情内容 -->
+		<template v-else-if="resource.id">
+			<!-- 资源头部信息 -->
+			<view class="resource-header">
 			<view class="resource-icon-section">
 				<image :src="getFileIcon(resource.fileType)" class="file-icon-large"></image>
 				<view class="file-info">
@@ -56,7 +69,7 @@
 				<text class="btn-icon">📤</text>
 				<text class="btn-text">分享</text>
 			</button>
-			<button class="action-btn report-btn" @click="showReportModal" @tap="showReportModal" style="pointer-events: auto;">
+			<button class="action-btn report-btn" @click="showReportModal">
 				<text class="btn-icon">🚨</text>
 				<text class="btn-text">举报</text>
 			</button>
@@ -164,13 +177,14 @@
 				<button v-if="!qrCodeVisible" class="share-popup-close" @click="closeSharePopup">取消</button>
 			</view>
 		</view>
+		</template>
 
 		<!-- 举报弹窗 -->
 		<ReportModal 
 			ref="reportModal"
 			content-type="resource"
 			:content-id="resourceId"
-			:content-title="resource ? resource.title : ''"
+			:content-title="resource.title"
 			@reported="onReported"
 		/>
 	</view>
@@ -185,11 +199,13 @@ import eventBus, { EVENTS } from '@/utils/eventBus'
 
 export default {
 	components: {
-		ReportModal
+		ReportModal,
+		HybridComment: () => import('@/components/HybridComment.vue')
 	},
 	data() {
 		return {
 			resourceId: '',
+			loadError: null,
 			resource: {
 				id: '',
 				resource_id: '',
@@ -247,6 +263,7 @@ export default {
 	methods: {
 		async loadResourceDetail() {
 			try {
+				this.loadError = null
 				uni.showLoading({ title: '加载中...' })
 				
 				const response = await uni.request({
@@ -286,7 +303,10 @@ export default {
 					
 					console.log('处理后的资源数据:', this.resource)
 				} else {
-					throw new Error('获取资源详情失败')
+					this.loadError = response.data.message || '获取资源详情失败'
+					// 重置resource到初始状态，但清空id以触发错误状态显示
+					this.resource.id = ''
+					this.resource.title = '加载中...'
 				}
 				
 				// 检查收藏状态
@@ -298,11 +318,11 @@ export default {
 				uni.hideLoading()
 			} catch (error) {
 				console.error('加载资源详情错误:', error)
+				this.loadError = '网络错误，请检查网络连接'
+				// 重置resource到初始状态，但清空id以触发错误状态显示
+				this.resource.id = ''
+				this.resource.title = '加载中...'
 				uni.hideLoading()
-				uni.showToast({
-					title: '加载失败',
-					icon: 'none'
-				})
 			}
 		},
 		
@@ -841,27 +861,65 @@ export default {
 		},
 		
 		// 举报评论
-		reportComment(comment) {
+		async reportComment(comment) {
+			const token = uni.getStorageSync('token')
+			if (!token) {
+				uni.showToast({
+					title: '请先登录',
+					icon: 'none'
+				})
+				return
+			}
+			
 			uni.showActionSheet({
-				itemList: ['垃圾信息', '违法违规', '恶意辱骂', '色情内容', '其他'],
-				success: (res) => {
-					const reasons = ['垃圾信息', '违法违规', '恶意辱骂', '色情内容', '其他']
-					const reason = reasons[res.tapIndex]
+				itemList: ['内容不当', '垃圾信息', '冒犯性内容', '骚扰他人', '其他'],
+				success: async (res) => {
+					const reasonMap = {
+						0: 'inappropriate',
+						1: 'spam', 
+						2: 'offensive',
+						3: 'harassment',
+						4: 'other'
+					}
+					const reasonLabels = ['内容不当', '垃圾信息', '冒犯性内容', '骚扰他人', '其他']
+					const reason = reasonMap[res.tapIndex]
+					const reasonLabel = reasonLabels[res.tapIndex]
 					
-					// 这里可以调用举报API
-					uni.showToast({
-						title: `已举报：${reason}`,
-						icon: 'success'
-					})
-					
-					// TODO: 实际调用举报API
-					// this.submitReport(comment, reason)
+					try {
+						// 调用举报API
+						const response = await uni.request({
+							url: `${config.default.apiBaseUrl}/reports/comments/${comment.comment_id}`,
+							method: 'POST',
+							header: {
+								'Authorization': `Bearer ${token}`,
+								'Content-Type': 'application/json'
+							},
+							data: {
+								reason: reason,
+								description: `举报原因：${reasonLabel}`
+							}
+						})
+						
+						console.log('评论举报API响应:', response)
+						if (response.statusCode === 200 && response.data.success) {
+							uni.showToast({
+								title: response.data.message || '举报提交成功',
+								icon: 'success'
+							})
+						} else {
+							console.error('评论举报失败响应:', response)
+							throw new Error(response.data?.message || `API错误: ${response.statusCode}`)
+						}
+					} catch (error) {
+						console.error('举报评论失败:', error)
+						uni.showToast({
+							title: error.message || '举报失败',
+							icon: 'none'
+						})
+					}
 				}
 			})
 		}
-	},
-	components: {
-		HybridComment: () => import('@/components/HybridComment.vue')
 	}
 }
 </script>
@@ -1493,5 +1551,29 @@ export default {
 	font-size: 28rpx;
 	color: #856404;
 	font-weight: 500;
+}
+
+.loading-container, .error-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 100rpx 40rpx;
+	text-align: center;
+}
+
+.loading-text, .error-text {
+	font-size: 32rpx;
+	color: #666;
+	margin-bottom: 20rpx;
+}
+
+.retry-btn {
+	background: #007aff;
+	color: white;
+	border: none;
+	border-radius: 8rpx;
+	padding: 20rpx 40rpx;
+	font-size: 28rpx;
 }
 </style>

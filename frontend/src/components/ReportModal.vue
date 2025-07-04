@@ -121,18 +121,63 @@ export default {
       try {
         this.submitting = true
         
-        // 暂时模拟提交成功，避免API调用问题
-        uni.showToast({
-          title: '举报提交成功',
-          icon: 'success',
-          duration: 2000
+        const token = uni.getStorageSync('token')
+        if (!token) {
+          uni.showToast({
+            title: '请先登录',
+            icon: 'none'
+          })
+          return
+        }
+        
+        // 验证contentId
+        if (!this.contentId) {
+          throw new Error('内容ID不能为空')
+        }
+        
+        // 实际调用举报API
+        const config = require('@/utils/config').default
+        const apiPath = this.contentType === 'resource' 
+          ? `/reports/resources/${this.contentId}`
+          : `/reports/posts/${this.contentId}`
+        
+        console.log('举报API调试信息:')
+        console.log('- contentType:', this.contentType)
+        console.log('- contentId:', this.contentId)
+        console.log('- apiPath:', apiPath)
+        console.log('- config.apiBaseUrl:', config.apiBaseUrl)
+        console.log('- 完整URL:', `${config.apiBaseUrl}${apiPath}`)
+          
+        const response = await uni.request({
+          url: `${config.apiBaseUrl}${apiPath}`,
+          method: 'POST',
+          header: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          data: {
+            reason: this.selectedReason,
+            description: this.description.trim() || undefined
+          }
         })
-        this.closeModal()
-        this.$emit('reported')
+        
+        console.log('举报API响应:', response)
+        if (response.statusCode === 200 && response.data.success) {
+          uni.showToast({
+            title: response.data.message || '举报提交成功',
+            icon: 'success',
+            duration: 2000
+          })
+          this.closeModal()
+          this.$emit('reported')
+        } else {
+          console.error('举报失败响应:', response)
+          throw new Error(response.data?.message || `API错误: ${response.statusCode}`)
+        }
       } catch (error) {
         console.error('提交举报失败:', error)
         uni.showToast({
-          title: '举报提交失败',
+          title: error.message || '举报提交失败',
           icon: 'none',
           duration: 2000
         })

@@ -37,6 +37,14 @@ module.exports = {
     },
     // Docker 环境配置
     host: process.env.DEV_HOST || '0.0.0.0',
-    port: process.env.DEV_PORT || 8080
+    port: process.env.DEV_PORT || 8080,
+    // 代理配置
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
 }; 
